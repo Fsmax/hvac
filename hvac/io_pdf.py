@@ -285,7 +285,7 @@ def export_to_pdf(project: "HVACProject", path: str,
 
         # Свод по этажам
         from collections import defaultdict
-        by_level = defaultdict(lambda: {"n": 0, "area": 0.0, "q": 0.0})
+        by_level: dict = defaultdict(lambda: {"n": 0, "area": 0.0, "q": 0.0})
         for s in loaded:
             by_level[s.level]["n"] += 1
             by_level[s.level]["area"] += s.area_m2
@@ -298,7 +298,7 @@ def export_to_pdf(project: "HVACProject", path: str,
             ud = d["q"] / max(d["area"], 1)
             rows.append([lvl, d["n"], f"{d['area']:.0f}",
                          f"{d['q']/1000:.1f}", f"{ud:.1f}"])
-        rows.append(["ИТОГО", len(loaded), f"{total_area:.0f}",
+        rows.append(["ИТОГО", str(len(loaded)), f"{total_area:.0f}",
                      f"{total/1000:.1f}", f"{total/max(total_area,1):.1f}"])
         add_table(rows, col_widths=[3 * cm, 2 * cm, 3 * cm, 3 * cm, 3 * cm])
 
@@ -343,7 +343,7 @@ def export_to_pdf(project: "HVACProject", path: str,
         total_v = total_q = 0.0
         for name, sys in sorted(project.dhw_systems.items()):
             rows.append([
-                name, sys.n_consumers,
+                name, str(sys.n_consumers),
                 f"{sys.v_daily_total_m3:.1f}",
                 f"{sys.v_hourly_max_m3:.2f}",
                 f"{sys.q_peak_w/1000:.1f}",
@@ -389,10 +389,10 @@ def export_to_pdf(project: "HVACProject", path: str,
         if project.cooling_systems:
             elements.append(Paragraph("Источники холода", style_h2))
             rows = [["Имя", "Тип", "t подачи", "t обр.", "Хладагент", "EER/COP"]]
-            for name, c in sorted(project.cooling_systems.items()):
-                rows.append([name, c.system_type, f"{c.t_supply}°C",
-                             f"{c.t_return}°C", c.refrigerant,
-                             f"{c.cop:.2f}"])
+            for name, cs in sorted(project.cooling_systems.items()):
+                rows.append([name, cs.system_type, f"{cs.t_supply}°C",
+                             f"{cs.t_return}°C", cs.refrigerant,
+                             f"{cs.cop:.2f}"])
             add_table(rows, col_widths=[3.5 * cm, 4 * cm, 2 * cm,
                                          2 * cm, 2.5 * cm, 1.5 * cm])
 
@@ -494,17 +494,17 @@ def export_to_pdf(project: "HVACProject", path: str,
                      "Площадь, м²", "Зон",
                      "L зоны, м³/ч", "L сист., м³/ч", "L комп., м³/ч",
                      "Огнест."]]
-            for name, s in sorted(smoke.items()):
-                method_label = method_labels.get(s.calc_method, s.calc_method)
-                method_cell = f"{method_label}\n{_system_params_str(s)}"
+            for name, ss in sorted(smoke.items()):
+                method_label = method_labels.get(ss.calc_method, ss.calc_method)
+                method_cell = f"{method_label}\n{_system_params_str(ss)}"
                 rows.append([
-                    name, s.purpose, method_cell,
-                    f"{s.served_area_m2:.0f}",
-                    str(s.n_zones),
-                    f"{s.L_per_zone_m3h:,.0f}".replace(",", " "),
-                    f"{s.L_smoke_m3h:,.0f}".replace(",", " "),
-                    f"{s.L_makeup_m3h:,.0f}".replace(",", " "),
-                    s.fire_rating,
+                    name, ss.purpose, method_cell,
+                    f"{ss.served_area_m2:.0f}",
+                    str(ss.n_zones),
+                    f"{ss.L_per_zone_m3h:,.0f}".replace(",", " "),
+                    f"{ss.L_smoke_m3h:,.0f}".replace(",", " "),
+                    f"{ss.L_makeup_m3h:,.0f}".replace(",", " "),
+                    ss.fire_rating,
                 ])
             add_table(rows, col_widths=[2.2 * cm, 2.2 * cm, 4.5 * cm,
                                          1.6 * cm, 1.0 * cm,
@@ -527,7 +527,7 @@ def export_to_pdf(project: "HVACProject", path: str,
                 "Системы подпора воздуха (СПВ)", style_h2))
             rows = [["Имя", "Назначение", "Помещение",
                      "L, м³/ч", "Давление, Па"]]
-            for name, s in sorted(press.items()):
+            for name, ps in sorted(press.items()):
                 # Найти первое помещение, к которому привязана СПВ
                 room_label = ""
                 for sp in project.spaces:
@@ -535,9 +535,9 @@ def export_to_pdf(project: "HVACProject", path: str,
                         room_label = f"{sp.number} {sp.name}"[:30]
                         break
                 rows.append([
-                    name, s.purpose, room_label,
-                    f"{s.L_smoke_m3h:,.0f}".replace(",", " "),
-                    f"{s.pressure_pa:.1f}",
+                    name, ps.purpose, room_label,
+                    f"{ps.L_smoke_m3h:,.0f}".replace(",", " "),
+                    f"{ps.pressure_pa:.1f}",
                 ])
             add_table(rows, col_widths=[3 * cm, 2.5 * cm, 5 * cm,
                                          2.5 * cm, 2.5 * cm])
@@ -585,21 +585,21 @@ def export_to_pdf(project: "HVACProject", path: str,
             "Подбор по рекомендованным скоростям (СП 60), потери давления — "
             "формула Альтшуля. Точная балансировка стояков — в "
             "Audytor C.O. или MagiCAD.", style_body))
-        for sys_name, net in sorted(project.pipe_networks.items()):
-            pump_m = net.total_pressure_loss_pa / (WATER_DENSITY_70C * 9.81)
+        for sys_name, pnet in sorted(project.pipe_networks.items()):
+            pump_m = pnet.total_pressure_loss_pa / (WATER_DENSITY_70C * 9.81)
             elements.append(Paragraph(
-                f"{sys_name}: Σ Q = {net.total_heat_load_w/1000:.1f} кВт, "
-                f"Σ G = {net.total_flow_kg_h:.0f} кг/ч, "
-                f"Δp = {net.total_pressure_loss_pa/1000:.1f} кПа, "
+                f"{sys_name}: Σ Q = {pnet.total_heat_load_w/1000:.1f} кВт, "
+                f"Σ G = {pnet.total_flow_kg_h:.0f} кг/ч, "
+                f"Δp = {pnet.total_pressure_loss_pa/1000:.1f} кПа, "
                 f"напор насоса ≈ {pump_m:.1f} м", style_h2))
             rows = [["Участок", "Q, Вт", "DN", "v, м/с", "Δp, Па"]]
-            for sec in net.sections:
+            for psec in pnet.sections:
                 rows.append([
-                    sec.id[-30:],
-                    f"{sec.heat_load_w:,.0f}".replace(",", " "),
-                    f"{int(sec.dn_mm)}",
-                    f"{sec.velocity_m_s:.2f}",
-                    f"{sec.pressure_loss_total_pa:.0f}",
+                    psec.id[-30:],
+                    f"{psec.heat_load_w:,.0f}".replace(",", " "),
+                    f"{int(psec.dn_mm)}",
+                    f"{psec.velocity_m_s:.2f}",
+                    f"{psec.pressure_loss_total_pa:.0f}",
                 ])
             add_table(rows, col_widths=[6 * cm, 3 * cm, 2 * cm,
                                          2 * cm, 2 * cm])
@@ -1049,7 +1049,7 @@ def export_to_pdf(project: "HVACProject", path: str,
                       if sys.outdoor else 0.0)
             rows.append([
                 name, out_name,
-                len(sys.indoors), sys.total_indoor_capacity_index,
+                str(len(sys.indoors)), str(sys.total_indoor_capacity_index),
                 f"{sys.combination_ratio:.2f}",
                 f"{q_cool:.1f}", f"{q_heat:.1f}",
                 f"{sys.main_pipe_length_m:.0f}",
