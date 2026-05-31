@@ -30,5 +30,5 @@ def _set_row(table: QTableWidget, row: int, values: list[Any]) -> None:
             text = str(v)
         item = QTableWidgetItem(text)
         if isinstance(v, (int, float)):
-            item.setTextAlignment(int(Qt.AlignRight | Qt.AlignVCenter))
+            item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         table.setItem(row, c, item)

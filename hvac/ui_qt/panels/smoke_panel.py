@@ -468,7 +468,7 @@ class SmokePanel(QWidget):
             for c, text in enumerate(cells):
                 item = QTableWidgetItem(str(text))
                 if c in (4, 5, 6, 7, 8, 9):
-                    item.setTextAlignment(int(Qt.AlignRight | Qt.AlignVCenter))
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 item.setToolTip(method_label if c == 3 else (s.note or ""))
                 self.table.setItem(r, c, item)
             if s.system_type == "smoke_removal":
