@@ -76,4 +76,23 @@ files = [
     "hvac/io_excel/_detailed.py",
     "hvac/io_excel/__init__.py",
     "hvac/io_pdf.py",
+    # UI-слой — уже чистые модули. Остальные панели пока вне гейта:
+    # их блокируют ложные attr-defined от unscoped Qt-enum'ов (PySide6
+    # стабы знают только scoped-форму Qt.AlignmentFlag.AlignLeft).
+    "hvac/ui_qt/__init__.py",
+    "hvac/ui_qt/bridge.py",
+    "hvac/ui_qt/commands.py",
+    "hvac/ui_qt/settings.py",
+    "hvac/ui_qt/panels/__init__.py",
+    "hvac/ui_qt/widgets/__init__.py",
+    "hvac/ui_qt/panels/engineering_panel/__init__.py",
+    "hvac/ui_qt/panels/engineering_panel/_acoustics.py",
+    "hvac/ui_qt/panels/engineering_panel/_ducts.py",
+    "hvac/ui_qt/panels/engineering_panel/_energy.py",
+    "hvac/ui_qt/panels/engineering_panel/_fancoils.py",
+    "hvac/ui_qt/panels/engineering_panel/_hydraulics.py",
+    "hvac/ui_qt/panels/engineering_panel/_psychro.py",
+    "hvac/ui_qt/panels/engineering_panel/_radiators.py",
+    "hvac/ui_qt/panels/engineering_panel/_underfloor.py",
+    "hvac/ui_qt/panels/engineering_panel/_vrf.py",
 ]
