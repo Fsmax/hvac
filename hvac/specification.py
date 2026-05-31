@@ -45,7 +45,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, TYPE_CHECKING
+from typing import Dict, List, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hvac.project import HVACProject
@@ -194,7 +194,7 @@ def _add_dhw(spec: Specification, project: "HVACProject") -> None:
 
 def _add_radiators(spec: Specification, project: "HVACProject") -> None:
     """Группируем радиаторы по модели — выводим штучный итог."""
-    by_model: Dict[str, Dict] = {}
+    by_model: Dict[Tuple[str, int], Dict] = {}
     for sid, pick in (project.radiator_picks or {}).items():
         key = (pick.model.name, pick.sections if pick.model.is_sectional else 0)
         if key not in by_model:

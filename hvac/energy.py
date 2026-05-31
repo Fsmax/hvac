@@ -74,7 +74,7 @@ ENERGY_CLASS_THRESHOLDS = [
 # Базовые нормативные удельные показатели qh_у, кВт·ч/(м²·год)
 # Примерные значения по СП 50 для жилых зданий разной этажности
 # при ГСОП = 4000 (приведённые к 1 м² отапл. площади):
-BASE_HEATING_NORMS_KWH_M2 = {
+BASE_HEATING_NORMS_KWH_M2: Dict[str, float] = {
     # тип здания → норма при ГСОП 4000
     "жилое 1-3 этажа":   180,
     "жилое 4-5 этажей":  130,
@@ -269,7 +269,7 @@ def detect_building_type(project: "HVACProject") -> str:
         return "общественное"
 
     # Площадь по типам
-    by_type = {}
+    by_type: Dict[str, float] = {}
     for sp in project.spaces:
         by_type[sp.room_type] = by_type.get(sp.room_type, 0) + sp.area_m2
 

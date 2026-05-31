@@ -30,10 +30,20 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional, TypedDict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hvac.project import HVACProject
+    from hvac.models import Space
+
+
+class _SpaceParams(TypedDict):
+    """Предрасчитанные коэффициенты помещения для почасовой симуляции."""
+    space: "Space"
+    u_loss: float
+    u_gain: float
+    q_internal: float
+    schedule: str
 
 
 # ============================================================================
@@ -41,7 +51,7 @@ if TYPE_CHECKING:
 # ============================================================================
 
 # Будни / выходные — отдельно. Индекс 0..23 = часы 00:00..23:00.
-SCHEDULES = {
+SCHEDULES: Dict[str, Dict[str, Optional[List[float]]]] = {
     # Жилое: дома утром, вечером и ночью
     "residential": {
         "weekday": [
@@ -129,8 +139,10 @@ def occupancy_factor(schedule_key: str, hour_of_year: int) -> float:
     is_weekend = (day_of_year % 7) >= 5
     profile = (schedules.get("weekend") if is_weekend
                 else schedules.get("weekday"))
-    if profile is None:
-        profile = schedules["weekday"]
+    if not profile:                       # weekend=None → берём будни
+        profile = schedules.get("weekday")
+    if not profile:
+        return 0.0
     return float(profile[hour_of_day])
 
 
@@ -245,7 +257,7 @@ def simulate_year(
 
     # Расчётные удельные значения для каждого помещения (для линейного
     # масштабирования с T_out)
-    space_params = []
+    space_params: List[_SpaceParams] = []
     for sp in spaces:
         # K·F·(t_внутр − t_наружн) — линейная зависимость от ΔT.
         # Используем результат уже выполненного расчёта на расчётные условия:

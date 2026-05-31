@@ -133,7 +133,7 @@ class RadiatorModel:
 # производителей (Kermi Therm-X2 FK0, Purmo Compact, Buderus K-Profil):
 
 # Удельная мощность Q при ΔT=50K (Вт/м длины) по высоте и типу
-KERMI_Q_PER_M = {
+KERMI_Q_PER_M: Dict[int, Dict[int, float]] = {
     # height_mm: {type11, type22, type33}
     300:  {11: 478, 22:  936, 33: 1366},
     400:  {11: 596, 22: 1170, 33: 1696},
@@ -155,7 +155,7 @@ KERMI_DEPTH_MM = {11: 65, 22: 100, 33: 155}
 KERMI_LENGTHS_MM = [400, 500, 600, 700, 800, 900, 1000, 1200, 1400,
                      1600, 1800, 2000, 2300, 2600, 3000]
 
-PURMO_Q_PER_M = {
+PURMO_Q_PER_M: Dict[int, Dict[int, float]] = {
     300:  {11: 471, 22:  922, 33: 1345},
     400:  {11: 589, 22: 1158, 33: 1689},
     500:  {11: 722, 22: 1428, 33: 2076},
@@ -406,7 +406,7 @@ def select_radiators_for_spaces(
 
     Возвращает {space_id: RadiatorPick | None}.
     """
-    result = {}
+    result: Dict[str, Optional[RadiatorPick]] = {}
     for sp in spaces:
         q = getattr(sp, "heat_loss_w", 0.0)
         if q <= 0:

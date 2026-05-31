@@ -77,7 +77,7 @@ PIPE_CATALOG: List[UnderfloorPipe] = [
 
 # Зависимость удельной теплоотдачи от шага укладки (для типового покрытия плитка).
 # Базовый шаг = 150 мм, q_factor = 1.0.
-PITCH_FACTOR = {
+PITCH_FACTOR: Dict[float, float] = {
     100: 1.22,
     150: 1.00,
     200: 0.84,

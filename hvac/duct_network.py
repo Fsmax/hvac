@@ -330,7 +330,7 @@ class DuctNetworkDetailed:
         self.branches = branches
 
     # ---------- Сводки ----------
-    def summary(self) -> Dict[str, float]:
+    def summary(self) -> Dict[str, object]:
         return {
             "n_edges": len(self.edges),
             "n_terminals": len(self.branches),

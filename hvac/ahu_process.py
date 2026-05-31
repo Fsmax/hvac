@@ -156,7 +156,7 @@ def compute_ahu_process(
         raise ValueError(f"Неизвестный режим: {mode!r}. "
                           f"Допустимо: winter/summer/transitional")
 
-    if mode != "summer":
+    if mode != "summer" and rh_out is not None:
         outdoor = AirState.from_t_rh(t_out, rh_out)
         proc.points["outdoor"] = outdoor
 
