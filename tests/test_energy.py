@@ -8,7 +8,10 @@ from hvac.energy import (
     annual_cooling_energy_kwh, hours_per_year_cooling,
     normative_qh, energy_class_for_deviation,
     ENERGY_CLASS_THRESHOLDS, BASE_HEATING_NORMS_KWH_M2,
+    degree_days_heating, calculate_passport,
 )
+from hvac.catalogs.climate import CLIMATE_DB
+from hvac.project import HVACProject
 from hvac.catalogs.shnq_energy import (
     normative_q_ov_shnq, building_type_to_shnq, dd_band_index,
 )
@@ -191,6 +194,46 @@ class TestShnqEnergy(unittest.TestCase):
                      "shnq_compliant", "q_design_specific_w_m2",
                      "q_ov_normative_w_m2"):
             self.assertTrue(hasattr(ep, attr), attr)
+
+
+class TestDegreeDaysDd(unittest.TestCase):
+    """Dd по КМК 2.01.04-18 форм.(1) с порогом сезона 10°C."""
+
+    def test_formula(self):
+        # Dd = (tв − tот.пер)·zот.пер
+        self.assertAlmostEqual(degree_days_heating(20.0, 4.0, 150), 2400.0)
+        self.assertAlmostEqual(degree_days_heating(18.0, 3.8, 132),
+                               (18.0 - 3.8) * 132)
+
+    def test_zero_duration(self):
+        self.assertEqual(degree_days_heating(20.0, 4.0, 0), 0.0)
+
+    def test_passport_uses_approx_without_climate10(self):
+        """Город без данных периода ≤10°C → Dd приближённый (dd_exact=False)."""
+        p = HVACProject()
+        p.params.city = "Ташкент"          # в climate.json нет z_ht_10
+        p.params.gsop_18 = 2100
+        ep = calculate_passport(p)
+        self.assertFalse(ep.dd_exact)
+        self.assertGreater(ep.dd_shnq, 0)
+
+    def test_passport_uses_exact_with_climate10(self):
+        """Если в климате есть z_ht_10/t_ht_10 → Dd точный по форм.(1)."""
+        CLIMATE_DB["__ТЕСТГОРОД__"] = {
+            "country": "UZ", "t_heat_092": -13, "t_heat_098": -17,
+            "t_cool_095": 36, "daily_amp": 14, "solar_vert": 750,
+            "gsop_18": 2100, "z_ht_10": 150, "t_ht_10": 4.0,
+        }
+        try:
+            p = HVACProject()
+            p.params.city = "__ТЕСТГОРОД__"
+            p.params.gsop_18 = 2100
+            ep = calculate_passport(p)
+            self.assertTrue(ep.dd_exact)
+            # Dd = (20 − 4.0)·150 = 2400
+            self.assertAlmostEqual(ep.dd_shnq, 2400.0)
+        finally:
+            del CLIMATE_DB["__ТЕСТГОРОД__"]
 
 
 if __name__ == "__main__":

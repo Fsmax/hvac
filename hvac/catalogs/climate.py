@@ -15,11 +15,22 @@
     daily_amp  — суточная амплитуда летом, K
     solar_vert — пиковая солнечная радиация на вертикальную поверхность, Вт/м²
     gsop_18    — градусо-сутки отопительного периода (база +18°C)
+
+Опциональные поля периода со среднесуточной t ≤ 10 °C (КМК 2.01.01-94),
+нужны для ТОЧНОГО расчёта Dd по КМК 2.01.04-18 форм.(1) и нормативов ШНҚ:
+    z_ht_10    — продолжительность периода ≤10°C, сут
+    t_ht_10    — средняя температура периода ≤10°C, °C
+Если их нет — Dd считается приближённо из gsop_18 (см. hvac/energy.py).
 """
 
 import json
 from importlib.resources import files
 from typing import Dict, TypedDict
+
+try:                                  # Python 3.11+
+    from typing import NotRequired
+except ImportError:                   # pragma: no cover
+    from typing_extensions import NotRequired
 
 
 class ClimateEntry(TypedDict):
@@ -31,6 +42,8 @@ class ClimateEntry(TypedDict):
     daily_amp: float
     solar_vert: float
     gsop_18: float
+    z_ht_10: NotRequired[float]   # длительность периода ≤10°C, сут (КМК 2.01.01-94)
+    t_ht_10: NotRequired[float]   # ср. температура периода ≤10°C, °C
 
 
 def _load_climate_db() -> Dict[str, ClimateEntry]:

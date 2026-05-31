@@ -115,7 +115,22 @@ class ConstructionsModel(QAbstractTableModel):
         return base
 
     def _r_norm(self, c: Construction) -> float:
-        return r_norm_for(c.category, self.project.params.gsop_18 or 0.0)
+        p = self.project.params
+        return r_norm_for(
+            c.category, p.gsop_18 or 0.0,
+            building_type=self._building_type(),
+            thermal_norm=getattr(p, "thermal_norm", "KMK_UZ"),
+            n_floors=self._n_floors(),
+        )
+
+    def _building_type(self) -> str:
+        """Тип здания для выбора категории нормы (по составу помещений)."""
+        from hvac.energy import detect_building_type
+        return detect_building_type(self.project)
+
+    def _n_floors(self) -> int:
+        """Число этажей (по уникальным уровням) — выбор res_low/res_high КМК."""
+        return len({sp.level for sp in self.project.spaces if sp.level}) or 1
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():

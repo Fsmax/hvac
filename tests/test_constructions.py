@@ -73,33 +73,98 @@ class TestLayers:
         assert c.u_value == pytest.approx(1.594, abs=0.01)
 
 
-# ===== R_норм =====
-class TestRNorm:
+# ===== R_норм: СП 50.13330 Табл.3 (линейно, thermal_norm="SP_RU") =====
+class TestRNormSP:
     def test_walls_residential_zero_gsop(self):
-        assert r_norm_for("Стены", 0) == 1.4  # R_min для стен
+        assert r_norm_for("Стены", 0, thermal_norm="SP_RU") == 1.4  # R_min
 
     def test_walls_at_typical_gsop(self):
-        # ГСОП = 5000 для Москвы (примерно)
-        # R = 0.00035*5000 + 1.4 = 3.15
-        assert r_norm_for("Стены", 5000) == pytest.approx(3.15, abs=0.01)
+        # ГСОП = 5000: R = 0.00035*5000 + 1.4 = 3.15
+        assert r_norm_for("Стены", 5000, thermal_norm="SP_RU") == pytest.approx(
+            3.15, abs=0.01)
 
     def test_walls_public_softer(self):
-        rn_res = r_norm_for("Стены", 5000, "residential")
-        rn_pub = r_norm_for("Стены", 5000, "public")
+        rn_res = r_norm_for("Стены", 5000, "residential", thermal_norm="SP_RU")
+        rn_pub = r_norm_for("Стены", 5000, "public", thermal_norm="SP_RU")
         assert rn_pub < rn_res
 
     def test_roof_higher_than_walls(self):
-        rn_wall = r_norm_for("Стены", 5000)
-        rn_roof = r_norm_for("Покрытие", 5000)
+        rn_wall = r_norm_for("Стены", 5000, thermal_norm="SP_RU")
+        rn_roof = r_norm_for("Покрытие", 5000, thermal_norm="SP_RU")
         assert rn_roof > rn_wall
 
     def test_unknown_category(self):
-        assert r_norm_for("Неизвестно", 5000) == 0.0
+        assert r_norm_for("Неизвестно", 5000, thermal_norm="SP_RU") == 0.0
 
     def test_u_norm_reciprocal(self):
-        rn = r_norm_for("Стены", 5000)
-        un = u_norm_for("Стены", 5000)
+        rn = r_norm_for("Стены", 5000, thermal_norm="SP_RU")
+        un = u_norm_for("Стены", 5000, thermal_norm="SP_RU")
         assert un == pytest.approx(1.0 / rn, rel=1e-6)
+
+
+# ===== R_норм: КМК 2.01.04-18 Табл.2а/2б/2в (ступенчато по полосам Dd) =====
+class TestRNormKMK:
+    def test_default_norm_is_kmk(self):
+        # Дефолт нормы — КМК. Общественное, стены, Dd≤2000, уровень 1 = 1.2
+        assert r_norm_for("Стены", 1500, "public", n_floors=2) == pytest.approx(1.2)
+
+    def test_dd_bands_step(self):
+        # public стены по полосам: ≤2000=1.2, 2000–3000=1.5, >3000=1.5
+        assert r_norm_for("Стены", 1500, "public") == pytest.approx(1.2)
+        assert r_norm_for("Стены", 2500, "public") == pytest.approx(1.5)
+        assert r_norm_for("Стены", 3500, "public") == pytest.approx(1.5)
+
+    def test_residential_low_vs_high(self):
+        # res_low (≤3 эт.) стены ≤2000 = 1.12; res_high (>3 эт.) = 1.5
+        low = r_norm_for("Стены", 1500, "residential", n_floors=3)
+        high = r_norm_for("Стены", 1500, "residential", n_floors=9)
+        assert low == pytest.approx(1.12)
+        assert high == pytest.approx(1.5)
+
+    def test_levels_increase(self):
+        # res_low стены ≤2000: уровни 2а/2б/2в = 1.12 / 1.6 / 1.8
+        l1 = r_norm_for("Стены", 1500, "residential", n_floors=3, level=1)
+        l2 = r_norm_for("Стены", 1500, "residential", n_floors=3, level=2)
+        l3 = r_norm_for("Стены", 1500, "residential", n_floors=3, level=3)
+        assert l1 < l2 < l3
+        assert (l1, l2, l3) == pytest.approx((1.12, 1.6, 1.8))
+
+    def test_roof_floor_scaled_by_n(self):
+        # Покрытие res_low ≤2000 база = 2.6; с n=0.6 над неотапл. = 2.6·0.6
+        full = r_norm_for("Покрытие", 1500, "residential", n_floors=3, n=1.0)
+        reduced = r_norm_for("Покрытие", 1500, "residential", n_floors=3, n=0.6)
+        assert full == pytest.approx(2.6)
+        assert reduced == pytest.approx(2.6 * 0.6)
+        # Стены коэффициентом n НЕ масштабируются
+        w1 = r_norm_for("Стены", 1500, "residential", n_floors=3, n=1.0)
+        w2 = r_norm_for("Стены", 1500, "residential", n_floors=3, n=0.6)
+        assert w1 == w2
+
+    def test_doors_not_normalized(self):
+        assert r_norm_for("Двери", 2500, "public") == 0.0
+
+    def test_explicit_dd_overrides_gsop(self):
+        # gsop_18 в полосе ≤2000, но явный dd в полосе >3000
+        assert r_norm_for("Стены", 1500, "public", dd=3500) == pytest.approx(1.5)
+
+
+# ===== Целостность данных КМК =====
+class TestKMKThermalData:
+    def test_all_levels_categories_complete(self):
+        from hvac.catalogs.kmk_thermal import _LEVELS
+        for lvl, data in _LEVELS.items():
+            for cat, rows in data["categories"].items():
+                assert len(rows) == 3, f"{lvl}/{cat}: ожидалось 3 полосы Dd"
+                for row in rows:
+                    assert len(row) == 5, f"{lvl}/{cat}: ожидалось 5 значений"
+                    assert all(v > 0 for v in row), f"{lvl}/{cat}: значение ≤0"
+
+    def test_category_mapping(self):
+        from hvac.catalogs.kmk_thermal import kmk_category_for
+        assert kmk_category_for("жилое 4-5 этажей", 5) == "res_high"
+        assert kmk_category_for("жилое 1-3 этажа", 3) == "res_low"
+        assert kmk_category_for("офис", 4) == "public"
+        assert kmk_category_for("общественное", 10) == "public"
 
 
 # ===== Пресеты =====
