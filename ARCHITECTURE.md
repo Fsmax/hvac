@@ -84,7 +84,7 @@ hvac_v4/
 │   │   ├── widgets/                # Карточки, чек-лист, sidebar, диалоги
 │   │   └── theme/                  # dark.qss / light.qss
 │
-├── tests/                      # 607 unit-тестов
+├── tests/                      # 659 unit-тестов
 ├── revit_dynamo_*.py           # Скрипты Dynamo для Revit
 └── resources/                  # Иконки
 ```
@@ -261,7 +261,7 @@ export_to_pdf(p, "report.pdf")
 | Аспект                       | Значение                          |
 |------------------------------|-----------------------------------|
 | Файлов Python в `hvac/`      | ~99                               |
-| Unit-тестов                  | 607                               |
+| Unit-тестов                  | 659                               |
 | Расчётных движков            | SP50Engine + VentilationEngine    |
 | Excel-листов                 | 14                                |
 | Qt-панелей                   | 16                                |

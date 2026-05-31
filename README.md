@@ -135,35 +135,35 @@ python -m pytest tests/ -v
 ## Структура пакета (кратко)
 
 ```
-hvac_v3/
-├── hvac_calc.py             # Точка входа (26 строк)
+hvac_v4/
+├── hvac_calc.py             # Точка входа (27 строк): GUI или CLI
 ├── ARCHITECTURE.md          # Подробное описание архитектуры
 │
-├── hvac/                    # Главный пакет
+├── hvac/                    # Главный пакет (~99 .py файлов)
 │   ├── models.py            # Структуры данных (Space, BoundaryElement, ...)
 │   ├── parsers.py           # Утилиты парсинга строк
 │   ├── data_loader.py       # Загрузка CSV из Revit
 │   ├── project.py           # HVACProject — оркестратор + event bus
-│   ├── catalogs/            # Справочники
-│   │   ├── climate.py       # БД климата 85 городов СНГ
-│   │   ├── room_types.py    # Типы помещений + авто-детект
-│   │   └── constructions.py # Каталог конструкций
-│   ├── engine/              # Расчётные движки (Strategy Pattern)
-│   │   ├── base.py          # ABC + реестр
-│   │   └── sp50.py          # Движок СП 50.13330
+│   ├── _project_*.py        # Mixin'ы: ручной ввод, дымоудаление, расширения, валидация
+│   ├── catalogs/            # Справочники (климат, типы помещений, конструкции, нормы)
+│   ├── engine/              # Расчётные движки (Strategy): base / sp50 / ventilation
+│   ├── psychro*.py · ahu_*.py · duct_*.py · pipe_sizing.py · heating_hydraulics.py
+│   │                        # Психрометрия, AHU, воздуховоды, гидравлика
+│   ├── dew_point.py · dhw.py · energy*.py · smoke*.py · acoustics.py · specification.py
+│   │                        # Точка росы, ГВС, энергопаспорт, дымоудаление, акустика
 │   ├── reports.py           # Графики (Registry Pattern)
-│   ├── io_excel.py          # Экспорт в Excel
-│   ├── io_json.py           # Сохранение/загрузка проекта
-│   ├── io_revit.py          # CSV для обратной записи в Revit
+│   ├── i18n/                # Локализация RU/UZ (ru.py + uz.py + API)
+│   ├── io_excel/            # Экспорт в Excel (пакет: _core/_extensions/_detailed/_common)
+│   ├── io_pdf.py · io_json.py · io_revit.py · io_hlgc.py
+│   │                        # PDF-записка, save/load, CSV в Revit, HLGC-таблицы
 │   ├── cli.py               # Командный режим
-│   └── ui/                  # GUI на Tkinter
-│       ├── app.py           # Главное окно
-│       └── tabs.py          # 6 вкладок-классов
+│   └── ui_qt/               # GUI на PySide6
+│       ├── main_window.py · bridge.py · commands.py · export_center.py
+│       ├── panels/          # 16 функциональных панелей
+│       ├── widgets/         # Карточки, чек-лист, sidebar, диалоги
+│       └── theme/           # dark.qss / light.qss
 │
-├── tests/                   # Юнит-тесты (65 шт.)
-│   ├── test_parsers.py
-│   ├── test_engine_sp50.py
-│   └── test_room_types.py
+├── tests/                   # Юнит-тесты (659 шт.)
 │
 ├── revit_dynamo_hvac_write_csv.py    # Dynamo: выгрузка из Revit
 └── revit_dynamo_apply_results.py     # Dynamo: запись Q обратно в Revit
@@ -259,7 +259,7 @@ pip install -r requirements-dev.txt
 python -m pytest tests/ -q
 ```
 
-**643 теста** покрывают расчётное ядро: парсеры, движки СП 50/60,
+**659 тестов** покрывают расчётное ядро: парсеры, движки СП 50/60,
 вентиляцию, дымоудаление, ГВС, энергопаспорт, гидравлику, подбор
 оборудования, локализацию (RU/UZ) и защиту от хардкода UI-строк.
 
