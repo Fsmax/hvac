@@ -156,10 +156,18 @@ class ExtensionsPanel(QWidget):
         ep = getattr(self.project, "energy_passport", None)
         if not ep:
             return ""
+        if ep.shnq_compliant is None:
+            shnq = _t("panel.ext.sum.energy.shnq_na")
+        else:
+            key = ("panel.ext.sum.energy.shnq_ok" if ep.shnq_compliant
+                   else "panel.ext.sum.energy.shnq_fail")
+            shnq = _t(key).format(qd=ep.q_design_specific_w_m2,
+                                  qov=f"{ep.q_ov_normative_w_m2:.0f}")
         return _t("panel.ext.sum.energy").format(
-            cls=getattr(ep, "class_letter", "?"),
-            q=getattr(ep, "q_h_specific_kwh_m2", 0),
-            dev=getattr(ep, "deviation_percent", 0))
+            cls=ep.energy_class or "?",
+            q=ep.qh_specific_kwh_m2,
+            dev=ep.deviation_percent,
+            shnq=shnq)
 
     def _dew_summary(self) -> str:
         results = getattr(self.project, "condensation_results", []) or []

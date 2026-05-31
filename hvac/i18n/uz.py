@@ -425,10 +425,13 @@ UZ: Dict[str, str] = {
     "panel.ext.sum.dhw":       ("IIT tizimlari: {n}\nΣ sutkalik hajm: "
                                  "{v:.1f} m³/sut\nΣ cho‘qqi yuklama: "
                                  "{q:.1f} kVt"),
-    "panel.ext.sum.energy":    ("Energiya samaradorligi sinfi: {cls}\n"
+    "panel.ext.sum.energy":    ("Energiya samaradorligi sinfi (SP 50): {cls}\n"
                                  "Solishtirma iste'mol: {q:.1f} "
                                  "kVt·soat/(m²·yil)\nNormaga nisbatan "
-                                 "og‘ish: {dev:+.1f} %"),
+                                 "og‘ish: {dev:+.1f} %\nShNQ 2.01.18-24: {shnq}"),
+    "panel.ext.sum.energy.shnq_ok":   "mos keladi ({qd:.1f} ≤ {qov} Vt/m²)",
+    "panel.ext.sum.energy.shnq_fail": "MOS KELMAYDI ({qd:.1f} > {qov} Vt/m²)",
+    "panel.ext.sum.energy.shnq_na":   "tur/qavat uchun norma yo‘q",
     "panel.ext.sum.dew":       ("Tekshirilgan devorlar: {n}\n"
                                  "Kondensat xavfi bor: {risky}"),
     "panel.ext.sum.ducts":     ("Havo o‘tkazgich tarmoqlari: {n}\n"

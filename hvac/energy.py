@@ -349,8 +349,12 @@ def calculate_passport(project: "HVACProject",
     shnq_cat = building_type_to_shnq(building_type)
     q_design_specific = ((q_peak_heating + q_peak_vent) / total_area
                          if total_area > 0 else 0.0)
-    # Dd берём из ГСОП проекта (приближённо; ШНҚ Dd считается от tв).
-    q_ov_norm = normative_q_ov_shnq(shnq_cat, n_floors, params.gsop_18) or 0.0
+    # ШНҚ Dd считается от tв (≈20°C), а проектный ГСОП — от +18°C.
+    # Поправка базы: Dd_shnq = ГСОП_18 + z·(tв − 18). Период по ШНҚ —
+    # tср.сут ≤ 10°C (порог сезона приближаем оценкой по ГСОП).
+    t_in_shnq = 20.0
+    dd_shnq = params.gsop_18 + season["z_days"] * (t_in_shnq - 18.0)
+    q_ov_norm = normative_q_ov_shnq(shnq_cat, n_floors, dd_shnq) or 0.0
     shnq_compliant = (q_design_specific <= q_ov_norm) if q_ov_norm > 0 else None
 
     # ====== Годовые ======

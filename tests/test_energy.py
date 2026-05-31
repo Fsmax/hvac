@@ -182,6 +182,16 @@ class TestShnqEnergy(unittest.TestCase):
     def test_unknown_category_returns_none(self):
         self.assertIsNone(normative_q_ov_shnq("???", 1, 2000))
 
+    def test_passport_has_panel_summary_fields(self):
+        """Атрибуты, читаемые панелью «Энергия» (_energy_summary), существуют
+        под правильными именами (защита от регрессии class_letter/q_h_*)."""
+        from hvac.energy import EnergyPassport
+        ep = EnergyPassport()
+        for attr in ("energy_class", "qh_specific_kwh_m2", "deviation_percent",
+                     "shnq_compliant", "q_design_specific_w_m2",
+                     "q_ov_normative_w_m2"):
+            self.assertTrue(hasattr(ep, attr), attr)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
