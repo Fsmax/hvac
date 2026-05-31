@@ -259,16 +259,20 @@ def reynolds(velocity_m_s: float, inner_d_mm: float,
 
 
 def friction_factor_altshul(velocity_m_s: float, inner_d_mm: float,
-                             roughness_mm: float = ROUGHNESS_STEEL_MM) -> float:
+                             roughness_mm: float = ROUGHNESS_STEEL_MM,
+                             kin_visc: float = WATER_VISCOSITY_70C) -> float:
     """Коэф. трения по формуле Альтшуля.
 
     λ = 0.11 · (k_e/d + 68/Re)^0.25
 
     Для турбулентного режима (Re > 4000) — типичный случай отопления.
+    kin_visc — кинематическая вязкость теплоносителя, м²/с (по умолчанию
+    для 70 °C; для тёплого пола/холодоснабжения передавать своё значение
+    из water_properties()).
     """
     if inner_d_mm <= 0 or velocity_m_s <= 0:
         return 0.03  # дефолт
-    re = reynolds(velocity_m_s, inner_d_mm)
+    re = reynolds(velocity_m_s, inner_d_mm, kin_visc)
     if re < 100:
         return 64.0 / max(re, 1.0)  # ламинар
     k_rel = roughness_mm / inner_d_mm
@@ -278,16 +282,20 @@ def friction_factor_altshul(velocity_m_s: float, inner_d_mm: float,
 def pressure_loss_friction_water_pa(length_m: float, inner_d_mm: float,
                                      velocity_m_s: float,
                                      roughness_mm: float = ROUGHNESS_STEEL_MM,
-                                     density_kg_m3: float = WATER_DENSITY_70C
+                                     density_kg_m3: float = WATER_DENSITY_70C,
+                                     kin_visc: float = WATER_VISCOSITY_70C
                                      ) -> float:
     """Падение давления по трению, Па (Дарси-Вейсбах).
 
     Δp = λ · L/d · ρv²/2
+
+    Для контуров не на 70 °C передавать density_kg_m3 и kin_visc из
+    water_properties(t_avg) (основной расчёт сети это уже делает).
     """
     if inner_d_mm <= 0 or velocity_m_s <= 0:
         return 0.0
     d_m = inner_d_mm / 1000.0
-    lam = friction_factor_altshul(velocity_m_s, inner_d_mm, roughness_mm)
+    lam = friction_factor_altshul(velocity_m_s, inner_d_mm, roughness_mm, kin_visc)
     return lam * (length_m / d_m) * (density_kg_m3 * velocity_m_s ** 2 / 2.0)
 
 

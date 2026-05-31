@@ -460,7 +460,7 @@ def export_to_pdf(project: "HVACProject", path: str,
         method_labels = {
             "norm_per_m2":        "По норме (м³/ч·м²)",
             "kmk_zone_perimeter": "КМК Прил. 20, ф.(3): G=676.8·P·y^1.5·Ks",
-            "kmk_corridor":       "КМК Прил. 20, ф.(1)/(2): G1=3420·n^1.5",
+            "kmk_corridor":       "КМК Прил. 22, ф.(1)/(2): G=K·B·n·H^1.5",
             "nfpa_plume_axi":     "NFPA 92 п. 5.5.1: axisymmetric plume",
             "manual":             "Расход задан вручную",
             "corridor_formula":   "Упрощённая формула коридора",
@@ -478,8 +478,10 @@ def export_to_pdf(project: "HVACProject", path: str,
                         f"y={s.layer_height_m} м, "
                         f"Ks={s.ks_sprinkler}")
             if m == "kmk_corridor":
-                return (f"n={s.n_corridor}, "
-                        f"Kd={s.kd_door}")
+                kind = "общ." if s.corridor_public else "жил."
+                return (f"B={s.corridor_door_width_m} м, "
+                        f"H={s.corridor_door_height_m} м, "
+                        f"{kind}, Kd={s.kd_door}")
             if m == "nfpa_plume_axi":
                 return (f"Q={s.hrr_kw:.0f} кВт, "
                         f"z={s.plume_height_m} м, "

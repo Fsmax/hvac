@@ -7,10 +7,13 @@
 
 Источники
 ---------
-КМК 2.04.05-22 «Отопление, вентиляция и кондиционирование», Прил. 20–22:
-    - формула (1): G1 = 3420·n^1.5                       (коридор)
-    - формула (2): G1 = 4300·n^1.5·Kd                    (коридор с дверями)
-    - формула (3): G = 676.8·P·y^1.5·Ks                  (помещение ≤ 1600 м²)
+КМК 2.04.05-22 «Отопление, вентиляция и кондиционирование», Прил. 22
+(совпадает со СНиП 2.04.05-91* Прил. 22):
+    - формула (1): G = 3420·B·n·H^1.5         (коридор, жилые)
+    - формула (2): G = 4300·B·n·H^1.5·Kd      (коридор, общественные)
+    - формула (3): G = 676.8·P·y^1.5·Ks       (помещение ≤ 1600 м²)
+      где B — ширина створки двери, H — высота двери (≤2.5 м),
+      n — табличный коэф. от B, Kd — коэф. продолжительности открывания.
 
 NFPA 92 (2018) Section 5.5.1 (axisymmetric plume):
     Limiting height of plume: zl = 0.166·Qc^(2/5)        [5.5.1.1c]
@@ -62,26 +65,61 @@ def kmk_zone_perimeter_kg_h(fire_perimeter_m: float,
     return 676.8 * P * (y ** 1.5) * ks_sprinkler
 
 
-def kmk_corridor_kg_h(n: float, kd_door: float = 1.0,
-                       with_door: bool = False) -> float:
-    """КМК Прил. 20, формулы (1) и (2): расход дыма из коридора, кг/ч.
+# Коэффициент n из таблицы КМК/СНиП 2.04.05 Прил.22 в зависимости от
+# ширины большей створки двери B, м. Опорные точки B и значения n:
+_CORRIDOR_B_POINTS = (0.6, 0.9, 1.2, 1.8, 2.4)
+_CORRIDOR_N_RESIDENTIAL = (1.00, 0.82, 0.70, 0.51, 0.41)   # жилые (ф.1)
+_CORRIDOR_N_PUBLIC = (1.05, 0.91, 0.80, 0.62, 0.50)        # общ./адм./произв. (ф.2)
 
-        Без учёта дверей:    G1 = 3420 · n^1.5             (ф.1)
-        С учётом дверей:     G1 = 4300 · n^1.5 · Kd        (ф.2)
+
+def corridor_n_coefficient(door_width_m: float, is_public: bool = False) -> float:
+    """Коэффициент n по табл. КМК/СНиП 2.04.05 Прил.22.
+
+    Линейная интерполяция по ширине створки B между опорными точками
+    (0.6…2.4 м); за пределами таблицы — clamp на крайние значения.
+    """
+    table = _CORRIDOR_N_PUBLIC if is_public else _CORRIDOR_N_RESIDENTIAL
+    pts = _CORRIDOR_B_POINTS
+    b = door_width_m
+    if b <= pts[0]:
+        return table[0]
+    if b >= pts[-1]:
+        return table[-1]
+    for i in range(len(pts) - 1):
+        if pts[i] <= b <= pts[i + 1]:
+            k = (b - pts[i]) / (pts[i + 1] - pts[i])
+            return table[i] + k * (table[i + 1] - table[i])
+    return table[-1]
+
+
+def kmk_corridor_kg_h(door_width_m: float, door_height_m: float = 2.0,
+                      is_public: bool = False, kd_door: float = 1.0) -> float:
+    """Расход дыма из коридора/холла, кг/ч — КМК/СНиП 2.04.05 Прил.22.
+
+        жилые:         G = 3420 · B · n · H^1.5          (ф.1)
+        общественные:  G = 4300 · B · n · H^1.5 · Kd     (ф.2)
 
     Параметры
     ---------
-    n        : безразмерный коэффициент по табл. (Прил. 20, п. 1).
-               Принимает значения 0.6 / 0.9 / 1.2 / 1.8 / 2.4 в зависимости
-               от назначения коридора и наличия защитной конструкции.
-    kd_door  : коэффициент конструкции дверей (для формулы 2).
-    with_door: если True — применяется формула (2) с дверями.
+    door_width_m  : B — ширина большей открываемой створки двери из коридора
+                    на лестничную клетку или наружу, м.
+    door_height_m : H — высота двери, м. При H>2.5 принимается H=2.5.
+    is_public     : True → общественные/адм.-быт./производственные (ф.2,
+                    коэф. 4300, множитель Kd). False → жилые (ф.1, коэф. 3420).
+    kd_door       : Kd — коэф. относительной продолжительности открывания
+                    дверей (1.0 при эвакуации ≥25 чел через дверь, 0.8 при
+                    <25). Применяется только в ф.2 (общественные).
+
+    Коэффициент n берётся из таблицы Прил.22 по ширине B (см.
+    corridor_n_coefficient).
     """
-    if n <= 0:
+    if door_width_m <= 0 or door_height_m <= 0:
         return 0.0
-    if with_door:
-        return 4300.0 * (n ** 1.5) * kd_door
-    return 3420.0 * (n ** 1.5)
+    h = min(door_height_m, 2.5)
+    n = corridor_n_coefficient(door_width_m, is_public)
+    if is_public:
+        return 4300.0 * door_width_m * n * (h ** 1.5) * kd_door
+    return 3420.0 * door_width_m * n * (h ** 1.5)
 
 
 # ---------------------------------------------------------------------------
@@ -187,10 +225,11 @@ def calc_smoke_flow_m3h(system, area_m2: float) -> float:
         return mass_to_volume_m3h(G_kg_h, t_smoke)
 
     if method == "kmk_corridor":
-        # with_door=True если задан Kd ≠ 1
-        with_door = system.kd_door != 1.0
         G_kg_h = kmk_corridor_kg_h(
-            system.n_corridor, system.kd_door, with_door=with_door,
+            system.corridor_door_width_m,
+            system.corridor_door_height_m,
+            is_public=system.corridor_public,
+            kd_door=system.kd_door,
         )
         return mass_to_volume_m3h(G_kg_h, t_smoke)
 

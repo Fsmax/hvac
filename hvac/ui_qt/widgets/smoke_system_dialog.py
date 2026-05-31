@@ -4,7 +4,7 @@
 Параметры группируются по разделам в зависимости от calc_method:
     norm_per_m2        — норма расхода и площадь зоны
     kmk_zone_perimeter — периметр очага, высота слоя, Ks
-    kmk_corridor       — n, Kd
+    kmk_corridor       — B (ширина двери), H (высота), тип здания, Kd
     nfpa_plume_axi     — HRR, высота плюма, convective fraction
     manual             — L_smoke напрямую
     air_supply         — расход подпора, давление
@@ -252,12 +252,25 @@ class SmokeSystemDialog(QDialog):
     def _build_page_kmk_corridor(self) -> QWidget:
         w = QWidget()
         f = QFormLayout(w)
-        self.n_corr_spin = QDoubleSpinBox()
-        self.n_corr_spin.setRange(0.1, 5.0)
-        self.n_corr_spin.setSingleStep(0.1)
-        self.n_corr_spin.setDecimals(2)
-        self.n_corr_spin.setValue(self.system.n_corridor)
-        f.addRow(_t("dlg.smoke.kmk_corr.n"), self.n_corr_spin)
+        self.corr_b_spin = QDoubleSpinBox()
+        self.corr_b_spin.setRange(0.6, 2.4)
+        self.corr_b_spin.setSingleStep(0.1)
+        self.corr_b_spin.setDecimals(2)
+        self.corr_b_spin.setValue(self.system.corridor_door_width_m)
+        f.addRow(_t("dlg.smoke.kmk_corr.width"), self.corr_b_spin)
+
+        self.corr_h_spin = QDoubleSpinBox()
+        self.corr_h_spin.setRange(1.5, 2.5)
+        self.corr_h_spin.setSingleStep(0.1)
+        self.corr_h_spin.setDecimals(2)
+        self.corr_h_spin.setValue(self.system.corridor_door_height_m)
+        f.addRow(_t("dlg.smoke.kmk_corr.height"), self.corr_h_spin)
+
+        self.corr_kind_combo = QComboBox()
+        self.corr_kind_combo.addItem(_t("dlg.smoke.kmk_corr.public"), True)
+        self.corr_kind_combo.addItem(_t("dlg.smoke.kmk_corr.residential"), False)
+        self.corr_kind_combo.setCurrentIndex(0 if self.system.corridor_public else 1)
+        f.addRow(_t("dlg.smoke.kmk_corr.kind"), self.corr_kind_combo)
 
         self.kd_spin = QDoubleSpinBox()
         self.kd_spin.setRange(0.5, 2.0)
@@ -408,7 +421,9 @@ class SmokeSystemDialog(QDialog):
                 sm.layer_height_m = self.layer_height_spin.value()
                 sm.ks_sprinkler = self.ks_spin.value()
             elif m == "kmk_corridor":
-                sm.n_corridor = self.n_corr_spin.value()
+                sm.corridor_door_width_m = self.corr_b_spin.value()
+                sm.corridor_door_height_m = self.corr_h_spin.value()
+                sm.corridor_public = bool(self.corr_kind_combo.currentData())
                 sm.kd_door = self.kd_spin.value()
             elif m == "nfpa_plume_axi":
                 sm.hrr_kw = self.hrr_spin.value()
