@@ -196,13 +196,31 @@ def degree_days_heating(t_in: float, t_ht_avg: float, z_ht_days: float) -> float
         Dd = (tв − tот.пер) · zот.пер
 
     где tот.пер, zот.пер — средняя температура (°C) и длительность (сут)
-    периода со среднесуточной температурой воздуха ≤ 10 °C (климат по
-    КМК 2.01.01-94). Этот же Dd используют Табл.2а/2б/2в (R₀^тр) и
-    нормативы q_ov ШНҚ 2.01.18-24.
+    периода со среднесуточной температурой воздуха ≤ 10 °C. Этот же Dd
+    используют Табл.2а/2б/2в (R₀^тр) и нормативы q_ov ШНҚ 2.01.18-24.
     """
     if z_ht_days <= 0:
         return 0.0
     return (t_in - t_ht_avg) * z_ht_days
+
+
+def heating_period_at(clim: Dict, threshold: float = 10.0
+                      ) -> Optional[Dict[str, float]]:
+    """(z, t_avg) периода со среднесуточной t ≤ threshold °C из климата города.
+
+    ШНҚ 2.01.01-22 «Строительная климатология» Табл.4 табулирует пороги ≤8°C
+    (z_ht_8/t_ht_8) и ≤12°C (z_ht_12/t_ht_12). Период ≤10°C, требуемый КМК
+    форм.(1), получается ЛИНЕЙНОЙ ИНТЕРПОЛЯЦИЕЙ по порогу между ними
+    (при threshold=10 — ровно середина: среднее ≤8 и ≤12).
+
+    Возвращает {"z_days", "t_avg"} либо None, если в климате нет полей ≤8/≤12.
+    """
+    keys = ("z_ht_8", "t_ht_8", "z_ht_12", "t_ht_12")
+    if any(clim.get(k) is None for k in keys):
+        return None
+    z8, t8, z12, t12 = (float(clim[k]) for k in keys)
+    f = (threshold - 8.0) / (12.0 - 8.0)        # 0.5 при threshold=10
+    return {"z_days": z8 + (z12 - z8) * f, "t_avg": t8 + (t12 - t8) * f}
 
 
 def annual_heating_energy_kwh(q_peak_w: float, t_in: float, t_out_design: float,
@@ -368,15 +386,15 @@ def calculate_passport(project: "HVACProject",
     q_design_specific = ((q_peak_heating + q_peak_vent) / total_area
                          if total_area > 0 else 0.0)
     # Dd по КМК 2.01.04-18 форм.(1): (tв − tот.пер)·zот.пер для периода со
-    # среднесуточной t ≤ 10°C. Если климат города содержит данные периода
-    # ≤10°C (z_ht_10/t_ht_10, КМК 2.01.01-94) — Dd считается ТОЧНО; иначе —
-    # приближение через базовый ГСОП (+18°C) с пересчётом базы на tв.
+    # среднесуточной t ≤ 10°C. Если климат города содержит периоды ≤8/≤12°C
+    # (ШНҚ 2.01.01-22 Табл.4) — Dd считается ТОЧНО (интерполяция на 10°C);
+    # иначе — приближение через базовый ГСОП (+18°C) с пересчётом базы на tв.
     t_in_shnq = 20.0
     _clim = CLIMATE_DB.get(params.city, {})
-    _z10 = _clim.get("z_ht_10")
-    _t10 = _clim.get("t_ht_10")
-    if _z10 and _t10 is not None:
-        dd_shnq = degree_days_heating(t_in_shnq, float(_t10), float(_z10))
+    _period10 = heating_period_at(_clim, 10.0)
+    if _period10:
+        dd_shnq = degree_days_heating(t_in_shnq, _period10["t_avg"],
+                                      _period10["z_days"])
         dd_exact = True
     else:
         dd_shnq = params.gsop_18 + season["z_days"] * (t_in_shnq - 18.0)
