@@ -70,6 +70,6 @@ files = [
     "hvac/io_json.py",
     "hvac/io_excel_equipment.py",
     "hvac/io_hlgc.py",
-    # TODO: io_excel.py — после разбиения файла; io_pdf.py — после
-    # чистки переиспользования имён переменных в циклах.
+    # TODO: io_excel/ (пакет) и io_pdf.py — после чистки типов
+    # (переиспользование имён переменных в циклах, гетерогенные dict).
 ]

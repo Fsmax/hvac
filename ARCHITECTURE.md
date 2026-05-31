@@ -63,9 +63,9 @@ hvac_v4/
 │   ├── room_equipment.py       # Радиаторы / решётки в помещении
 │   ├── sizing_helpers.py       # Подбор AHU/котла/чиллера
 │   ├── reports.py              # Графики (Registry Pattern)
-│   ├── i18n.py                 # Локализация (RU/UZ), live language switch
+│   ├── i18n/                   # Локализация (RU/UZ): ru.py + uz.py + API
 │   │
-│   ├── io_excel.py             # Экспорт в 14-листовой Excel
+│   ├── io_excel/               # Экспорт в Excel (пакет: _core/_extensions/_detailed/_common)
 │   ├── io_excel_equipment.py   # Лист спецификации
 │   ├── io_pdf.py               # Пояснительная записка PDF
 │   ├── io_json.py              # Сохранение/загрузка проекта
