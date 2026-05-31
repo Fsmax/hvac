@@ -8,7 +8,9 @@ from hvac.energy import (
     annual_cooling_energy_kwh, hours_per_year_cooling,
     normative_qh, energy_class_for_deviation,
     ENERGY_CLASS_THRESHOLDS, BASE_HEATING_NORMS_KWH_M2,
+    degree_days_heating, heating_period_at, calculate_passport,
 )
+from hvac.project import HVACProject
 from hvac.catalogs.shnq_energy import (
     normative_q_ov_shnq, building_type_to_shnq, dd_band_index,
 )
@@ -191,6 +193,51 @@ class TestShnqEnergy(unittest.TestCase):
                      "shnq_compliant", "q_design_specific_w_m2",
                      "q_ov_normative_w_m2"):
             self.assertTrue(hasattr(ep, attr), attr)
+
+
+class TestDegreeDaysDd(unittest.TestCase):
+    """Dd по КМК 2.01.04-18 форм.(1) с порогом сезона 10°C."""
+
+    def test_formula(self):
+        # Dd = (tв − tот.пер)·zот.пер
+        self.assertAlmostEqual(degree_days_heating(20.0, 4.0, 150), 2400.0)
+        self.assertAlmostEqual(degree_days_heating(18.0, 3.8, 132),
+                               (18.0 - 3.8) * 132)
+
+    def test_zero_duration(self):
+        self.assertEqual(degree_days_heating(20.0, 4.0, 0), 0.0)
+
+    def test_heating_period_interp_to_10(self):
+        # ШНҚ даёт ≤8 и ≤12; при 10°C — ровно середина (среднее)
+        clim = {"z_ht_8": 100, "t_ht_8": 2.0, "z_ht_12": 140, "t_ht_12": 4.0}
+        r = heating_period_at(clim, 10.0)
+        self.assertAlmostEqual(r["z_days"], 120.0)   # (100+140)/2
+        self.assertAlmostEqual(r["t_avg"], 3.0)      # (2+4)/2
+        # при пороге 8 → ровно табличные ≤8°C
+        r8 = heating_period_at(clim, 8.0)
+        self.assertAlmostEqual(r8["z_days"], 100.0)
+        self.assertAlmostEqual(r8["t_avg"], 2.0)
+
+    def test_heating_period_none_without_fields(self):
+        self.assertIsNone(heating_period_at({"gsop_18": 2100}, 10.0))
+
+    def test_passport_exact_for_uz_city(self):
+        """Узб. город с данными ≤8/≤12 в climate.json → Dd точный."""
+        p = HVACProject()
+        p.params.city = "Ташкент"   # z_ht_8/12 есть в climate.json
+        ep = calculate_passport(p)
+        self.assertTrue(ep.dd_exact)
+        # Dd = (20 − (2.7+4.0)/2)·(129+166)/2 = 16.65·147.5
+        self.assertAlmostEqual(ep.dd_shnq, 16.65 * 147.5, places=1)
+
+    def test_passport_approx_without_period_data(self):
+        """Город без полей ≤8/≤12 → Dd приближённый (dd_exact=False)."""
+        p = HVACProject()
+        p.params.city = "Москва"    # в climate.json нет z_ht_8/12
+        p.params.gsop_18 = 4943
+        ep = calculate_passport(p)
+        self.assertFalse(ep.dd_exact)
+        self.assertGreater(ep.dd_shnq, 0)
 
 
 if __name__ == "__main__":

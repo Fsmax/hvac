@@ -6,11 +6,14 @@ from typing import Dict, List, Tuple
 from hvac.models import BoundaryElement, Construction
 
 
-# Нормативное сопротивление теплопередаче R_норм для жилых и общественных
-# зданий по СП 50.13330.2012 табл. 3. Формула:
-#     R_норм = a · ГСОП + b
-# где ГСОП — градусо-сутки отопительного периода (база 18 °C).
-# Коэффициенты (a, b, R_min) для каждой категории:
+# Нормативное (требуемое) сопротивление теплопередаче R₀^тр переключается по
+# активной норме project.params.thermal_norm (как Δt_н в dew_point.py):
+#   • "KMK_UZ" — КМК 2.01.04-18 Табл.2а/2б/2в (Узбекистан, ОСНОВНАЯ норма):
+#       ступенчатые значения по полосам Dd (≤2000/2000–3000/>3000), 3 уровня
+#       теплозащиты. См. hvac/catalogs/kmk_thermal.py + data/kmk_thermal.json.
+#   • "SP_RU"  — СП 50.13330.2012 Табл.3 (РФ): линейно R = a·ГСОП + b.
+#
+# СП 50 Табл.3 — коэффициенты (a, b, R_min) на категорию:
 #   a — наклон линейной зависимости от ГСОП, м²·К/Вт на градусо-сутки
 #   b — свободный член, м²·К/Вт
 #   R_min — минимальное значение для южных климатов
@@ -25,18 +28,9 @@ _R_NORM_COEFFS: Dict[str, Tuple[float, float, float]] = {
 }
 
 
-def r_norm_for(category: str, gsop_18: float,
+def _r_norm_sp(category: str, gsop_18: float,
                building_type: str = "residential") -> float:
-    """Нормативное R по СП 50 табл. 3.
-
-    Параметры
-    ---------
-    category : "Стены" / "Покрытие" / "Пол" / "Окна" / "Витраж" / "Двери"
-    gsop_18 : градусо-сутки отопительного периода (база 18 °C)
-    building_type : "residential" (жилые) или "public" (общественные)
-
-    Возвращает нормативное R, м²·К/Вт. Если категория неизвестна — 0.
-    """
+    """R₀^тр по СП 50.13330 Табл.3 (линейно R = a·ГСОП + b)."""
     coeffs = _R_NORM_COEFFS.get(category)
     if not coeffs:
         return 0.0
@@ -49,10 +43,47 @@ def r_norm_for(category: str, gsop_18: float,
     return max(a * gsop_18 + b, r_min)
 
 
+def r_norm_for(category: str, gsop_18: float,
+               building_type: str = "residential",
+               thermal_norm: str = "KMK_UZ", level: int = 1,
+               n_floors: int = 4, n: float = 1.0,
+               dd: float = None) -> float:
+    """Требуемое сопротивление теплопередаче R₀^тр по активной норме.
+
+    Параметры
+    ---------
+    category : "Стены" / "Покрытие" / "Пол" / "Окна" / "Витраж" / "Двери"
+    gsop_18 : градусо-сутки отопительного периода (база 18 °C). Для КМК
+              используется как селектор полосы Dd, если явный `dd` не задан.
+    building_type : "residential"/"public"/"industrial" либо детальный тип
+              (напр. "жилое 4-5 этажей") — см. kmk_thermal.kmk_category_for.
+    thermal_norm : "KMK_UZ" (КМК 2.01.04-18, основная) или "SP_RU" (СП 50).
+    level : уровень теплозащиты КМК — 1 (Табл.2а, минимум), 2 (2б), 3 (2в).
+    n_floors : этажность (для выбора res_low ≤3 / res_high >3 в КМК).
+    n : коэф. КМК Табл.3 для покрытий/полов (1.0 — прямой контакт с наружным
+        воздухом). Только для thermal_norm="KMK_UZ".
+    dd : явные градус-сутки Dd (порог сезона 10 °C, КМК форм.1). Если None —
+         берётся gsop_18 (приближение до уточнения по климату КМК 2.01.01-94).
+
+    Возвращает R₀^тр, м²·К/Вт. Если категория неизвестна — 0.
+    """
+    if thermal_norm == "SP_RU":
+        return _r_norm_sp(category, gsop_18, building_type)
+    # КМК 2.01.04-18 (по умолчанию)
+    from hvac.catalogs.kmk_thermal import r_norm_kmk, kmk_category_for
+    kmk_cat = kmk_category_for(building_type, n_floors)
+    return r_norm_kmk(category, gsop_18 if dd is None else dd,
+                      kmk_category=kmk_cat, level=level, n=n)
+
+
 def u_norm_for(category: str, gsop_18: float,
-               building_type: str = "residential") -> float:
-    """Нормативное U = 1 / R_норм."""
-    r = r_norm_for(category, gsop_18, building_type)
+               building_type: str = "residential",
+               thermal_norm: str = "KMK_UZ", level: int = 1,
+               n_floors: int = 4, n: float = 1.0,
+               dd: float = None) -> float:
+    """Нормативное U = 1 / R₀^тр (по активной норме, см. r_norm_for)."""
+    r = r_norm_for(category, gsop_18, building_type, thermal_norm,
+                   level, n_floors, n, dd)
     return 1.0 / r if r > 0 else 0.0
 
 

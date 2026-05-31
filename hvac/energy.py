@@ -42,7 +42,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Mapping, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hvac.project import HVACProject
@@ -141,6 +141,8 @@ class EnergyPassport:
     q_design_specific_w_m2: float = 0.0   # удельная расч. мощность отопл.+вент., Вт/м²
     q_ov_normative_w_m2: float = 0.0      # норматив ШНҚ q_ov, Вт/м² (0 — нет данных)
     shnq_compliant: Optional[bool] = None  # q_design ≤ q_ov? None — нет норматива
+    dd_shnq: float = 0.0                  # Dd (порог сезона 10°C, КМК форм.1), °C·сут
+    dd_exact: bool = False                # True — по климату ≤10°C; False — приближение по ГСОП
 
     note: str = ""
 
@@ -186,6 +188,39 @@ def estimate_heating_season_from_gsop(gsop: float, t_in: float = 20.0,
     z_days = max(60.0, min(z_days, 300.0))
     t_avg = t_in - (gsop / z_days)
     return {"z_days": round(z_days), "t_avg": round(t_avg, 1)}
+
+
+def degree_days_heating(t_in: float, t_ht_avg: float, z_ht_days: float) -> float:
+    """Градус-сутки отопительного периода Dd, °C·сут — КМК 2.01.04-18 форм.(1):
+
+        Dd = (tв − tот.пер) · zот.пер
+
+    где tот.пер, zот.пер — средняя температура (°C) и длительность (сут)
+    периода со среднесуточной температурой воздуха ≤ 10 °C. Этот же Dd
+    используют Табл.2а/2б/2в (R₀^тр) и нормативы q_ov ШНҚ 2.01.18-24.
+    """
+    if z_ht_days <= 0:
+        return 0.0
+    return (t_in - t_ht_avg) * z_ht_days
+
+
+def heating_period_at(clim: Mapping[str, Any], threshold: float = 10.0
+                      ) -> Optional[Dict[str, float]]:
+    """(z, t_avg) периода со среднесуточной t ≤ threshold °C из климата города.
+
+    ШНҚ 2.01.01-22 «Строительная климатология» Табл.4 табулирует пороги ≤8°C
+    (z_ht_8/t_ht_8) и ≤12°C (z_ht_12/t_ht_12). Период ≤10°C, требуемый КМК
+    форм.(1), получается ЛИНЕЙНОЙ ИНТЕРПОЛЯЦИЕЙ по порогу между ними
+    (при threshold=10 — ровно середина: среднее ≤8 и ≤12).
+
+    Возвращает {"z_days", "t_avg"} либо None, если в климате нет полей ≤8/≤12.
+    """
+    keys = ("z_ht_8", "t_ht_8", "z_ht_12", "t_ht_12")
+    if any(clim.get(k) is None for k in keys):
+        return None
+    z8, t8, z12, t12 = (float(clim[k]) for k in keys)
+    f = (threshold - 8.0) / (12.0 - 8.0)        # 0.5 при threshold=10
+    return {"z_days": z8 + (z12 - z8) * f, "t_avg": t8 + (t12 - t8) * f}
 
 
 def annual_heating_energy_kwh(q_peak_w: float, t_in: float, t_out_design: float,
@@ -345,15 +380,25 @@ def calculate_passport(project: "HVACProject",
     # нормативом ШНҚ Табл.1-3 по типу здания, этажности и градус-суткам.
     from hvac.catalogs.shnq_energy import (
         normative_q_ov_shnq, building_type_to_shnq)
+    from hvac.catalogs.climate import CLIMATE_DB
     n_floors = len({sp.level for sp in project.spaces if sp.level}) or 1
     shnq_cat = building_type_to_shnq(building_type)
     q_design_specific = ((q_peak_heating + q_peak_vent) / total_area
                          if total_area > 0 else 0.0)
-    # ШНҚ Dd считается от tв (≈20°C), а проектный ГСОП — от +18°C.
-    # Поправка базы: Dd_shnq = ГСОП_18 + z·(tв − 18). Период по ШНҚ —
-    # tср.сут ≤ 10°C (порог сезона приближаем оценкой по ГСОП).
+    # Dd по КМК 2.01.04-18 форм.(1): (tв − tот.пер)·zот.пер для периода со
+    # среднесуточной t ≤ 10°C. Если климат города содержит периоды ≤8/≤12°C
+    # (ШНҚ 2.01.01-22 Табл.4) — Dd считается ТОЧНО (интерполяция на 10°C);
+    # иначе — приближение через базовый ГСОП (+18°C) с пересчётом базы на tв.
     t_in_shnq = 20.0
-    dd_shnq = params.gsop_18 + season["z_days"] * (t_in_shnq - 18.0)
+    _clim: Mapping[str, Any] = CLIMATE_DB.get(params.city, {})
+    _period10 = heating_period_at(_clim, 10.0)
+    if _period10:
+        dd_shnq = degree_days_heating(t_in_shnq, _period10["t_avg"],
+                                      _period10["z_days"])
+        dd_exact = True
+    else:
+        dd_shnq = params.gsop_18 + season["z_days"] * (t_in_shnq - 18.0)
+        dd_exact = False
     q_ov_norm = normative_q_ov_shnq(shnq_cat, n_floors, dd_shnq) or 0.0
     shnq_compliant = (q_design_specific <= q_ov_norm) if q_ov_norm > 0 else None
 
@@ -436,4 +481,6 @@ def calculate_passport(project: "HVACProject",
         q_design_specific_w_m2=q_design_specific,
         q_ov_normative_w_m2=q_ov_norm,
         shnq_compliant=shnq_compliant,
+        dd_shnq=dd_shnq,
+        dd_exact=dd_exact,
     )

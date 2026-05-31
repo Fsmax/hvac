@@ -37,6 +37,8 @@ catalog_files = [
      "hvac/catalogs/data"),
     (str(project_root / "hvac" / "catalogs" / "data" / "shnq_energy.json"),
      "hvac/catalogs/data"),
+    (str(project_root / "hvac" / "catalogs" / "data" / "kmk_thermal.json"),
+     "hvac/catalogs/data"),
 ]
 
 # Скрытые импорты, которые анализатор может пропустить
