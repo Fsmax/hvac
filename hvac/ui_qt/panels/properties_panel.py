@@ -143,9 +143,12 @@ class PropertiesPanel(QWidget):
         self.roof_cb.toggled.connect(self._on_roof)
         self.floor_cb = QCheckBox(_t("panel.props.flag.floor"))
         self.floor_cb.toggled.connect(self._on_floor)
+        self.unheated_cb = QCheckBox(_t("panel.props.flag.unheated"))
+        self.unheated_cb.toggled.connect(self._on_unheated)
         flags_row.addWidget(self.corner_cb)
         flags_row.addWidget(self.roof_cb)
         flags_row.addWidget(self.floor_cb)
+        flags_row.addWidget(self.unheated_cb)
         flags_row.addStretch(1)
 
         self._lbl_flags = QLabel(_t("panel.props.field.flags"))
@@ -198,6 +201,7 @@ class PropertiesPanel(QWidget):
             self.corner_cb.setChecked(bool(sp.is_corner))
             self.roof_cb.setChecked(bool(sp.has_roof))
             self.floor_cb.setChecked(bool(sp.has_floor_to_ground))
+            self.unheated_cb.setChecked(sp.floor_over_unheated_n > 0)
             self._refresh_breakdown()
         finally:
             self._loading = False
@@ -206,7 +210,8 @@ class PropertiesPanel(QWidget):
     def _set_form_enabled(self, enabled: bool) -> None:
         for w in (self.type_combo, self.t_heat_spin, self.t_cool_spin,
                   self.occup_spin, self.light_spin, self.equip_spin,
-                  self.inf_spin, self.corner_cb, self.roof_cb, self.floor_cb):
+                  self.inf_spin, self.corner_cb, self.roof_cb, self.floor_cb,
+                  self.unheated_cb):
             w.setEnabled(enabled)
 
     def _mark_dirty(self) -> None:
@@ -279,6 +284,13 @@ class PropertiesPanel(QWidget):
             self._space.has_floor_to_ground = bool(v)
             self._mark_dirty()
 
+    def _on_unheated(self, v: bool) -> None:
+        if self._space and not self._loading:
+            # КМК Табл.3: над неотап. подвалом n=0.6 (типовое). Значения
+            # 0.4 (техподполье) / 0.8 (холодный подвал) задаются через JSON.
+            self._space.floor_over_unheated_n = 0.6 if v else 0.0
+            self._mark_dirty()
+
     # ---------- Breakdown ----------
     def _refresh_breakdown(self, *args: object) -> None:
         sp = self._space
@@ -324,6 +336,7 @@ class PropertiesPanel(QWidget):
         self.corner_cb.setText(_t("panel.props.flag.corner"))
         self.roof_cb.setText(_t("panel.props.flag.roof"))
         self.floor_cb.setText(_t("panel.props.flag.floor"))
+        self.unheated_cb.setText(_t("panel.props.flag.unheated"))
         self.empty_hint.setText(_t("panel.props.hint"))
         self._results_title.setText(_t("panel.props.results.title"))
         # Если есть выбранное помещение — пересоберём subtitle и breakdown

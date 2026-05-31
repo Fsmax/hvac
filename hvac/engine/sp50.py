@@ -244,6 +244,15 @@ class SP50Engine(CalculationEngine):
                 q_trans += q_underground
                 breakdown["Стены в грунте"] = q_underground
 
+        # Перекрытие над неотапливаемым подвалом/техподпольем (КМК Табл.3):
+        # Q = U·A·Δt·n, где n<1 учитывает «тёплую» зону под полом.
+        if space.floor_over_unheated_n > 0:
+            u_floor = DEFAULT_U_BY_CATEGORY.get("Пол", 0.35)
+            q_floor_unh = (u_floor * space.area_m2 * dt
+                           * space.floor_over_unheated_n)
+            q_trans += q_floor_unh
+            breakdown["Пол над неотап."] = q_floor_unh
+
         # Совмещённое покрытие.
         # Применяем средние надбавки по СП 50.13330: высота + N-ориентация
         # (покрытие условно считается горизонтальным с n=1).

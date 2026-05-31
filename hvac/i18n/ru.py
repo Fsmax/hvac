@@ -382,6 +382,7 @@ RU: Dict[str, str] = {
     "panel.props.flag.corner":   "угловое",
     "panel.props.flag.roof":     "под крышей",
     "panel.props.flag.floor":    "пол по грунту",
+    "panel.props.flag.unheated": "пол над неотапл.",
     "panel.props.results.title": "Результаты расчёта",
     "panel.props.results.not_yet": ("<i>Расчёт ещё не выполнен. "
                                       "Нажмите F5 или «Пересчитать».</i>"),

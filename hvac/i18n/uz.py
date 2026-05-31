@@ -389,6 +389,7 @@ UZ: Dict[str, str] = {
     "panel.props.flag.corner":   "burchakli",
     "panel.props.flag.roof":     "tom ostida",
     "panel.props.flag.floor":    "tuproqqa tegishli pol",
+    "panel.props.flag.unheated": "isitilmaydigan ust pol",
     "panel.props.results.title": "Hisob natijalari",
     "panel.props.results.not_yet": ("<i>Hisob hali bajarilmagan. "
                                       "F5 yoki «Qayta hisoblash» bosing.</i>"),
