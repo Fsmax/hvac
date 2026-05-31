@@ -42,7 +42,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Mapping, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hvac.project import HVACProject
@@ -204,7 +204,7 @@ def degree_days_heating(t_in: float, t_ht_avg: float, z_ht_days: float) -> float
     return (t_in - t_ht_avg) * z_ht_days
 
 
-def heating_period_at(clim: Dict, threshold: float = 10.0
+def heating_period_at(clim: Mapping[str, Any], threshold: float = 10.0
                       ) -> Optional[Dict[str, float]]:
     """(z, t_avg) периода со среднесуточной t ≤ threshold °C из климата города.
 
@@ -390,7 +390,7 @@ def calculate_passport(project: "HVACProject",
     # (ШНҚ 2.01.01-22 Табл.4) — Dd считается ТОЧНО (интерполяция на 10°C);
     # иначе — приближение через базовый ГСОП (+18°C) с пересчётом базы на tв.
     t_in_shnq = 20.0
-    _clim = CLIMATE_DB.get(params.city, {})
+    _clim: Mapping[str, Any] = CLIMATE_DB.get(params.city, {})
     _period10 = heating_period_at(_clim, 10.0)
     if _period10:
         dd_shnq = degree_days_heating(t_in_shnq, _period10["t_avg"],
