@@ -640,6 +640,14 @@ def export_to_pdf(project: "HVACProject", path: str,
              f"{ep.qh_normative_kwh_m2:.1f}"],
             ["Отклонение от нормы, %",
              f"{ep.deviation_percent:+.1f}"],
+            ["q расч. удельный (отопл.+вент.), Вт/м²",
+             f"{ep.q_design_specific_w_m2:.1f}"],
+            ["q_ov норматив ШНҚ 2.01.18-24, Вт/м²",
+             (f"{ep.q_ov_normative_w_m2:.0f}"
+              if ep.q_ov_normative_w_m2 > 0 else "—")],
+            ["Соответствие ШНҚ (q ≤ q_ov)",
+             (("да" if ep.shnq_compliant else "нет")
+              if ep.shnq_compliant is not None else "н/д")],
         ])
 
         # Класс — крупно

@@ -135,6 +135,13 @@ class EnergyPassport:
     k_internal_use: float = 0.8           # доля использования внутр. теплопост.
     internal_gain_w_m2: float = 10.0      # ср. внутр. теплопост., Вт/м²
 
+    # ===== ШНҚ 2.01.18-24 (Узбекистан) — нормативный q_ov =====
+    n_floors: int = 1                     # этажность здания (по уровням)
+    shnq_category: str = ""               # категория ШНҚ Табл.1-3
+    q_design_specific_w_m2: float = 0.0   # удельная расч. мощность отопл.+вент., Вт/м²
+    q_ov_normative_w_m2: float = 0.0      # норматив ШНҚ q_ov, Вт/м² (0 — нет данных)
+    shnq_compliant: Optional[bool] = None  # q_design ≤ q_ov? None — нет норматива
+
     note: str = ""
 
 
@@ -333,6 +340,19 @@ def calculate_passport(project: "HVACProject",
     q_peak_dhw = sum(s.q_with_circulation_w
                      for s in getattr(project, "dhw_systems", {}).values())
 
+    # ===== ШНҚ 2.01.18-24: норматив q_ov [Вт/м²] (основная норма УзР) =====
+    # Сравниваем удельную расчётную мощность отопл.+вент. (Вт/м²) с
+    # нормативом ШНҚ Табл.1-3 по типу здания, этажности и градус-суткам.
+    from hvac.catalogs.shnq_energy import (
+        normative_q_ov_shnq, building_type_to_shnq)
+    n_floors = len({sp.level for sp in project.spaces if sp.level}) or 1
+    shnq_cat = building_type_to_shnq(building_type)
+    q_design_specific = ((q_peak_heating + q_peak_vent) / total_area
+                         if total_area > 0 else 0.0)
+    # Dd берём из ГСОП проекта (приближённо; ШНҚ Dd считается от tв).
+    q_ov_norm = normative_q_ov_shnq(shnq_cat, n_floors, params.gsop_18) or 0.0
+    shnq_compliant = (q_design_specific <= q_ov_norm) if q_ov_norm > 0 else None
+
     # ====== Годовые ======
     e_heating = annual_heating_energy_kwh(
         q_peak_heating, t_in=20.0, t_out_design=params.t_out_heating,
@@ -406,4 +426,10 @@ def calculate_passport(project: "HVACProject",
         k_regulation=k_regulation,
         k_internal_use=k_internal_use,
         internal_gain_w_m2=internal_gain_w_m2,
+
+        n_floors=n_floors,
+        shnq_category=shnq_cat,
+        q_design_specific_w_m2=q_design_specific,
+        q_ov_normative_w_m2=q_ov_norm,
+        shnq_compliant=shnq_compliant,
     )

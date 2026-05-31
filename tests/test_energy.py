@@ -9,6 +9,9 @@ from hvac.energy import (
     normative_qh, energy_class_for_deviation,
     ENERGY_CLASS_THRESHOLDS, BASE_HEATING_NORMS_KWH_M2,
 )
+from hvac.catalogs.shnq_energy import (
+    normative_q_ov_shnq, building_type_to_shnq, dd_band_index,
+)
 
 
 class TestHeatingSeasonEstimate(unittest.TestCase):
@@ -136,6 +139,48 @@ class TestEnergyClass(unittest.TestCase):
         for lo, hi, cls, desc in ENERGY_CLASS_THRESHOLDS:
             self.assertIsInstance(cls, str)
             self.assertTrue(len(cls) > 0)
+
+
+class TestShnqEnergy(unittest.TestCase):
+    """Норматив q_ov по ШНҚ 2.01.18-24 Табл.1-3 (Узбекистан)."""
+
+    def test_residential_table_values(self):
+        # Жилые 1 эт.: [94, 100, 102] для полос Dd ≤2000 / 2000-3000 / >3000
+        self.assertEqual(normative_q_ov_shnq("residential", 1, 1500), 94)
+        self.assertEqual(normative_q_ov_shnq("residential", 1, 2500), 100)
+        self.assertEqual(normative_q_ov_shnq("residential", 1, 3500), 102)
+        # Жилые 9 эт.: [48, 57, 59]
+        self.assertEqual(normative_q_ov_shnq("residential", 9, 1500), 48)
+
+    def test_floor_selection_nearest_below(self):
+        # n_floors=7 → строка 5 (ближайшая зашитая ≤7)
+        self.assertEqual(normative_q_ov_shnq("residential", 7, 1500),
+                         normative_q_ov_shnq("residential", 5, 1500))
+        # n_floors=20 → строка 9 (макс. зашитая)
+        self.assertEqual(normative_q_ov_shnq("residential", 20, 1500),
+                         normative_q_ov_shnq("residential", 9, 1500))
+
+    def test_floor_below_min_uses_min(self):
+        # school начинается с 2 эт.; n_floors=1 → берётся строка 2
+        self.assertEqual(normative_q_ov_shnq("school", 1, 1500),
+                         normative_q_ov_shnq("school", 2, 1500))
+
+    def test_dd_band_boundaries(self):
+        self.assertEqual(dd_band_index(2000), 0)   # ≤2000
+        self.assertEqual(dd_band_index(2001), 1)
+        self.assertEqual(dd_band_index(3000), 1)   # ≤3000
+        self.assertEqual(dd_band_index(3001), 2)
+
+    def test_building_type_mapping(self):
+        self.assertEqual(building_type_to_shnq("гостиница"), "hotel")
+        self.assertEqual(building_type_to_shnq("офис"), "office")
+        self.assertEqual(building_type_to_shnq("жилое 4-5 этажей"), "residential")
+        self.assertEqual(building_type_to_shnq("магазин"), "shop")
+        # неизвестный → обобщённый общественный (office)
+        self.assertEqual(building_type_to_shnq("неизвестно"), "office")
+
+    def test_unknown_category_returns_none(self):
+        self.assertIsNone(normative_q_ov_shnq("???", 1, 2000))
 
 
 if __name__ == "__main__":
