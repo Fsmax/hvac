@@ -24,6 +24,7 @@ SAVED_SPACE_FIELDS = [
     "room_type", "t_in_heat", "t_in_cool", "occupancy_people",
     "lighting_w_m2", "equipment_w_m2", "ach_inf",
     "is_corner", "has_floor_to_ground", "has_roof", "is_top_floor",
+    "floor_over_unheated_n",
     "user_modified",
     # Вентиляция (если пользователь правил)
     "supply_m3h", "exhaust_m3h", "hood_m3h", "vent_user_modified",
@@ -41,6 +42,7 @@ FULL_SPACE_FIELDS = [
     "room_type", "t_in_heat", "t_in_cool", "occupancy_people",
     "lighting_w_m2", "equipment_w_m2", "ach_inf", "rh_design",
     "is_corner", "has_floor_to_ground", "has_roof", "is_top_floor",
+    "floor_over_unheated_n",
     "user_modified", "manual_entry",
     "supply_m3h", "exhaust_m3h", "hood_m3h", "ach_calculated",
     "vent_user_modified",

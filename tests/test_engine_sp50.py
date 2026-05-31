@@ -136,6 +136,32 @@ class TestHeatLoss:
         with_margin = engine.heat_loss(sp, project)["ИТОГО"]
         assert pytest.approx(with_margin / no_margin, rel=0.001) == 1.20
 
+    def test_floor_over_unheated_applies_n(self):
+        """Перекрытие над неотап. подвалом (КМК Табл.3): Q=U·A·Δt·n, n<1.
+
+        area=20 м², Δt=45, U_пол=0.35, n=0.6 → 0.35·20·45·0.6 = 189 Вт."""
+        from hvac.catalogs.constructions import DEFAULT_U_BY_CATEGORY
+        project, sp = make_minimal_project()
+        engine = SP50Engine()
+        base = engine.heat_loss(sp, project)
+        assert "Пол над неотап." not in base  # по умолчанию выключено
+
+        sp.floor_over_unheated_n = 0.6
+        res = engine.heat_loss(sp, project)
+        dt = sp.t_in_heat - project.params.t_out_heating
+        expected = DEFAULT_U_BY_CATEGORY["Пол"] * sp.area_m2 * dt * 0.6
+        assert pytest.approx(res["Пол над неотап."], rel=1e-6) == expected
+        assert res["Через ограждения"] > base["Через ограждения"]
+
+    def test_floor_over_unheated_zero_no_effect(self):
+        """n=0 (по умолчанию) — статья отсутствует, теплопотери не меняются."""
+        project, sp = make_minimal_project()
+        engine = SP50Engine()
+        a = engine.heat_loss(sp, project)["Через ограждения"]
+        sp.floor_over_unheated_n = 0.0
+        b = engine.heat_loss(sp, project)["Через ограждения"]
+        assert pytest.approx(a, rel=1e-9) == b
+
 
 class TestHeatGain:
 

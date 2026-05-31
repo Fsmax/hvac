@@ -60,6 +60,7 @@ _OVERRIDABLE_FIELDS = [
     "room_type", "t_in_heat", "t_in_cool", "occupancy_people",
     "lighting_w_m2", "equipment_w_m2", "ach_inf",
     "is_corner", "has_floor_to_ground", "has_roof", "is_top_floor",
+    "floor_over_unheated_n",
 ]
 
 
