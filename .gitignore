@@ -1,0 +1,35 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# ---- Claude Code (локальные, машинно-зависимые) ----
+.claude/settings.local.json
+.claude/*.lock
+
+# ---- Данные проекта и выгрузки (крупные, машинно-зависимые) ----
+# Это входные/выходные данные конкретных проектов, не исходный код.
+# При необходимости положить образец в репозиторий: git add -f <файл>
+EXPORT/
+*.hvac.json
+*.xlsx
+*.pdf
+spaces.csv
+thermal_all.csv
+
+# ---- OS ----
+Thumbs.db
+desktop.ini
+.DS_Store

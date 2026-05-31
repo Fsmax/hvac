@@ -1,0 +1,687 @@
+# -*- coding: utf-8 -*-
+"""SpacesPanel — таблица помещений с фильтрами, поиском, inline-edit.
+
+Главный экран приложения. Слева — таблица всех помещений с цветовой
+индикацией аномалий; справа — PropertiesPanel выделенного помещения.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Callable, List, Optional
+
+from PySide6.QtCore import (
+    QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt, Signal,
+)
+from PySide6.QtGui import QBrush, QColor
+from PySide6.QtWidgets import (
+    QAbstractItemView, QComboBox, QDialog, QFileDialog, QHBoxLayout,
+    QHeaderView, QLabel, QLineEdit, QMessageBox, QPushButton, QSizePolicy,
+    QSplitter, QStyledItemDelegate, QTableView, QVBoxLayout, QWidget,
+)
+
+from hvac.catalogs.room_types import (
+    apply_room_type_defaults, get_all_room_types,
+)
+from hvac.i18n import t as _t
+from hvac.models import Space
+from hvac.project import HVACProject
+from hvac.ui_qt.bridge import ProjectBridge
+from hvac.ui_qt.panels.boundaries_panel import BoundariesPanel
+from hvac.ui_qt.panels.properties_panel import PropertiesPanel
+from hvac.ui_qt.theme import tokens
+from hvac.ui_qt.widgets.space_dialog import (
+    BuildingTemplateDialog, SpaceDialog,
+)
+
+
+# Ключи перевода для заголовков колонок. Объявлены модульно, чтобы
+# SpacesTableModel.headerData мог отдавать актуальное значение текущего
+# языка без хранения title в самой колонке.
+_COLUMN_TITLE_KEYS = [
+    "panel.spaces.col.number",
+    "panel.spaces.col.name",
+    "panel.spaces.col.level",
+    "panel.spaces.col.type",
+    "panel.spaces.col.area",
+    "panel.spaces.col.volume",
+    "panel.spaces.col.t_heat",
+    "panel.spaces.col.q_heat",
+    "panel.spaces.col.q_cool",
+    "panel.spaces.col.density",
+    "panel.spaces.col.zone",
+]
+
+
+# ===========================================================================
+# Модель таблицы
+# ===========================================================================
+
+
+@dataclass
+class Column:
+    title_key: str           # i18n key — заголовок берётся через _t() в headerData
+    key: str
+    width: int
+    editable: bool = False
+    fmt: Optional[Callable[[Any], str]] = None
+    getter: Optional[Callable[[Space], Any]] = None
+    setter: Optional[Callable[[Space, Any], None]] = None
+    align: int = int(Qt.AlignLeft | Qt.AlignVCenter)
+
+
+def _fmt_num(v: float, digits: int = 1) -> str:
+    if v is None:
+        return ""
+    return f"{v:.{digits}f}"
+
+
+def _q_density(sp: Space) -> float:
+    """Удельная теплопотеря Вт/м² — критерий аномалии."""
+    if sp.area_m2 <= 0:
+        return 0.0
+    return sp.heat_loss_w / sp.area_m2
+
+
+class SpacesTableModel(QAbstractTableModel):
+    """Модель таблицы поверх project.spaces.
+
+    Реактивна на сигналы bridge — после dataLoaded / calculationDone
+    модель полностью перевыпускается через layoutChanged.
+    """
+
+    COLUMNS: List[Column] = [
+        Column("panel.spaces.col.number",   "number",         80,
+               align=int(Qt.AlignLeft | Qt.AlignVCenter)),
+        Column("panel.spaces.col.name",     "name",          220,
+               align=int(Qt.AlignLeft | Qt.AlignVCenter)),
+        Column("panel.spaces.col.level",    "level",         110),
+        Column("panel.spaces.col.type",     "room_type",     150, editable=True),
+        Column("panel.spaces.col.area",     "area_m2",        80,
+               fmt=lambda v: _fmt_num(v, 1),
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.volume",   "volume_m3",      90,
+               fmt=lambda v: _fmt_num(v, 1),
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.t_heat",   "t_in_heat",      70, editable=True,
+               fmt=lambda v: f"{v:.1f}",
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.q_heat",   "heat_loss_w",   110,
+               fmt=lambda v: f"{(v or 0)/1000:.2f}",
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.q_cool",   "heat_gain_w",   110,
+               fmt=lambda v: f"{(v or 0)/1000:.2f}",
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.density",  "_q_density",     80,
+               fmt=lambda v: _fmt_num(v, 0),
+               getter=_q_density,
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.zone",     "system_heating",130, editable=True),
+    ]
+
+    def __init__(self, project: HVACProject, bridge: ProjectBridge,
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self.project = project
+        self.bridge = bridge
+        # Сабскрайбимся на события, которые меняют содержимое
+        bridge.dataLoaded.connect(self._full_reset)
+        bridge.projectLoaded.connect(self._full_reset)
+        bridge.calculationDone.connect(self._refresh_results)
+        bridge.ventilationDone.connect(self._refresh_results)
+
+    # ---- Qt API ----
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(self.project.spaces)
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return len(self.COLUMNS)
+
+    def headerData(self, section: int, orientation: Qt.Orientation,
+                   role: int = Qt.DisplayRole) -> Any:
+        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+            # Резолвим через i18n каждый раз — заголовки переключаются вместе
+            # с языком без пересоздания модели.
+            return _t(self.COLUMNS[section].title_key)
+        return None
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlags:
+        if not index.isValid():
+            return Qt.NoItemFlags
+        base = Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        if self.COLUMNS[index.column()].editable:
+            base |= Qt.ItemIsEditable
+        return base
+
+    def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> Any:
+        if not index.isValid():
+            return None
+        sp = self.project.spaces[index.row()]
+        col = self.COLUMNS[index.column()]
+
+        if role in (Qt.DisplayRole, Qt.EditRole):
+            value = col.getter(sp) if col.getter else getattr(sp, col.key, "")
+            if role == Qt.EditRole:
+                return value
+            return col.fmt(value) if col.fmt else (str(value) if value != "" else "")
+
+        if role == Qt.TextAlignmentRole:
+            return col.align
+
+        if role == Qt.BackgroundRole:
+            t = tokens()
+            density = _q_density(sp)
+            # Подсветка аномалий: >100 Вт/м² зимой
+            if density > 100:
+                return QBrush(QColor(t["danger"]).darker(280))
+            if density > 70:
+                return QBrush(QColor(t["warning"]).darker(280))
+            return None
+
+        if role == Qt.ForegroundRole:
+            if sp.user_modified and index.column() == 3:
+                return QBrush(QColor(tokens()["accent"]))
+            return None
+
+        if role == Qt.ToolTipRole:
+            mod = _t("panel.spaces.tooltip.modified") if sp.user_modified else ""
+            return _t("panel.spaces.tooltip").format(
+                number=sp.number, name=sp.name,
+                level=sp.level, type=sp.room_type, mod=mod)
+
+        return None
+
+    def setData(self, index: QModelIndex, value: Any,
+                role: int = Qt.EditRole) -> bool:
+        if role != Qt.EditRole or not index.isValid():
+            return False
+        sp = self.project.spaces[index.row()]
+        col = self.COLUMNS[index.column()]
+        if not col.editable:
+            return False
+
+        try:
+            if col.key == "room_type":
+                sp.room_type = str(value)
+                apply_room_type_defaults(sp)
+            elif col.key == "t_in_heat":
+                sp.t_in_heat = float(value)
+            elif col.key == "system_heating":
+                sp.system_heating = str(value)
+            else:
+                setattr(sp, col.key, value)
+            sp.user_modified = True
+        except (TypeError, ValueError):
+            return False
+
+        # При смене типа меняется ещё пачка полей — перерисовываем строку
+        top = self.index(index.row(), 0)
+        bot = self.index(index.row(), self.columnCount() - 1)
+        self.dataChanged.emit(top, bot)
+        self.bridge.dirtyChanged.emit(True)
+        return True
+
+    # ---- Внутреннее ----
+    def _full_reset(self, *args: Any) -> None:
+        self.beginResetModel()
+        self.endResetModel()
+
+    def _refresh_results(self, *args: Any) -> None:
+        if not self.project.spaces:
+            return
+        top = self.index(0, 0)
+        bot = self.index(len(self.project.spaces) - 1, self.columnCount() - 1)
+        self.dataChanged.emit(top, bot,
+                              [Qt.DisplayRole, Qt.BackgroundRole])
+
+    def space_at(self, row: int) -> Optional[Space]:
+        if 0 <= row < len(self.project.spaces):
+            return self.project.spaces[row]
+        return None
+
+
+# ===========================================================================
+# Прокси-модель: поиск + фильтры
+# ===========================================================================
+
+
+class SpacesFilterProxy(QSortFilterProxyModel):
+    """Текстовый поиск + фильтры по этажу/типу/зоне."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._text = ""
+        self._level = ""
+        self._type = ""
+        self._zone = ""
+        self.setDynamicSortFilter(True)
+
+    def set_text(self, t: str) -> None:
+        self._text = t.lower().strip()
+        self.invalidateFilter()
+
+    def set_level(self, v: str) -> None:
+        self._level = "" if v == _t("filter.all") else v
+        self.invalidateFilter()
+
+    def set_type(self, v: str) -> None:
+        self._type = "" if v == _t("filter.all") else v
+        self.invalidateFilter()
+
+    def set_zone(self, v: str) -> None:
+        self._zone = "" if v == _t("filter.all") else v
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row: int,
+                         _parent: QModelIndex) -> bool:
+        model: SpacesTableModel = self.sourceModel()
+        sp = model.space_at(source_row)
+        if sp is None:
+            return False
+        if self._level and sp.level != self._level:
+            return False
+        if self._type and sp.room_type != self._type:
+            return False
+        if self._zone and (sp.system_heating or "") != self._zone:
+            return False
+        if self._text:
+            hay = " ".join((sp.number, sp.name, sp.level,
+                            sp.room_type, sp.system_heating or "")).lower()
+            if self._text not in hay:
+                return False
+        return True
+
+
+# ===========================================================================
+# Делегаты для inline-edit
+# ===========================================================================
+
+
+class ComboDelegate(QStyledItemDelegate):
+    """Выпадающий список значений в ячейке."""
+
+    def __init__(self, options_provider: Callable[[], List[str]],
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self._provider = options_provider
+
+    def createEditor(self, parent, option, index):
+        combo = QComboBox(parent)
+        combo.setEditable(True)   # позволяем ввести новое значение
+        combo.addItems(self._provider())
+        return combo
+
+    def setEditorData(self, editor: QComboBox, index: QModelIndex):
+        value = index.model().data(index, Qt.EditRole) or ""
+        editor.setCurrentText(str(value))
+
+    def setModelData(self, editor: QComboBox, model, index):
+        model.setData(index, editor.currentText(), Qt.EditRole)
+
+
+# ===========================================================================
+# Сама панель
+# ===========================================================================
+
+
+class SpacesPanel(QWidget):
+    """Левая таблица + правый PropertiesPanel."""
+
+    spaceSelected = Signal(object)  # Space | None
+
+    def __init__(self, project: HVACProject, bridge: ProjectBridge,
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self.project = project
+        self.bridge = bridge
+
+        self._build_ui()
+        self._wire_signals()
+        self._refresh_filter_options()
+
+    def _build_ui(self) -> None:
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(20, 20, 20, 20)
+        outer.setSpacing(12)
+
+        # Шапка
+        head = QHBoxLayout()
+        self.title_lbl = QLabel(_t("panel.spaces.title"))
+        self.title_lbl.setProperty("role", "h1")
+        head.addWidget(self.title_lbl)
+
+        self.count_lbl = QLabel("")
+        self.count_lbl.setProperty("role", "muted")
+        head.addSpacing(12)
+        head.addWidget(self.count_lbl)
+        head.addStretch(1)
+        outer.addLayout(head)
+
+        # Тулбар с поиском и фильтрами
+        toolbar = QHBoxLayout()
+        toolbar.setSpacing(8)
+
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(_t("panel.spaces.search.ph"))
+        self.search.setClearButtonEnabled(True)
+        self.search.setMinimumWidth(280)
+        toolbar.addWidget(self.search, stretch=2)
+
+        self.level_filter = QComboBox()
+        self.level_filter.setMinimumWidth(140)
+        self._level_filter_lbl = QLabel(_t("panel.spaces.filter.level"))
+        toolbar.addWidget(_label_with_widget(self._level_filter_lbl,
+                                              self.level_filter))
+
+        self.type_filter = QComboBox()
+        self.type_filter.setMinimumWidth(160)
+        self._type_filter_lbl = QLabel(_t("panel.spaces.filter.type"))
+        toolbar.addWidget(_label_with_widget(self._type_filter_lbl,
+                                              self.type_filter))
+
+        self.zone_filter = QComboBox()
+        self.zone_filter.setMinimumWidth(160)
+        self._zone_filter_lbl = QLabel(_t("panel.spaces.filter.zone"))
+        toolbar.addWidget(_label_with_widget(self._zone_filter_lbl,
+                                              self.zone_filter))
+
+        toolbar.addStretch(1)
+
+        # Кнопки ручного управления
+        self.b_add = QPushButton(_t("btn.add_space"))
+        self.b_add.clicked.connect(self._on_add)
+        toolbar.addWidget(self.b_add)
+
+        self.b_del = QPushButton(_t("btn.delete"))
+        self.b_del.clicked.connect(self._on_delete)
+        toolbar.addWidget(self.b_del)
+
+        self.b_dup = QPushButton(_t("btn.duplicate"))
+        self.b_dup.clicked.connect(self._on_duplicate)
+        toolbar.addWidget(self.b_dup)
+
+        self.b_import = QPushButton(_t("btn.import"))
+        self.b_import.clicked.connect(self._on_import)
+        toolbar.addWidget(self.b_import)
+
+        self.b_template = QPushButton(_t("btn.template"))
+        self.b_template.clicked.connect(self._on_template)
+        toolbar.addWidget(self.b_template)
+
+        outer.addLayout(toolbar)
+
+        # Splitter: таблица | свойства
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setHandleWidth(1)
+
+        # --- Таблица ---
+        self.table = QTableView()
+        self.model = SpacesTableModel(self.project, self.bridge, self)
+        self.proxy = SpacesFilterProxy(self)
+        self.proxy.setSourceModel(self.model)
+        self.table.setModel(self.proxy)
+
+        self.table.setSortingEnabled(True)
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.table.setEditTriggers(
+            QAbstractItemView.DoubleClicked | QAbstractItemView.SelectedClicked
+            | QAbstractItemView.EditKeyPressed
+        )
+        self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(28)
+        self.table.horizontalHeader().setHighlightSections(False)
+        self.table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Interactive)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        for i, col in enumerate(SpacesTableModel.COLUMNS):
+            self.table.setColumnWidth(i, col.width)
+
+        # Делегаты для редактируемых колонок
+        type_col = next(i for i, c in enumerate(SpacesTableModel.COLUMNS)
+                        if c.key == "room_type")
+        self.table.setItemDelegateForColumn(
+            type_col, ComboDelegate(get_all_room_types, self.table))
+
+        zone_col = next(i for i, c in enumerate(SpacesTableModel.COLUMNS)
+                        if c.key == "system_heating")
+        self.table.setItemDelegateForColumn(
+            zone_col, ComboDelegate(self._existing_zones, self.table))
+
+        splitter.addWidget(self.table)
+
+        # --- Properties + Boundaries (вертикальный сплит) ---
+        right_split = QSplitter(Qt.Vertical)
+        right_split.setHandleWidth(1)
+
+        self.props = PropertiesPanel(self.project, self.bridge)
+        right_split.addWidget(self.props)
+
+        self.boundaries = BoundariesPanel(self.project, self.bridge)
+        right_split.addWidget(self.boundaries)
+        right_split.setStretchFactor(0, 2)
+        right_split.setStretchFactor(1, 3)
+        right_split.setSizes([260, 440])
+
+        splitter.addWidget(right_split)
+
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([800, 600])
+
+        outer.addWidget(splitter, stretch=1)
+
+    def _wire_signals(self) -> None:
+        self.search.textChanged.connect(self.proxy.set_text)
+        self.level_filter.currentTextChanged.connect(self.proxy.set_level)
+        self.type_filter.currentTextChanged.connect(self.proxy.set_type)
+        self.zone_filter.currentTextChanged.connect(self.proxy.set_zone)
+
+        self.bridge.dataLoaded.connect(self._refresh_filter_options)
+        self.bridge.projectLoaded.connect(self._refresh_filter_options)
+        self.bridge.zonesChanged.connect(self._refresh_filter_options)
+        self.bridge.calculationDone.connect(self._refresh_count)
+        self.bridge.dataLoaded.connect(self._refresh_count)
+
+        sel = self.table.selectionModel()
+        sel.currentRowChanged.connect(self._on_row_changed)
+        self.proxy.layoutChanged.connect(self._refresh_count)
+
+    # ---- Реакция на события ----
+    def _refresh_filter_options(self, *args: Any) -> None:
+        levels = sorted({s.level for s in self.project.spaces if s.level})
+        types = sorted({s.room_type for s in self.project.spaces
+                        if s.room_type})
+        zones = sorted({s.system_heating for s in self.project.spaces
+                        if s.system_heating})
+
+        all_label = _t("filter.all")
+        for combo, items in (
+            (self.level_filter, levels),
+            (self.type_filter, types),
+            (self.zone_filter, zones),
+        ):
+            current = combo.currentText() or all_label
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem(all_label)
+            combo.addItems(items)
+            idx = combo.findText(current)
+            combo.setCurrentIndex(max(0, idx))
+            combo.blockSignals(False)
+        self._refresh_count()
+
+    def _refresh_count(self, *args: Any) -> None:
+        total = len(self.project.spaces)
+        visible = self.proxy.rowCount()
+        if total == 0:
+            text = _t("panel.spaces.count_empty")
+        elif visible == total:
+            text = _t("panel.spaces.count_total").format(n=total)
+        else:
+            text = _t("panel.spaces.count_filtered").format(
+                visible=visible, total=total)
+        self.count_lbl.setText(text)
+
+    def _on_row_changed(self, current: QModelIndex, _previous: QModelIndex) -> None:
+        if not current.isValid():
+            self.props.show_space(None)
+            self.boundaries.show_space(None)
+            self.spaceSelected.emit(None)
+            return
+        source_idx = self.proxy.mapToSource(current)
+        sp = self.model.space_at(source_idx.row())
+        self.props.show_space(sp)
+        self.boundaries.show_space(sp)
+        self.spaceSelected.emit(sp)
+
+    # ===== Ручное управление помещениями =====
+    def _selected_space(self) -> Space | None:
+        idx = self.table.currentIndex()
+        if not idx.isValid():
+            return None
+        src = self.proxy.mapToSource(idx)
+        return self.model.space_at(src.row())
+
+    def _known_levels(self) -> List[str]:
+        return sorted({s.level for s in self.project.spaces if s.level})
+
+    def _on_add(self) -> None:
+        dlg = SpaceDialog(self, known_levels=self._known_levels())
+        if dlg.exec() != QDialog.Accepted:
+            return
+        v = dlg.result_value()
+        if not v.number:
+            QMessageBox.warning(self, _t("panel.spaces.dlg.no_number.title"),
+                                  _t("panel.spaces.dlg.no_number.body"))
+            return
+        try:
+            sp = self.project.add_space(
+                number=v.number, name=v.name or v.number,
+                level=v.level or _t("panel.spaces.default_level"),
+                area_m2=v.area_m2,
+                height_m=v.height_m, room_type=v.room_type)
+        except ValueError as e:
+            QMessageBox.warning(self, _t("panel.spaces.dlg.not_added"), str(e))
+            return
+        self.bridge.dirtyChanged.emit(True)
+        self.model._full_reset()
+        self._refresh_filter_options()
+        # Выделить добавленное помещение
+        for row, s in enumerate(self.project.spaces):
+            if s.space_id == sp.space_id:
+                src_idx = self.model.index(row, 0)
+                self.table.setCurrentIndex(self.proxy.mapFromSource(src_idx))
+                break
+
+    def _on_delete(self) -> None:
+        sp = self._selected_space()
+        if sp is None:
+            return
+        # Используем индекс elements_by_space — быстрее, чем линейный скан.
+        n_elems = len(self.project.elements_for(sp.space_id))
+        msg = _t("panel.spaces.dlg.delete.body").format(
+            number=sp.number, name=sp.name)
+        if n_elems:
+            msg += _t("panel.spaces.dlg.delete.elems").format(n=n_elems)
+        ans = QMessageBox.question(self, _t("panel.spaces.dlg.delete.title"),
+                                    msg, QMessageBox.Yes | QMessageBox.No)
+        if ans != QMessageBox.Yes:
+            return
+        self.project.remove_space(sp.space_id)
+        self.bridge.dirtyChanged.emit(True)
+        self.model._full_reset()
+        self._refresh_filter_options()
+
+    def _on_duplicate(self) -> None:
+        sp = self._selected_space()
+        if sp is None:
+            return
+        new_sp = self.project.duplicate_space(sp.space_id)
+        if new_sp is None:
+            return
+        self.bridge.dirtyChanged.emit(True)
+        self.model._full_reset()
+        self._refresh_filter_options()
+
+    def _on_import(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, _t("panel.spaces.dlg.import.title"), "",
+            _t("panel.spaces.dlg.import.filter"))
+        if not path:
+            return
+        try:
+            if path.lower().endswith(".csv"):
+                n = self.project.import_spaces_from_csv(path)
+            else:
+                n = self.project.import_spaces_from_excel(path)
+        except Exception as e:
+            QMessageBox.critical(self, _t("panel.spaces.dlg.import_err"), str(e))
+            return
+        self.bridge.dirtyChanged.emit(True)
+        self.model._full_reset()
+        self._refresh_filter_options()
+        self.bridge.statusMessage.emit(
+            _t("panel.spaces.status.imported").format(n=n, path=path), 5000)
+
+    def _on_template(self) -> None:
+        dlg = BuildingTemplateDialog(self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        tpl = dlg.result_value()
+        if not tpl.rooms_per_apartment:
+            QMessageBox.warning(self, _t("panel.spaces.dlg.tpl_empty.title"),
+                                 _t("panel.spaces.dlg.tpl_empty.body"))
+            return
+        created = self.project.add_spaces_from_template(tpl)
+        self.bridge.dirtyChanged.emit(True)
+        self.model._full_reset()
+        self._refresh_filter_options()
+        self.bridge.statusMessage.emit(
+            _t("panel.spaces.status.tpl_created").format(n=len(created)), 5000)
+
+    def _existing_zones(self) -> List[str]:
+        zones = sorted({s.system_heating for s in self.project.spaces
+                        if s.system_heating})
+        if not zones:
+            # Эти имена попадут в spaces.system_heating и сохранятся
+            # в JSON — поэтому держим их фиксированными (без перевода),
+            # чтобы при смене языка не было дублей "Зона A" / "Zona A".
+            zones = ["Зона A", "Зона B"]
+        return zones
+
+    # ---------- Локализация ----------
+    def retranslate_ui(self) -> None:
+        """Обновляет все подписи после смены языка."""
+        self.title_lbl.setText(_t("panel.spaces.title"))
+        self.search.setPlaceholderText(_t("panel.spaces.search.ph"))
+        self._level_filter_lbl.setText(_t("panel.spaces.filter.level"))
+        self._type_filter_lbl.setText(_t("panel.spaces.filter.type"))
+        self._zone_filter_lbl.setText(_t("panel.spaces.filter.zone"))
+        self.b_add.setText(_t("btn.add_space"))
+        self.b_del.setText(_t("btn.delete"))
+        self.b_dup.setText(_t("btn.duplicate"))
+        self.b_import.setText(_t("btn.import"))
+        self.b_template.setText(_t("btn.template"))
+        # Заголовки колонок таблицы — модель отдаёт их через _t() в headerData;
+        # сообщаем Qt, что header-секции стоит перерисовать.
+        self.model.headerDataChanged.emit(
+            Qt.Horizontal, 0, self.model.columnCount() - 1)
+        # Опции фильтров (значение "(все)") пересобираем
+        self._refresh_filter_options()
+        self._refresh_count()
+
+
+def _label_with_widget(lbl: QLabel, widget: QWidget) -> QWidget:
+    """Маленький layout «подпись + поле» для тулбара. Принимает готовый
+    QLabel — чтобы вызывающий мог хранить ссылку и обновить текст
+    после смены языка."""
+    wrap = QWidget()
+    lay = QHBoxLayout(wrap)
+    lay.setContentsMargins(0, 0, 0, 0)
+    lay.setSpacing(6)
+    lbl.setProperty("role", "muted")
+    lay.addWidget(lbl)
+    lay.addWidget(widget, stretch=1)
+    wrap.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+    return wrap

@@ -1,0 +1,127 @@
+# -*- coding: utf-8 -*-
+"""
+Климатическая база данных СП 131.13330 (РФ/СНГ).
+
+Каждая запись:
+    name : { country, t_heat_092, t_heat_098, t_cool_095, daily_amp,
+             solar_vert, gsop_18 }
+где:
+    t_heat_092 — расчётная зимняя температура (обеспеч. 0,92), °C
+    t_heat_098 — расчётная зимняя (обеспеч. 0,98) — для категории А, °C
+    t_cool_095 — расчётная летняя (обеспеч. 0,95), °C
+    daily_amp  — суточная амплитуда летом, K
+    solar_vert — пиковая солнечная радиация на вертикальную поверхность, Вт/м²
+    gsop_18    — градусо-сутки отопительного периода (база +18°C)
+"""
+
+CLIMATE_DB = {
+    # ===== Узбекистан =====
+    "Ташкент":          {"country": "UZ", "t_heat_092": -15, "t_heat_098": -19, "t_cool_095": 36, "daily_amp": 14, "solar_vert": 750, "gsop_18": 2100},
+    "Самарканд":        {"country": "UZ", "t_heat_092": -13, "t_heat_098": -17, "t_cool_095": 36, "daily_amp": 14, "solar_vert": 750, "gsop_18": 2000},
+    "Бухара":           {"country": "UZ", "t_heat_092": -12, "t_heat_098": -16, "t_cool_095": 38, "daily_amp": 15, "solar_vert": 760, "gsop_18": 1900},
+    "Андижан":          {"country": "UZ", "t_heat_092": -15, "t_heat_098": -19, "t_cool_095": 35, "daily_amp": 14, "solar_vert": 740, "gsop_18": 2150},
+    "Наманган":         {"country": "UZ", "t_heat_092": -15, "t_heat_098": -19, "t_cool_095": 35, "daily_amp": 14, "solar_vert": 740, "gsop_18": 2150},
+    "Фергана":          {"country": "UZ", "t_heat_092": -14, "t_heat_098": -18, "t_cool_095": 35, "daily_amp": 14, "solar_vert": 740, "gsop_18": 2100},
+    "Нукус":            {"country": "UZ", "t_heat_092": -22, "t_heat_098": -26, "t_cool_095": 35, "daily_amp": 16, "solar_vert": 750, "gsop_18": 2700},
+    "Карши":            {"country": "UZ", "t_heat_092": -11, "t_heat_098": -15, "t_cool_095": 38, "daily_amp": 15, "solar_vert": 760, "gsop_18": 1850},
+    "Термез":           {"country": "UZ", "t_heat_092": -8,  "t_heat_098": -12, "t_cool_095": 40, "daily_amp": 16, "solar_vert": 770, "gsop_18": 1600},
+
+    # ===== Россия (выборочно — крупные города и центры) =====
+    "Москва":           {"country": "RU", "t_heat_092": -25, "t_heat_098": -28, "t_cool_095": 28, "daily_amp": 10, "solar_vert": 600, "gsop_18": 4943},
+    "Санкт-Петербург":  {"country": "RU", "t_heat_092": -24, "t_heat_098": -27, "t_cool_095": 26, "daily_amp": 8,  "solar_vert": 550, "gsop_18": 4796},
+    "Калининград":      {"country": "RU", "t_heat_092": -18, "t_heat_098": -21, "t_cool_095": 26, "daily_amp": 8,  "solar_vert": 570, "gsop_18": 3984},
+    "Мурманск":         {"country": "RU", "t_heat_092": -27, "t_heat_098": -30, "t_cool_095": 22, "daily_amp": 7,  "solar_vert": 500, "gsop_18": 6275},
+    "Архангельск":      {"country": "RU", "t_heat_092": -31, "t_heat_098": -33, "t_cool_095": 25, "daily_amp": 8,  "solar_vert": 530, "gsop_18": 5944},
+    "Воркута":          {"country": "RU", "t_heat_092": -41, "t_heat_098": -44, "t_cool_095": 22, "daily_amp": 7,  "solar_vert": 500, "gsop_18": 7656},
+    "Воронеж":          {"country": "RU", "t_heat_092": -25, "t_heat_098": -27, "t_cool_095": 30, "daily_amp": 11, "solar_vert": 620, "gsop_18": 4416},
+    "Белгород":         {"country": "RU", "t_heat_092": -23, "t_heat_098": -25, "t_cool_095": 30, "daily_amp": 11, "solar_vert": 620, "gsop_18": 4173},
+    "Курск":            {"country": "RU", "t_heat_092": -24, "t_heat_098": -26, "t_cool_095": 29, "daily_amp": 11, "solar_vert": 610, "gsop_18": 4361},
+    "Тула":             {"country": "RU", "t_heat_092": -25, "t_heat_098": -27, "t_cool_095": 29, "daily_amp": 10, "solar_vert": 600, "gsop_18": 4663},
+    "Рязань":           {"country": "RU", "t_heat_092": -27, "t_heat_098": -29, "t_cool_095": 28, "daily_amp": 10, "solar_vert": 600, "gsop_18": 4774},
+    "Нижний Новгород":  {"country": "RU", "t_heat_092": -30, "t_heat_098": -32, "t_cool_095": 28, "daily_amp": 11, "solar_vert": 600, "gsop_18": 5089},
+    "Казань":           {"country": "RU", "t_heat_092": -31, "t_heat_098": -33, "t_cool_095": 28, "daily_amp": 11, "solar_vert": 590, "gsop_18": 5251},
+    "Самара":           {"country": "RU", "t_heat_092": -27, "t_heat_098": -30, "t_cool_095": 30, "daily_amp": 12, "solar_vert": 610, "gsop_18": 4936},
+    "Уфа":              {"country": "RU", "t_heat_092": -32, "t_heat_098": -34, "t_cool_095": 28, "daily_amp": 11, "solar_vert": 590, "gsop_18": 5395},
+    "Пермь":            {"country": "RU", "t_heat_092": -33, "t_heat_098": -35, "t_cool_095": 27, "daily_amp": 11, "solar_vert": 580, "gsop_18": 5762},
+    "Екатеринбург":     {"country": "RU", "t_heat_092": -32, "t_heat_098": -34, "t_cool_095": 27, "daily_amp": 11, "solar_vert": 580, "gsop_18": 5708},
+    "Тюмень":           {"country": "RU", "t_heat_092": -35, "t_heat_098": -37, "t_cool_095": 27, "daily_amp": 12, "solar_vert": 590, "gsop_18": 5946},
+    "Челябинск":        {"country": "RU", "t_heat_092": -32, "t_heat_098": -34, "t_cool_095": 28, "daily_amp": 12, "solar_vert": 590, "gsop_18": 5505},
+    "Оренбург":         {"country": "RU", "t_heat_092": -29, "t_heat_098": -31, "t_cool_095": 30, "daily_amp": 13, "solar_vert": 620, "gsop_18": 4995},
+    "Омск":             {"country": "RU", "t_heat_092": -37, "t_heat_098": -39, "t_cool_095": 28, "daily_amp": 13, "solar_vert": 600, "gsop_18": 6071},
+    "Новосибирск":      {"country": "RU", "t_heat_092": -37, "t_heat_098": -39, "t_cool_095": 27, "daily_amp": 12, "solar_vert": 600, "gsop_18": 6248},
+    "Барнаул":          {"country": "RU", "t_heat_092": -37, "t_heat_098": -39, "t_cool_095": 27, "daily_amp": 12, "solar_vert": 600, "gsop_18": 6018},
+    "Кемерово":         {"country": "RU", "t_heat_092": -39, "t_heat_098": -41, "t_cool_095": 26, "daily_amp": 12, "solar_vert": 590, "gsop_18": 6491},
+    "Красноярск":       {"country": "RU", "t_heat_092": -37, "t_heat_098": -39, "t_cool_095": 26, "daily_amp": 11, "solar_vert": 600, "gsop_18": 6486},
+    "Иркутск":          {"country": "RU", "t_heat_092": -36, "t_heat_098": -38, "t_cool_095": 26, "daily_amp": 12, "solar_vert": 620, "gsop_18": 6515},
+    "Чита":             {"country": "RU", "t_heat_092": -38, "t_heat_098": -40, "t_cool_095": 27, "daily_amp": 13, "solar_vert": 640, "gsop_18": 6890},
+    "Якутск":           {"country": "RU", "t_heat_092": -52, "t_heat_098": -54, "t_cool_095": 27, "daily_amp": 13, "solar_vert": 620, "gsop_18": 9931},
+    "Хабаровск":        {"country": "RU", "t_heat_092": -31, "t_heat_098": -33, "t_cool_095": 27, "daily_amp": 10, "solar_vert": 580, "gsop_18": 5727},
+    "Владивосток":      {"country": "RU", "t_heat_092": -24, "t_heat_098": -27, "t_cool_095": 24, "daily_amp": 8,  "solar_vert": 540, "gsop_18": 4778},
+    "Магадан":          {"country": "RU", "t_heat_092": -29, "t_heat_098": -31, "t_cool_095": 18, "daily_amp": 7,  "solar_vert": 510, "gsop_18": 6750},
+    "Петропавловск-Камчатский": {"country": "RU", "t_heat_092": -19, "t_heat_098": -22, "t_cool_095": 20, "daily_amp": 7, "solar_vert": 510, "gsop_18": 5305},
+    "Южно-Сахалинск":   {"country": "RU", "t_heat_092": -22, "t_heat_098": -25, "t_cool_095": 23, "daily_amp": 7,  "solar_vert": 530, "gsop_18": 5172},
+    "Анадырь":          {"country": "RU", "t_heat_092": -33, "t_heat_098": -36, "t_cool_095": 16, "daily_amp": 6,  "solar_vert": 480, "gsop_18": 7841},
+    "Норильск":         {"country": "RU", "t_heat_092": -46, "t_heat_098": -48, "t_cool_095": 20, "daily_amp": 7,  "solar_vert": 480, "gsop_18": 8961},
+    "Ростов-на-Дону":   {"country": "RU", "t_heat_092": -22, "t_heat_098": -24, "t_cool_095": 31, "daily_amp": 12, "solar_vert": 650, "gsop_18": 3623},
+    "Краснодар":        {"country": "RU", "t_heat_092": -19, "t_heat_098": -21, "t_cool_095": 32, "daily_amp": 13, "solar_vert": 660, "gsop_18": 2966},
+    "Волгоград":        {"country": "RU", "t_heat_092": -25, "t_heat_098": -27, "t_cool_095": 32, "daily_amp": 13, "solar_vert": 650, "gsop_18": 4039},
+    "Астрахань":        {"country": "RU", "t_heat_092": -23, "t_heat_098": -25, "t_cool_095": 33, "daily_amp": 14, "solar_vert": 680, "gsop_18": 3590},
+    "Сочи":             {"country": "RU", "t_heat_092": -3,  "t_heat_098": -5,  "t_cool_095": 30, "daily_amp": 10, "solar_vert": 660, "gsop_18": 1429},
+    "Ставрополь":       {"country": "RU", "t_heat_092": -19, "t_heat_098": -22, "t_cool_095": 29, "daily_amp": 12, "solar_vert": 660, "gsop_18": 3493},
+    "Махачкала":        {"country": "RU", "t_heat_092": -10, "t_heat_098": -13, "t_cool_095": 30, "daily_amp": 11, "solar_vert": 670, "gsop_18": 2540},
+    "Грозный":          {"country": "RU", "t_heat_092": -17, "t_heat_098": -19, "t_cool_095": 32, "daily_amp": 12, "solar_vert": 670, "gsop_18": 3057},
+    "Симферополь":      {"country": "RU", "t_heat_092": -15, "t_heat_098": -17, "t_cool_095": 30, "daily_amp": 11, "solar_vert": 650, "gsop_18": 2934},
+    "Севастополь":      {"country": "RU", "t_heat_092": -11, "t_heat_098": -13, "t_cool_095": 29, "daily_amp": 10, "solar_vert": 650, "gsop_18": 2517},
+
+    # ===== Казахстан =====
+    "Алматы":           {"country": "KZ", "t_heat_092": -23, "t_heat_098": -26, "t_cool_095": 32, "daily_amp": 13, "solar_vert": 720, "gsop_18": 3677},
+    "Астана":           {"country": "KZ", "t_heat_092": -34, "t_heat_098": -36, "t_cool_095": 28, "daily_amp": 13, "solar_vert": 660, "gsop_18": 6088},
+    "Нур-Султан":       {"country": "KZ", "t_heat_092": -34, "t_heat_098": -36, "t_cool_095": 28, "daily_amp": 13, "solar_vert": 660, "gsop_18": 6088},
+    "Шымкент":          {"country": "KZ", "t_heat_092": -16, "t_heat_098": -20, "t_cool_095": 35, "daily_amp": 14, "solar_vert": 740, "gsop_18": 2538},
+    "Караганда":        {"country": "KZ", "t_heat_092": -32, "t_heat_098": -35, "t_cool_095": 28, "daily_amp": 13, "solar_vert": 660, "gsop_18": 5811},
+    "Атырау":           {"country": "KZ", "t_heat_092": -26, "t_heat_098": -29, "t_cool_095": 33, "daily_amp": 14, "solar_vert": 700, "gsop_18": 4275},
+    "Актобе":           {"country": "KZ", "t_heat_092": -29, "t_heat_098": -32, "t_cool_095": 32, "daily_amp": 14, "solar_vert": 680, "gsop_18": 5118},
+    "Костанай":         {"country": "KZ", "t_heat_092": -32, "t_heat_098": -34, "t_cool_095": 30, "daily_amp": 13, "solar_vert": 650, "gsop_18": 5707},
+    "Павлодар":         {"country": "KZ", "t_heat_092": -35, "t_heat_098": -37, "t_cool_095": 29, "daily_amp": 13, "solar_vert": 650, "gsop_18": 5995},
+    "Усть-Каменогорск": {"country": "KZ", "t_heat_092": -36, "t_heat_098": -38, "t_cool_095": 29, "daily_amp": 13, "solar_vert": 660, "gsop_18": 5644},
+
+    # ===== Беларусь =====
+    "Минск":            {"country": "BY", "t_heat_092": -24, "t_heat_098": -26, "t_cool_095": 25, "daily_amp": 9,  "solar_vert": 550, "gsop_18": 4282},
+    "Брест":            {"country": "BY", "t_heat_092": -21, "t_heat_098": -23, "t_cool_095": 26, "daily_amp": 9,  "solar_vert": 560, "gsop_18": 3895},
+    "Гомель":           {"country": "BY", "t_heat_092": -24, "t_heat_098": -26, "t_cool_095": 26, "daily_amp": 10, "solar_vert": 560, "gsop_18": 4232},
+    "Гродно":           {"country": "BY", "t_heat_092": -22, "t_heat_098": -24, "t_cool_095": 25, "daily_amp": 9,  "solar_vert": 560, "gsop_18": 4054},
+    "Витебск":          {"country": "BY", "t_heat_092": -25, "t_heat_098": -27, "t_cool_095": 25, "daily_amp": 9,  "solar_vert": 550, "gsop_18": 4451},
+    "Могилёв":          {"country": "BY", "t_heat_092": -25, "t_heat_098": -27, "t_cool_095": 26, "daily_amp": 9,  "solar_vert": 550, "gsop_18": 4378},
+
+    # ===== Украина =====
+    "Киев":             {"country": "UA", "t_heat_092": -22, "t_heat_098": -24, "t_cool_095": 28, "daily_amp": 11, "solar_vert": 600, "gsop_18": 4084},
+    "Львов":            {"country": "UA", "t_heat_092": -19, "t_heat_098": -21, "t_cool_095": 26, "daily_amp": 10, "solar_vert": 580, "gsop_18": 3879},
+    "Харьков":          {"country": "UA", "t_heat_092": -23, "t_heat_098": -25, "t_cool_095": 29, "daily_amp": 11, "solar_vert": 610, "gsop_18": 4100},
+    "Одесса":           {"country": "UA", "t_heat_092": -18, "t_heat_098": -20, "t_cool_095": 28, "daily_amp": 10, "solar_vert": 620, "gsop_18": 3251},
+    "Днепр":            {"country": "UA", "t_heat_092": -23, "t_heat_098": -25, "t_cool_095": 30, "daily_amp": 12, "solar_vert": 620, "gsop_18": 3996},
+    "Запорожье":        {"country": "UA", "t_heat_092": -22, "t_heat_098": -24, "t_cool_095": 30, "daily_amp": 12, "solar_vert": 620, "gsop_18": 3823},
+    "Одесса":           {"country": "UA", "t_heat_092": -18, "t_heat_098": -20, "t_cool_095": 28, "daily_amp": 10, "solar_vert": 620, "gsop_18": 3251},
+
+    # ===== Кыргызстан =====
+    "Бишкек":           {"country": "KG", "t_heat_092": -23, "t_heat_098": -26, "t_cool_095": 33, "daily_amp": 13, "solar_vert": 720, "gsop_18": 3402},
+    "Ош":               {"country": "KG", "t_heat_092": -19, "t_heat_098": -22, "t_cool_095": 34, "daily_amp": 13, "solar_vert": 720, "gsop_18": 2783},
+
+    # ===== Таджикистан =====
+    "Душанбе":          {"country": "TJ", "t_heat_092": -12, "t_heat_098": -16, "t_cool_095": 36, "daily_amp": 14, "solar_vert": 750, "gsop_18": 1900},
+    "Худжанд":          {"country": "TJ", "t_heat_092": -13, "t_heat_098": -17, "t_cool_095": 36, "daily_amp": 14, "solar_vert": 740, "gsop_18": 2000},
+
+    # ===== Туркменистан =====
+    "Ашхабад":          {"country": "TM", "t_heat_092": -11, "t_heat_098": -14, "t_cool_095": 40, "daily_amp": 16, "solar_vert": 760, "gsop_18": 1729},
+
+    # ===== Армения =====
+    "Ереван":           {"country": "AM", "t_heat_092": -19, "t_heat_098": -23, "t_cool_095": 35, "daily_amp": 14, "solar_vert": 730, "gsop_18": 3157},
+
+    # ===== Грузия =====
+    "Тбилиси":          {"country": "GE", "t_heat_092": -7,  "t_heat_098": -10, "t_cool_095": 32, "daily_amp": 12, "solar_vert": 680, "gsop_18": 1900},
+
+    # ===== Азербайджан =====
+    "Баку":             {"country": "AZ", "t_heat_092": -3,  "t_heat_098": -5,  "t_cool_095": 32, "daily_amp": 11, "solar_vert": 680, "gsop_18": 1646},
+
+    # ===== Молдова =====
+    "Кишинёв":          {"country": "MD", "t_heat_092": -16, "t_heat_098": -18, "t_cool_095": 30, "daily_amp": 11, "solar_vert": 620, "gsop_18": 3260},
+}
