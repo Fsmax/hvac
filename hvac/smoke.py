@@ -14,7 +14,7 @@
 Методы расчёта расхода (calc_method):
   • norm_per_m2         — упрощённо: L = area × norm
   • kmk_zone_perimeter  — КМК Прил. 20 ф.(3): G = 676.8·P·y^1.5·Ks
-  • kmk_corridor        — КМК Прил. 20 ф.(1)/(2): G1 = 3420·n^1.5 [·Kd]
+  • kmk_corridor        — КМК Прил. 22 ф.(1)/(2): G = K·B·n(B)·H^1.5 [·Kd]
   • nfpa_plume_axi      — NFPA 92 п. 5.5.1: m = 0.071·Qc^(1/3)·z^(5/3) + 0.0018·Qc
   • corridor_formula    — упрощённая формула для коридоров > 15 м (наследие)
   • stairs_pressure     — подпор по нормативу для лестниц
@@ -45,8 +45,12 @@ class SmokeSystem:
     fire_perimeter_m: float = 12.0         # P — периметр очага пожара, м (ф.3, max 12)
     layer_height_m: float = 2.5            # y — высота свободной от дыма зоны, м (мин 2.5)
     ks_sprinkler: float = 1.0              # Ks: 1.0 без спринклеров, 1.2 — со спринклерами
-    n_corridor: float = 1.5                # n — кол-во дверей/проёмов (ф.1)
-    kd_door: float = 1.0                   # Kd — коэф. конструкции дверей (ф.2)
+    # Коридор/холл, КМК 2.04.05-22 Прил.22 ф.(1)/(2): G = K·B·n(B)·H^1.5·[Kd]
+    corridor_door_width_m: float = 1.2     # B — ширина большей створки двери, м
+    corridor_door_height_m: float = 2.0    # H — высота двери, м (при >2.5 → 2.5)
+    corridor_public: bool = True           # True — общ./адм.-быт./произв. (4300·Kd),
+                                            # False — жилые (3420)
+    kd_door: float = 1.0                   # Kd — коэф. продолжит. открывания (только ф.2)
     # NFPA 92, п. 5.5.1 (axisymmetric plume):
     hrr_kw: float = 5000.0                 # Q — мощность тепловыделения пожара, кВт
     convective_fraction: float = 0.7       # доля конвективной мощности (Qc = 0.7·Q)

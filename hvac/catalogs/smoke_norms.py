@@ -73,7 +73,7 @@ class SmokeNorm:
     # Допустимые значения:
     #   "norm_per_m2"          — упрощённо по площади
     #   "kmk_zone_perimeter"   — КМК Прил. 20, формула (3): G = 676.8·P·y^1.5·Ks
-    #   "kmk_corridor"         — КМК Прил. 20, формула (1)/(2): G1 = 3420·n^1.5
+    #   "kmk_corridor"         — КМК Прил. 22, формула (1)/(2): G = K·B·n·H^1.5
     #   "nfpa_plume_axi"       — NFPA 92 п. 5.5.1, axisymmetric plume
     calc_method_recommended: str = "norm_per_m2"
 

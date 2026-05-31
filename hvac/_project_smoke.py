@@ -162,7 +162,8 @@ class SmokeSystemsMixin:
         Дополнительные именованные параметры (через **extra) пробрасываются
         в SmokeSystem: norm_per_m2, max_zone_area_m2, pressure_pa, t_smoke_C,
         makeup_ratio, L_smoke_m3h, а также плюм-параметры (fire_perimeter_m,
-        layer_height_m, ks_sprinkler, n_corridor, kd_door, hrr_kw,
+        layer_height_m, ks_sprinkler, corridor_door_width_m,
+        corridor_door_height_m, corridor_public, kd_door, hrr_kw,
         convective_fraction, plume_height_m). Неизвестные поля молча
         отбрасываются.
 

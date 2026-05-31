@@ -10,7 +10,7 @@ from hvac.catalogs.smoke_norms import (
 )
 from hvac.smoke import SmokeSystem
 from hvac.smoke_formulas import (
-    kmk_zone_perimeter_kg_h, kmk_corridor_kg_h,
+    kmk_zone_perimeter_kg_h, kmk_corridor_kg_h, corridor_n_coefficient,
     nfpa_axisymmetric_plume_kg_s, nfpa_axisymmetric_plume_kg_h,
     smoke_density_kg_m3, mass_to_volume_m3h, calc_smoke_flow_m3h,
 )
@@ -114,23 +114,41 @@ class TestKMKFormulas:
         assert kmk_zone_perimeter_kg_h(0, 2.5) == 0.0
         assert kmk_zone_perimeter_kg_h(12, 0) == 0.0
 
-    def test_kmk_corridor_no_door(self):
-        """G1 = 3420 · n^1.5; n=1.0 → 3420 кг/ч"""
-        assert kmk_corridor_kg_h(1.0) == pytest.approx(3420.0)
+    def test_kmk_corridor_residential(self):
+        """Жилые, ф.1: G = 3420·B·n·H^1.5.
+        B=0.9 (n=0.82), H=2.0 → 3420·0.9·0.82·2^1.5 ≈ 7138.8 кг/ч"""
+        assert kmk_corridor_kg_h(0.9, 2.0, is_public=False) == \
+            pytest.approx(7138.8, rel=1e-3)
 
-    def test_kmk_corridor_with_door(self):
-        """G1 = 4300 · n^1.5 · Kd; n=1.0, Kd=1.0 → 4300 кг/ч"""
-        assert kmk_corridor_kg_h(1.0, kd_door=1.0, with_door=True) == \
-            pytest.approx(4300.0)
+    def test_kmk_corridor_public(self):
+        """Общественные, ф.2: G = 4300·B·n·H^1.5·Kd.
+        B=1.2 (n=0.80), H=2.0, Kd=1.0 → 4300·1.2·0.80·2^1.5 ≈ 11675.6 кг/ч"""
+        assert kmk_corridor_kg_h(1.2, 2.0, is_public=True, kd_door=1.0) == \
+            pytest.approx(11675.6, rel=1e-3)
 
-    def test_kmk_corridor_scales_with_n(self):
-        """n удваивается → G растёт в 2^1.5 ≈ 2.83 раза"""
-        g1 = kmk_corridor_kg_h(1.0)
-        g2 = kmk_corridor_kg_h(2.0)
-        assert g2 / g1 == pytest.approx(2.0 ** 1.5, rel=1e-9)
+    def test_kmk_corridor_n_table(self):
+        """Коэф. n по табл. Прил.22 (опорные точки и интерполяция)."""
+        assert corridor_n_coefficient(0.6, is_public=False) == pytest.approx(1.00)
+        assert corridor_n_coefficient(2.4, is_public=False) == pytest.approx(0.41)
+        assert corridor_n_coefficient(0.6, is_public=True) == pytest.approx(1.05)
+        assert corridor_n_coefficient(2.4, is_public=True) == pytest.approx(0.50)
+        # B=1.05 между 0.9(0.82) и 1.2(0.70) → 0.76
+        assert corridor_n_coefficient(1.05, is_public=False) == \
+            pytest.approx(0.76, rel=1e-3)
+
+    def test_kmk_corridor_height_clamped(self):
+        """H>2.5 ограничивается значением 2.5 м (норматив)."""
+        assert kmk_corridor_kg_h(1.2, 3.0, is_public=True) == \
+            pytest.approx(kmk_corridor_kg_h(1.2, 2.5, is_public=True))
+
+    def test_kmk_corridor_public_exceeds_residential(self):
+        """При тех же B,H общественные дают больший расход (4300>3420, n выше)."""
+        assert kmk_corridor_kg_h(1.2, 2.0, is_public=True) > \
+            kmk_corridor_kg_h(1.2, 2.0, is_public=False)
 
     def test_kmk_corridor_zero(self):
-        assert kmk_corridor_kg_h(0) == 0.0
+        assert kmk_corridor_kg_h(0, 2.0) == 0.0
+        assert kmk_corridor_kg_h(1.2, 0) == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -226,10 +244,11 @@ class TestCalcDispatcher:
 
     def test_kmk_corridor(self):
         sm = SmokeSystem(name="T", calc_method="kmk_corridor",
-                          n_corridor=1.5, kd_door=1.0, t_smoke_C=300.0)
+                          corridor_door_width_m=1.2, corridor_door_height_m=2.0,
+                          corridor_public=True, kd_door=1.0, t_smoke_C=300.0)
         L = calc_smoke_flow_m3h(sm, area_m2=0)
-        # G1 = 3420·1.5^1.5 = 3420·1.837 ≈ 6283
-        G = kmk_corridor_kg_h(1.5)
+        # G = 4300·1.2·n(1.2)·2.0^1.5 (общественные)
+        G = kmk_corridor_kg_h(1.2, 2.0, is_public=True, kd_door=1.0)
         rho = smoke_density_kg_m3(300.0)
         assert L == pytest.approx(G / rho, rel=1e-9)
 
