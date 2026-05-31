@@ -265,13 +265,13 @@ def export_equipment_summary(project: HVACProject, path: str) -> None:
             continue
         eq = sp.room_equipment
         if eq.supply_terminal_qty > 0 and eq.supply_terminal_type != "—":
-            key = ("Приток", eq.supply_terminal_type,
-                   eq.supply_terminal_model, eq.supply_terminal_flow_m3h)
-            air_groups[key].append((sp, eq.supply_terminal_qty))
+            akey = ("Приток", eq.supply_terminal_type,
+                    eq.supply_terminal_model, eq.supply_terminal_flow_m3h)
+            air_groups[akey].append((sp, eq.supply_terminal_qty))
         if eq.exhaust_terminal_qty > 0 and eq.exhaust_terminal_type != "—":
-            key = ("Вытяжка", eq.exhaust_terminal_type,
-                   eq.exhaust_terminal_model, eq.exhaust_terminal_flow_m3h)
-            air_groups[key].append((sp, eq.exhaust_terminal_qty))
+            akey = ("Вытяжка", eq.exhaust_terminal_type,
+                    eq.exhaust_terminal_model, eq.exhaust_terminal_flow_m3h)
+            air_groups[akey].append((sp, eq.exhaust_terminal_qty))
 
     for (purpose, t, m, l), instances in sorted(air_groups.items()):
         total_qty = sum(q for _, q in instances)

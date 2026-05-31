@@ -236,7 +236,7 @@ def _serialize_pipe_network(net) -> dict:
 
 def _serialize_ahu_processes(processes: dict) -> dict:
     """{ahu: {mode: AHUProcess}} → JSON-совместимая структура."""
-    out = {}
+    out: dict = {}
     for ahu, by_mode in processes.items():
         out[ahu] = {}
         for mode, proc in by_mode.items():
@@ -265,7 +265,7 @@ def _serialize_ahu_processes(processes: dict) -> dict:
 def _deserialize_ahu_processes(data: dict) -> dict:
     from hvac.ahu_process import AHUProcess
     from hvac.psychro import AirState
-    out = {}
+    out: dict = {}
     for ahu, by_mode in data.items():
         out[ahu] = {}
         for mode, d in by_mode.items():
@@ -792,17 +792,17 @@ def load_project(project: HVACProject, path: str) -> None:
         # Пользовательские настройки помещений
         overrides = data.get("space_overrides", {})
         for sid, ov in overrides.items():
-            sp = project.get_space(sid)
-            if sp:
+            osp = project.get_space(sid)
+            if osp:
                 for k, v in ov.items():
-                    if hasattr(sp, k):
-                        setattr(sp, k, v)
+                    if hasattr(osp, k):
+                        setattr(osp, k, v)
 
     # ===== Восстанавливаем оборудование помещений (для ОБОИХ режимов) =====
     for sid, eq_data in data.get("room_equipment", {}).items():
-        sp = project.get_space(sid)
-        if sp:
-            sp.room_equipment = deserialize_room_equipment(eq_data)
+        esp = project.get_space(sid)
+        if esp:
+            esp.room_equipment = deserialize_room_equipment(eq_data)
 
     # Системы оборудования
     from hvac.equipment import (VentilationSystem, HeatingSystem,

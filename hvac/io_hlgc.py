@@ -368,12 +368,12 @@ def _export_via_com(project: "HVACProject", source_path: str,
             # Шаг 1: собираем все изменения для совпавших строк
             row_changes: List[Tuple[int, Dict[int, object]]] = []
             for r, room_num in existing_rows:
-                sp = spaces_by_num.get(room_num.upper())
-                if sp is None:
+                msp = spaces_by_num.get(room_num.upper())
+                if msp is None:
                     unmatched.append(room_num)
                     continue
                 matched += 1
-                changes = _collect_room_values(sp, write_id_columns=False)
+                changes = _collect_room_values(msp, write_id_columns=False)
                 if changes:
                     row_changes.append((r, changes))
             # Пакетная запись
@@ -518,7 +518,7 @@ def _clear_rows_com(ws, first_row: int, last_row: int, max_col: int,
         existing_formulas = (existing_formulas,)
     new_values = []
     for row_formulas in existing_formulas:
-        new_row = []
+        new_row: List[Optional[str]] = []
         for f in row_formulas:
             if isinstance(f, str) and f.startswith("="):
                 # Сохраняем формулу

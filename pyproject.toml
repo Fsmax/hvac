@@ -65,4 +65,11 @@ files = [
     "hvac/specification.py",
     "hvac/energy.py",
     "hvac/energy_simulation.py",
+    # io-слой (сериализация/экспорт)
+    "hvac/io_revit.py",
+    "hvac/io_json.py",
+    "hvac/io_excel_equipment.py",
+    "hvac/io_hlgc.py",
+    # TODO: io_excel.py — после разбиения файла; io_pdf.py — после
+    # чистки переиспользования имён переменных в циклах.
 ]
