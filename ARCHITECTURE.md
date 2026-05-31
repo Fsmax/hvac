@@ -269,8 +269,9 @@ export_to_pdf(p, "report.pdf")
 
 ## Дальнейшие улучшения
 
-- **YAML/JSON-каталоги** — внешние редактируемые файлы для
-  `ROOM_TYPE_PRESETS` и `CLIMATE_DB`.
+- **JSON-каталоги** ✅ сделано — `CLIMATE_DB` и `ROOM_TYPE_PRESETS`
+  вынесены в `hvac/catalogs/data/*.json`, грузятся через
+  `importlib.resources` (бандлятся в .exe через `hvac_calc.spec`).
 - **Логирование через `logging`** — настраиваемые уровни,
   единый формат, файл-приёмник.
 - **CI/CD** — GitHub Actions, прогон тестов на каждый push.

@@ -28,6 +28,15 @@ qss_files = [
     (str(project_root / "resources" / "app.png"), "resources"),
 ]
 
+# Каталоги-данные (климат, типы помещений) — внешние JSON, читаются
+# через importlib.resources. В сборке должны лежать в hvac/catalogs/data.
+catalog_files = [
+    (str(project_root / "hvac" / "catalogs" / "data" / "climate.json"),
+     "hvac/catalogs/data"),
+    (str(project_root / "hvac" / "catalogs" / "data" / "room_types.json"),
+     "hvac/catalogs/data"),
+]
+
 # Скрытые импорты, которые анализатор может пропустить
 hidden = [
     "hvac.ui_qt",
@@ -43,7 +52,7 @@ a = Analysis(
     ["hvac_calc.py"],
     pathex=[str(project_root)],
     binaries=[],
-    datas=qss_files,
+    datas=qss_files + catalog_files,
     hiddenimports=hidden,
     hookspath=[],
     runtime_hooks=[],

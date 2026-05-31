@@ -1,0 +1,228 @@
+{
+  "Офис": {
+    "keywords": [
+      "office",
+      "офис",
+      "кабинет"
+    ],
+    "t_in_heat": 20,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 10.0,
+    "lighting_w_m2": 12,
+    "equipment_w_m2": 15
+  },
+  "Жилая комната": {
+    "keywords": [
+      "bedroom",
+      "living",
+      "спальня",
+      "гостиная",
+      "жилая"
+    ],
+    "t_in_heat": 20,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 20.0,
+    "lighting_w_m2": 10,
+    "equipment_w_m2": 8
+  },
+  "Коридор": {
+    "keywords": [
+      "corridor",
+      "hall ",
+      "hall,",
+      "коридор",
+      "холл"
+    ],
+    "t_in_heat": 18,
+    "t_in_cool": 26,
+    "ach_inf": 0.3,
+    "occupancy_density_m2_per_person": 50.0,
+    "lighting_w_m2": 8,
+    "equipment_w_m2": 0
+  },
+  "Вестибюль": {
+    "keywords": [
+      "vestibule",
+      "lobby",
+      "вестибюль",
+      "тамбур"
+    ],
+    "t_in_heat": 16,
+    "t_in_cool": 26,
+    "ach_inf": 1.5,
+    "occupancy_density_m2_per_person": 30.0,
+    "lighting_w_m2": 10,
+    "equipment_w_m2": 0
+  },
+  "Лестница": {
+    "keywords": [
+      "stair",
+      "лестниц"
+    ],
+    "t_in_heat": 16,
+    "t_in_cool": 28,
+    "ach_inf": 0.3,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 6,
+    "equipment_w_m2": 0
+  },
+  "Лифт / шахта": {
+    "keywords": [
+      "elevator",
+      "lift",
+      "лифт"
+    ],
+    "t_in_heat": 5,
+    "t_in_cool": 30,
+    "ach_inf": 0.0,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 5,
+    "equipment_w_m2": 0
+  },
+  "Склад": {
+    "keywords": [
+      "storage",
+      "warehouse",
+      "склад",
+      "кладовая"
+    ],
+    "t_in_heat": 12,
+    "t_in_cool": 28,
+    "ach_inf": 0.2,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 6,
+    "equipment_w_m2": 2
+  },
+  "Технич. помещение": {
+    "keywords": [
+      "mechanical",
+      "electrical",
+      "transformer",
+      "weak current",
+      "machine",
+      "техническ",
+      "электрощит",
+      "венткамер",
+      "ИТП",
+      "насос"
+    ],
+    "t_in_heat": 5,
+    "t_in_cool": 35,
+    "ach_inf": 0.2,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 5,
+    "equipment_w_m2": 30
+  },
+  "Гараж / автостоянка": {
+    "keywords": [
+      "carpark",
+      "parking",
+      "garage",
+      "парковка",
+      "стоянка",
+      "гараж"
+    ],
+    "t_in_heat": 5,
+    "t_in_cool": 30,
+    "ach_inf": 0.3,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 4,
+    "equipment_w_m2": 0
+  },
+  "Санузел": {
+    "keywords": [
+      "toilet",
+      "wc",
+      "bathroom",
+      "санузел",
+      "туалет",
+      "ванная"
+    ],
+    "t_in_heat": 24,
+    "t_in_cool": 26,
+    "ach_inf": 1.0,
+    "occupancy_density_m2_per_person": 5.0,
+    "lighting_w_m2": 8,
+    "equipment_w_m2": 2
+  },
+  "Конференц-зал": {
+    "keywords": [
+      "conference",
+      "meeting",
+      "конференц",
+      "переговор"
+    ],
+    "t_in_heat": 20,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 3.0,
+    "lighting_w_m2": 12,
+    "equipment_w_m2": 10
+  },
+  "Ресторан / кухня": {
+    "keywords": [
+      "kitchen",
+      "restaurant",
+      "dining",
+      "кухня",
+      "ресторан"
+    ],
+    "t_in_heat": 20,
+    "t_in_cool": 22,
+    "ach_inf": 1.0,
+    "occupancy_density_m2_per_person": 1.5,
+    "lighting_w_m2": 15,
+    "equipment_w_m2": 200
+  },
+  "Гостиничный номер": {
+    "keywords": [
+      "hotel room",
+      "guest room",
+      "номер"
+    ],
+    "t_in_heat": 20,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 15.0,
+    "lighting_w_m2": 10,
+    "equipment_w_m2": 8
+  },
+  "Магазин / торговля": {
+    "keywords": [
+      "shop",
+      "retail",
+      "store",
+      "магазин"
+    ],
+    "t_in_heat": 16,
+    "t_in_cool": 24,
+    "ach_inf": 0.8,
+    "occupancy_density_m2_per_person": 5.0,
+    "lighting_w_m2": 20,
+    "equipment_w_m2": 15
+  },
+  "Серверная": {
+    "keywords": [
+      "server",
+      "data center",
+      "серверн"
+    ],
+    "t_in_heat": 18,
+    "t_in_cool": 22,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 5,
+    "equipment_w_m2": 500
+  },
+  "Прочее": {
+    "keywords": [],
+    "t_in_heat": 18,
+    "t_in_cool": 26,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 20.0,
+    "lighting_w_m2": 8,
+    "equipment_w_m2": 5
+  }
+}
