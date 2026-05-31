@@ -1,0 +1,9 @@
+# Зависимости для разработки и CI.
+# Включают рантайм (requirements.txt) + инструменты тестирования.
+#
+#   pip install -r requirements-dev.txt
+#   python -m pytest tests/ -q
+
+-r requirements.txt
+
+pytest>=8.0

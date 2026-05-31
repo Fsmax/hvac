@@ -255,16 +255,16 @@ TABS_REGISTRY.append(MyTab)
 ## Тесты
 
 ```bash
-pip install pytest
-python -m pytest tests/ -v
+pip install -r requirements-dev.txt
+python -m pytest tests/ -q
 ```
 
-Покрывают:
-- парсеры (parse_number, azimuth_to_sector) — 25 тестов
-- движок СП 50.13330 (формулы, угловые помещения, ориентация, запасы) — 13 тестов
-- авто-определение типов помещений — 27 тестов
+**643 теста** покрывают расчётное ядро: парсеры, движки СП 50/60,
+вентиляцию, дымоудаление, ГВС, энергопаспорт, гидравлику, подбор
+оборудования, локализацию (RU/UZ) и защиту от хардкода UI-строк.
 
-Все 65 тестов проходят.
+CI прогоняет весь набор на Python 3.11 и 3.12 при каждом push и
+pull request — см. [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ---
 
