@@ -23,11 +23,11 @@ class _VRFTab(QWidget):
         "panel.eng.vrf.col.qc_w", "panel.eng.vrf.col.dliq",
         "panel.eng.vrf.col.dgas",
     )
-    GROUPS = (
+    GROUPS: tuple[tuple[str, str], ...] = (
         ("panel.eng.vrf.group.level", "level"),
         ("panel.eng.vrf.group.all", "all"),
     )
-    INDOORS_FAM = (
+    INDOORS_FAM: tuple[tuple[str, str | None], ...] = (
         ("panel.eng.vrf.indoor.cassette", "Кассетный"),
         ("panel.eng.vrf.indoor.duct", "Канальный"),
         ("panel.eng.vrf.indoor.wall", "Настенный"),
@@ -59,8 +59,8 @@ class _VRFTab(QWidget):
         self._lbl_indoor = QLabel(_t("panel.eng.vrf.indoor"))
         toolbar.addWidget(self._lbl_indoor)
         self.indoor_combo = QComboBox()
-        for key, code in self.INDOORS_FAM:
-            self.indoor_combo.addItem(_t(key), userData=code)
+        for fam_key, fam_code in self.INDOORS_FAM:
+            self.indoor_combo.addItem(_t(fam_key), userData=fam_code)
         toolbar.addWidget(self.indoor_combo)
         toolbar.addStretch(1)
         self.run_btn = QPushButton(_t("panel.eng.vrf.btn_run"))

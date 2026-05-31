@@ -128,7 +128,7 @@ class EquipmentPanel(QWidget):
             for c, text in enumerate(cells):
                 item = QTableWidgetItem(str(text))
                 if c >= 1:
-                    item.setTextAlignment(int(Qt.AlignRight | Qt.AlignVCenter))
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 table.setItem(r, c, item)
 
     # ---------- Локализация ----------

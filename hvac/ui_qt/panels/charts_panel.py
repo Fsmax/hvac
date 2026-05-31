@@ -76,8 +76,11 @@ class ChartsPanel(QWidget):
         bar.addStretch(0)
         outer.addLayout(bar)
 
-        # Канвас + навтулбар matplotlib
-        self.figure = Figure(figsize=(8, 5), constrained_layout=True)
+        # Канвас + навтулбар matplotlib.
+        # Лэйаут оставляем на откуп каждому графику (reports.py зовёт
+        # fig.tight_layout()): constrained_layout здесь конфликтовал с
+        # tight_layout и давал UserWarning «figure layout has changed».
+        self.figure = Figure(figsize=(8, 5))
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setSizePolicy(self.canvas.sizePolicy())  # noqa
         outer.addWidget(self.canvas, stretch=1)

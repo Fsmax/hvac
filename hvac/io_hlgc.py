@@ -23,6 +23,7 @@
 """
 
 from __future__ import annotations
+import logging
 import os
 import shutil
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
@@ -30,6 +31,8 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 if TYPE_CHECKING:
     from hvac.project import HVACProject
     from hvac.models import Space
+
+logger = logging.getLogger(__name__)
 
 
 # Колонки для идентификации помещения (заполняются для новых строк)
@@ -224,16 +227,19 @@ def _batch_write_rows_com(ws, row_changes: List[Tuple[int, Dict[int, object]]],
         # Один вызов записи на весь диапазон
         try:
             rng.Value = tuple(tuple(row) for row in new_values)
-        except Exception:
+        except Exception as exc:
             # Fallback: построчная запись (если merged-ячейки мешают)
+            logger.debug("Пакетная запись диапазона не удалась (%s), "
+                         "перехожу на построчную", exc)
             for i, row_vals in enumerate(new_values):
                 try:
                     target = ws.Range(
                         ws.Cells(first_row + i, 1),
                         ws.Cells(first_row + i, max_col))
                     target.Value = (tuple(row_vals),)
-                except Exception:
-                    pass
+                except Exception as row_exc:
+                    logger.debug("Строка %d не записана: %s",
+                                 first_row + i, row_exc)
 
     return total_written
 
@@ -605,8 +611,7 @@ def _ensure_xlsx_via_com(source_path: str) -> Tuple[str, bool]:
             f"Подробности: {com_error}")
 
     # xlrd 2.x читает только .xls — это нам и нужно
-    import logging
-    logging.getLogger(__name__).warning(
+    logger.warning(
         "Конвертация .xls через xlrd-fallback: формулы материализуются "
         "в значения, форматирование теряется. Для полной точности "
         "установите pywin32 (нужен также Microsoft Excel).")

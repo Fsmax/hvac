@@ -94,7 +94,7 @@ class RoomEquipmentPanel(QWidget):
             for c, text in enumerate(cells):
                 item = QTableWidgetItem(str(text))
                 if c in (2, 4, 5, 7):
-                    item.setTextAlignment(int(Qt.AlignRight | Qt.AlignVCenter))
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 self.table.setItem(r, c, item)
         self._filter(self.search.text())
 

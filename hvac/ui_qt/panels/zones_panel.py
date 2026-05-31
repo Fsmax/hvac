@@ -202,5 +202,5 @@ class ZonesPanel(QWidget):
             for c, text in enumerate(cells):
                 item = QTableWidgetItem(text)
                 if c >= 1:
-                    item.setTextAlignment(int(Qt.AlignRight | Qt.AlignVCenter))
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 self.table.setItem(r, c, item)
