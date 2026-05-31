@@ -13,7 +13,9 @@ from PySide6.QtWidgets import (
 )
 
 from hvac.i18n import t as _t
-from hvac.templates import TEMPLATE_FACTORIES, list_templates, make_template
+from hvac.templates import (
+    TEMPLATE_FACTORIES, BuildingTemplate, list_templates, make_template,
+)
 
 
 class TemplateDialog(QDialog):
@@ -30,7 +32,7 @@ class TemplateDialog(QDialog):
             default_city = _t("dlg.tpl.default_city")
         self.setWindowTitle(_t("dlg.tpl.title"))
         self.setMinimumSize(720, 480)
-        self.template = None       # type: ignore[assignment]
+        self.template: Optional[BuildingTemplate] = None
         self.project_name = ""
         self.city = default_city
 
@@ -80,7 +82,7 @@ class TemplateDialog(QDialog):
         right.addWidget(self.params_stack)
 
         # Соответствие code → widget (build на лету)
-        self._param_widgets = {}
+        self._param_widgets: dict[str, tuple[int, QWidget]] = {}
         for code in TEMPLATE_FACTORIES.keys():
             w = self._build_param_widget(code)
             self.params_stack.addWidget(w)
@@ -175,7 +177,7 @@ class TemplateDialog(QDialog):
         from hvac.templates import make_template as _make
         tpl = _make(code)
         self.desc_label.setText(tpl.description)
-        idx, _ = self._param_widgets.get(code, (0, None))
+        idx = self._param_widgets.get(code, (0, None))[0]
         self.params_stack.setCurrentIndex(idx)
         if not self.name_edit.text().strip():
             # Подсказка для имени
@@ -187,7 +189,7 @@ class TemplateDialog(QDialog):
         if code is None:
             return
         # Собираем параметры
-        idx, widget = self._param_widgets.get(code, (None, None))
+        widget = self._param_widgets.get(code, (0, None))[1]
         kwargs = {}
         if widget is not None:
             for k, ctrl in widget._params.items():
