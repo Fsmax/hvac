@@ -34,8 +34,6 @@ python hvac_calc.py
 
 См. [BUILD.md](BUILD.md) для сборки .exe через PyInstaller.
 
-Старый Tkinter-UI сохранён в `hvac/ui.legacy/` (не используется).
-
 ## Что нового в v3.7
 
 Шесть новых функциональных модулей:

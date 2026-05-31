@@ -83,7 +83,6 @@ hvac_v4/
 │   │   ├── panels/                 # 16 функциональных панелей
 │   │   ├── widgets/                # Карточки, чек-лист, sidebar, диалоги
 │   │   └── theme/                  # dark.qss / light.qss
-│   └── ui.legacy/              # Старый Tkinter-UI (не используется)
 │
 ├── tests/                      # 607 unit-тестов
 ├── revit_dynamo_*.py           # Скрипты Dynamo для Revit
