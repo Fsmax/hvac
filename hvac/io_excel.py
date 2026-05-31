@@ -175,9 +175,6 @@ def export_to_excel(project: HVACProject, path: str) -> None:
         ws.cell(row=2, column=1).font = Font(italic=True, color="A00000")
         ws.merge_cells(start_row=2, start_column=1, end_row=2,
                        end_column=len(cols))
-        data_start_row = 3
-    else:
-        data_start_row = 2
 
     for el in project.elements:
         if not el.is_exterior or el.net_area_m2 <= 0:

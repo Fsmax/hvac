@@ -266,6 +266,18 @@ python -m pytest tests/ -q
 CI прогоняет весь набор на Python 3.11 и 3.12 при каждом push и
 pull request — см. [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
+## Линтер и типы
+
+```bash
+ruff check hvac/      # линтер (pyflakes + pycodestyle)
+mypy                  # статическая типизация расчётного ядра
+```
+
+Конфигурация — в [pyproject.toml](pyproject.toml). `ruff` проверяет весь
+пакет; `mypy` гейтит расчётное ядро (21 модуль физики и движков, см.
+`[tool.mypy] files`). Список можно расширять по мере очистки остальных
+модулей. Оба прогона блокирующие в CI (job **Lint & types**).
+
 ---
 
 **Версия:** 4.0

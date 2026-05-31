@@ -22,7 +22,6 @@ NFPA 92 (2018) Section 5.5.1 (axisymmetric plume):
 """
 
 from __future__ import annotations
-from math import sqrt
 
 
 # Универсальная газовая постоянная для воздуха, Дж/(кг·К)

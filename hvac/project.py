@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 from collections import defaultdict
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, TYPE_CHECKING
 
 from hvac.models import Space, BoundaryElement, Construction, ProjectParameters
 from hvac.data_loader import load_spaces, load_thermal
@@ -39,6 +39,20 @@ from hvac._project_validation import ValidationMixin
 from hvac.sizing_helpers import (  # noqa: F401
     suggest_ahu_size, suggest_boiler_size, suggest_chiller_size,
 )
+
+# Только для подсказок типов в аннотациях (избегаем циклических импортов:
+# эти модули транзитивно импортируют project.py).
+if TYPE_CHECKING:
+    from hvac.duct_sizing import DuctNetwork
+    from hvac.duct_network import DuctNetworkDetailed
+    from hvac.pipe_sizing import PipeNetwork
+    from hvac.ahu_process import AHUProcess
+    from hvac.heating_hydraulics import HeatingHydraulicsResult
+    from hvac.radiator_catalog import RadiatorPick
+    from hvac.acoustics import AcousticAnalysis
+    from hvac.underfloor import UnderfloorLoop
+    from hvac.fancoil_catalog import FancoilPick
+    from hvac.vrf import VRFSystem
 
 
 # Поля Space, которые сохраняются как user override

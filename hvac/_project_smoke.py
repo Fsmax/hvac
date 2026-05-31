@@ -7,7 +7,10 @@
 
 from __future__ import annotations
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from hvac.smoke import SmokeSystem
 
 
 class SmokeSystemsMixin:
@@ -67,9 +70,6 @@ class SmokeSystemsMixin:
             norm_key, purpose = smoke_type_map[room_type]
             norm_per_m2 = norm.norms_per_m2.get(norm_key, 24.0)
             max_zone = norm.max_zone_area_m2
-
-            total_area = sum(s.area_m2 for s in spaces_list)
-            n_zones = max(1, int(-(-total_area // max_zone)))
 
             level_short = level[:3].replace(" ", "")
             type_short = {"parking": "PRK", "warehouse": "WHS",

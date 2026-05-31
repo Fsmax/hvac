@@ -14,7 +14,21 @@
     gsop_18    — градусо-сутки отопительного периода (база +18°C)
 """
 
-CLIMATE_DB = {
+from typing import Dict, TypedDict
+
+
+class ClimateEntry(TypedDict):
+    """Схема одной климатической записи (поля описаны выше)."""
+    country: str
+    t_heat_092: float
+    t_heat_098: float
+    t_cool_095: float
+    daily_amp: float
+    solar_vert: float
+    gsop_18: float
+
+
+CLIMATE_DB: Dict[str, ClimateEntry] = {
     # ===== Узбекистан =====
     "Ташкент":          {"country": "UZ", "t_heat_092": -15, "t_heat_098": -19, "t_cool_095": 36, "daily_amp": 14, "solar_vert": 750, "gsop_18": 2100},
     "Самарканд":        {"country": "UZ", "t_heat_092": -13, "t_heat_098": -17, "t_cool_095": 36, "daily_amp": 14, "solar_vert": 750, "gsop_18": 2000},
@@ -100,7 +114,6 @@ CLIMATE_DB = {
     "Одесса":           {"country": "UA", "t_heat_092": -18, "t_heat_098": -20, "t_cool_095": 28, "daily_amp": 10, "solar_vert": 620, "gsop_18": 3251},
     "Днепр":            {"country": "UA", "t_heat_092": -23, "t_heat_098": -25, "t_cool_095": 30, "daily_amp": 12, "solar_vert": 620, "gsop_18": 3996},
     "Запорожье":        {"country": "UA", "t_heat_092": -22, "t_heat_098": -24, "t_cool_095": 30, "daily_amp": 12, "solar_vert": 620, "gsop_18": 3823},
-    "Одесса":           {"country": "UA", "t_heat_092": -18, "t_heat_098": -20, "t_cool_095": 28, "daily_amp": 10, "solar_vert": 620, "gsop_18": 3251},
 
     # ===== Кыргызстан =====
     "Бишкек":           {"country": "KG", "t_heat_092": -23, "t_heat_098": -26, "t_cool_095": 33, "daily_amp": 13, "solar_vert": 720, "gsop_18": 3402},

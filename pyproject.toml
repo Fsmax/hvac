@@ -1,0 +1,60 @@
+# Конфигурация инструментов качества кода для HVAC Calculator.
+# Линтер (ruff) и статическая типизация (mypy) прогоняются в CI —
+# см. .github/workflows/ci.yml.
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+# Внешние скрипты Revit/Dynamo живут вне пакета и не линтуются.
+extend-exclude = ["dynamo", "revit_dynamo_apply_results.py",
+                  "revit_dynamo_hvac_write_csv.py"]
+
+[tool.ruff.lint]
+# По умолчанию ruff включает pyflakes (F) + подмножество pycodestyle (E).
+# F-коды (неиспользуемые импорты/переменные, undefined-name, дубли ключей)
+# — реальные проблемы, держим включёнными. Компактный стиль кода
+# (несколько операторов в строке, короткие имена циклов) — осознанный,
+# не навязываем.
+ignore = [
+    "E701",  # multiple statements on one line (colon) — компактный стиль
+    "E702",  # multiple statements on one line (semicolon)
+    "E741",  # ambiguous variable name (l/I/O) — короткие матем. циклы
+]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true       # PySide6/matplotlib/openpyxl без стабов
+implicit_optional = true            # legacy: `x: str = None` допускаем
+warn_redundant_casts = true
+warn_unused_ignores = false
+# Не-строгий режим: ловим реальные ошибки типов, не требуем тотальных аннотаций.
+check_untyped_defs = false
+disallow_untyped_defs = false
+# Гейт типизации — расчётное ядро (физика + движки). Проверяется в CI.
+# follow_imports=silent ограничивает отчёт списком `files`; остальные
+# модули используются для типов, но их ошибки не блокируют сборку.
+# Подключать новые модули по мере очистки (см. README, раздел разработки).
+follow_imports = "silent"
+files = [
+    "hvac/models.py",
+    "hvac/parsers.py",
+    "hvac/data_loader.py",
+    "hvac/psychro.py",
+    "hvac/dew_point.py",
+    "hvac/dhw.py",
+    "hvac/smoke.py",
+    "hvac/smoke_formulas.py",
+    "hvac/duct_sizing.py",
+    "hvac/pipe_sizing.py",
+    "hvac/acoustics.py",
+    "hvac/ahu_load.py",
+    "hvac/vrf.py",
+    "hvac/fancoil_catalog.py",
+    "hvac/sizing_helpers.py",
+    "hvac/equipment.py",
+    "hvac/room_equipment.py",
+    "hvac/templates.py",
+    "hvac/engine/base.py",
+    "hvac/engine/sp50.py",
+    "hvac/engine/ventilation.py",
+]

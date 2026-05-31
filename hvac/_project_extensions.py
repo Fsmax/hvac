@@ -7,7 +7,21 @@ duct_sizing, pipe_sizing); миксин лишь связывает их с HVAC
 """
 
 from __future__ import annotations
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from hvac.dhw import DHWSystem
+    from hvac.duct_sizing import DuctNetwork
+    from hvac.pipe_sizing import PipeNetwork
+    from hvac.ahu_process import AHUProcess
+    from hvac.heating_hydraulics import HeatingHydraulicsResult
+    from hvac.radiator_catalog import RadiatorPick
+    from hvac.acoustics import AcousticAnalysis
+    from hvac.underfloor import UnderfloorLoop
+    from hvac.fancoil_catalog import FancoilPick
+    from hvac.vrf import VRFSystem
+    from hvac.energy_simulation import EnergySimulationResult
+    from hvac.specification import Specification
 
 
 class V37ExtensionsMixin:
@@ -192,7 +206,6 @@ class V37ExtensionsMixin:
         total_flow_kg_h в pipe_networks).
         """
         from hvac.heating_hydraulics import design_hydraulics_for_network
-        from hvac.equipment import HEATING_CIRCUIT_DEFAULTS
 
         result: Dict[str, "HeatingHydraulicsResult"] = {}
         for name, net in self.pipe_networks.items():
@@ -341,7 +354,6 @@ class V37ExtensionsMixin:
             # Прикрепим результат проверки в note системы для UI
             check = check_constraints(sys)
             if not check.ok:
-                self_note = "; ".join(check.issues[:3])
                 # Сохраним как метаданные — не трогая dataclass
                 sys._check_issues = check.issues   # type: ignore[attr-defined]
             result[sys_name] = sys

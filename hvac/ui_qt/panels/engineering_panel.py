@@ -17,7 +17,7 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QHBoxLayout, QHeaderView, QLabel,
+    QAbstractItemView, QComboBox, QHBoxLayout, QLabel,
     QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QTabWidget,
     QVBoxLayout, QWidget,
 )
@@ -1448,7 +1448,6 @@ class _EnergyTab(QWidget):
         fig = Figure(figsize=(10, 6))
         # Двухосный график: T_out и нагрузки
         ax1 = fig.add_subplot(211)
-        hours = list(range(len(result.hourly_t_out_c)))
         # Прорежим до 1 точки на сутки для T (365)
         daily = [
             sum(result.hourly_t_out_c[d * 24:(d + 1) * 24]) / 24

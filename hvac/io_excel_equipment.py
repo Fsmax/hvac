@@ -35,7 +35,6 @@ def export_equipment_summary(project: HVACProject, path: str) -> None:
     head_font = Font(bold=True, color="FFFFFF")
     sum_fill = PatternFill("solid", fgColor="DCE6F1")
     sum_font = Font(bold=True)
-    group_fill = PatternFill("solid", fgColor="F2F2F2")
 
     def style_header(row):
         for c in row:

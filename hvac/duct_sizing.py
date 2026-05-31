@@ -379,7 +379,7 @@ def build_network_for_system(system_name: str, spaces: List["Space"],
         flow_m3h=total,
         length_m=trunk_length_m,
         shape=shape,
-        note=f"магистраль AHU → этажи",
+        note="магистраль AHU → этажи",
     )
     _size_section(trunk_sec, velocities["trunk"], shape)
     trunk_sec.pressure_loss_friction_pa = pressure_loss_friction_pa(

@@ -36,12 +36,12 @@
 
 from __future__ import annotations
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hvac.project import HVACProject
-    from hvac.models import Space, BoundaryElement, Construction
+    from hvac.models import Space, BoundaryElement
 
 
 # ============================================================================

@@ -13,7 +13,7 @@ from typing import Any, Callable, List
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout,
+    QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout,
     QWidget,
 )
 

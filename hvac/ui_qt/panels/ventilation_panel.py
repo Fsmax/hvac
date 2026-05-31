@@ -2,7 +2,7 @@
 """VentilationPanel — таблица расходов воздуха по помещениям + сводка."""
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 from PySide6.QtGui import QBrush, QColor

@@ -21,6 +21,9 @@ from __future__ import annotations
 import os
 from typing import Callable, Dict, List, Optional
 
+from hvac.i18n.ru import RU
+from hvac.i18n.uz import UZ
+
 
 SUPPORTED_LANGUAGES = ("ru", "uz")
 DEFAULT_LANGUAGE = "ru"
@@ -37,8 +40,6 @@ _language_listeners: List[Callable[[str], None]] = []
 # Узбекский — латиница (как принято в современной Республике Узбекистан).
 # Технические термины ОВиК сохраняются близко к русским аналогам, поскольку
 # в проектной практике в УЗ используются и русские, и узбекские названия.
-from hvac.i18n.ru import RU
-from hvac.i18n.uz import UZ
 
 TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "ru": RU,

@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, TYPE_CHECKING
 
 from hvac.psychro import (
-    AirState, P_ATM, air_power_kw, cool_dehumidify, heat,
+    AirState, air_power_kw, cool_dehumidify, heat,
     heat_recovery, humidify_adiabatic, humidify_steam,
     mass_flow_from_volume, mix_streams, sensible_power_kw,
     latent_power_kw, humidity_ratio_from_rh,

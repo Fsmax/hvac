@@ -516,7 +516,6 @@ def _clear_rows_com(ws, first_row: int, last_row: int, max_col: int,
         return
     if not isinstance(existing_formulas[0], tuple):
         existing_formulas = (existing_formulas,)
-    n_rows = len(existing_formulas)
     new_values = []
     for row_formulas in existing_formulas:
         new_row = []

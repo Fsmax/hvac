@@ -18,7 +18,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Type
 
-from hvac.catalogs.ventilation_norms import VENTILATION_NORMS
 from hvac.catalogs.user_norms import get_ventilation_norms
 
 

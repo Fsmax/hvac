@@ -87,9 +87,9 @@ def export_to_pdf(project: "HVACProject", path: str,
     """
     try:
         from reportlab.lib.pagesizes import A4
-        from reportlab.lib.units import cm, mm
+        from reportlab.lib.units import cm
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+        from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
         from reportlab.lib import colors
         from reportlab.platypus import (
             SimpleDocTemplate, Paragraph, Spacer, PageBreak,

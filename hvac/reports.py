@@ -7,8 +7,11 @@
 """
 
 from __future__ import annotations
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, TYPE_CHECKING
 from hvac.project import HVACProject
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 # Тип функции графика: (project, fig) → None
 ChartFunc = Callable[[HVACProject, "Figure"], None]

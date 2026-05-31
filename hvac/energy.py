@@ -41,7 +41,7 @@
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -264,8 +264,6 @@ def energy_class_for_deviation(deviation_percent: float) -> Dict[str, str]:
 
 def detect_building_type(project: "HVACProject") -> str:
     """Эвристика для определения типа здания по составу помещений."""
-    from collections import Counter
-    types = Counter(sp.room_type for sp in project.spaces)
     total_area = sum(sp.area_m2 for sp in project.spaces)
     if total_area <= 0:
         return "общественное"

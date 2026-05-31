@@ -30,8 +30,8 @@ from __future__ import annotations
 from typing import Iterable, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from hvac.psychro import (
-    AirState, P_ATM, enthalpy, humidity_ratio_from_rh,
-    saturation_pressure_pa, to_g_kg,
+    enthalpy, humidity_ratio_from_rh,
+    to_g_kg,
 )
 
 if TYPE_CHECKING:

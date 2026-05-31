@@ -15,7 +15,7 @@ from dataclasses import asdict
 from hvac.project import HVACProject
 from hvac.models import Space, BoundaryElement
 from hvac.room_equipment import (
-    RoomEquipment, serialize_room_equipment, deserialize_room_equipment,
+    serialize_room_equipment, deserialize_room_equipment,
 )
 
 
@@ -638,7 +638,7 @@ def _serialize_vrf_systems(systems: dict) -> dict:
 def _deserialize_vrf_systems(data: dict) -> dict:
     from hvac.vrf import (
         INDOOR_CATALOG, OUTDOOR_CATALOG, VRFIndoorAssignment, VRFIndoorUnit,
-        VRFOutdoorUnit, VRFSystem,
+        VRFSystem,
     )
     indoor_by_name = {m.name: m for m in INDOOR_CATALOG}
     outdoor_by_name = {m.name: m for m in OUTDOOR_CATALOG}
