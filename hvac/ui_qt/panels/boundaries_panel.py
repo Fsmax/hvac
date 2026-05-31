@@ -300,8 +300,9 @@ class BoundariesPanel(QWidget):
         # Подсветка вручную добавленных элементов
         if el.manual_entry:
             for col in (0,):
-                self.table.item(row, col).setForeground(
-                    QBrush(QColor("#2978c4")))
+                it = self.table.item(row, col)
+                if it is not None:
+                    it.setForeground(QBrush(QColor("#2978c4")))
 
     def _element_id_at(self, row: int) -> str:
         item = self.table.item(row, 0)

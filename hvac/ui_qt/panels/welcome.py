@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, SignalInstance
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout,
     QWidget,
@@ -89,7 +89,7 @@ class WelcomePanel(QWidget):
         outer.addLayout(wrap)
         outer.addStretch(2)
 
-    def _action_row(self, title: str, desc: str, signal: Signal,
+    def _action_row(self, title: str, desc: str, signal: SignalInstance,
                     primary: bool = False) -> QHBoxLayout:
         row = QHBoxLayout()
         row.setSpacing(12)

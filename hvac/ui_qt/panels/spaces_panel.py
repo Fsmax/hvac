@@ -144,7 +144,7 @@ class SpacesTableModel(QAbstractTableModel):
             return _t(self.COLUMNS[section].title_key)
         return None
 
-    def flags(self, index: QModelIndex) -> Qt.ItemFlags:
+    def flags(self, index: QModelIndex) -> Qt.ItemFlag:
         if not index.isValid():
             return Qt.NoItemFlags
         base = Qt.ItemIsSelectable | Qt.ItemIsEnabled
@@ -273,7 +273,7 @@ class SpacesFilterProxy(QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row: int,
                          _parent: QModelIndex) -> bool:
-        model: SpacesTableModel = self.sourceModel()
+        model = self.sourceModel()
         sp = model.space_at(source_row)
         if sp is None:
             return False

@@ -333,7 +333,7 @@ class SmokeSystemDialog(QDialog):
         self.method_combo.clear()
         if is_air:
             # Для СПВ только «manual» и фиксированные пресеты подпора
-            codes = ("stairs_pressure", "elevator_pressure", "manual")
+            codes = ["stairs_pressure", "elevator_pressure", "manual"]
         else:
             codes = self.norm.available_calc_methods
         for code in codes:

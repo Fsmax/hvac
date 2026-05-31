@@ -273,10 +273,11 @@ ruff check hvac/      # линтер (pyflakes + pycodestyle)
 mypy                  # статическая типизация расчётного ядра
 ```
 
-Конфигурация — в [pyproject.toml](pyproject.toml). `ruff` проверяет весь
-пакет; `mypy` гейтит всё расчётное ядро + весь io-слой (экспорт Excel/
-PDF, сериализация) — 39 модулей, см. `[tool.mypy] files`. Вне гейта пока
-только UI-слой (`ui_qt`). Оба прогона блокирующие в CI
+Конфигурация — в [pyproject.toml](pyproject.toml). `ruff` и `mypy`
+покрывают **весь пакет `hvac/`** (86 модулей: ядро + io + UI). Для
+`ui_qt` заглушены ложные срабатывания Qt6-стабов (unscoped enum'ы
+`Qt.AlignLeft`, строгость override у моделей) — см. `[[tool.mypy.overrides]]`;
+реальные ошибки UI вычищены. Оба прогона блокирующие в CI
 (job **Lint & types**).
 
 ---

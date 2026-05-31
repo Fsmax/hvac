@@ -15,7 +15,7 @@ class Command:
     id: str
     title: str            # отображается в палитре
     category: str         # «Навигация», «Действия», «Вид», ...
-    handler: Callable[[], None]
+    handler: Callable[[], object]
     shortcut: Optional[str] = None
     hint: str = ""        # подсказка в палитре справа от названия
 

@@ -39,7 +39,7 @@ class CalcWorker(QObject):
     finished = Signal()
     failed = Signal(str, str)   # (message, traceback)
 
-    def __init__(self, fn: Callable[[], None]):
+    def __init__(self, fn: Callable[[], object]):
         super().__init__()
         self._fn = fn
 
@@ -335,7 +335,7 @@ class CalculationPanel(QWidget):
             self.project.calculate_ahu_loads()
         self._start(_t("panel.calc.run.all"), chain)
 
-    def _start(self, status: str, fn: Callable[[], None]) -> None:
+    def _start(self, status: str, fn: Callable[[], object]) -> None:
         if self._thread is not None:
             return  # уже идёт другой расчёт
         if not self.project.spaces:

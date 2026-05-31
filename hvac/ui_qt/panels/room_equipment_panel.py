@@ -80,14 +80,16 @@ class RoomEquipmentPanel(QWidget):
         self.table.setRowCount(len(self.project.spaces))
         for r, sp in enumerate(self.project.spaces):
             eq = sp.room_equipment
+            diff_type = getattr(eq, 'diffuser_type', '') if eq else ''
+            diff_qty = getattr(eq, 'diffuser_qty', 0) if eq else 0
             cells = [
                 sp.number, sp.name,
                 f"{sp.heat_loss_w/1000:.2f}" if sp.heat_loss_w else "",
                 (eq.heating_terminal_type or "") if eq else "",
                 f"{eq.heating_terminal_power_w:.0f}" if eq and eq.heating_terminal_power_w else "",
                 f"{eq.heating_terminal_qty:.0f}" if eq and eq.heating_terminal_qty else "",
-                (getattr(eq, 'diffuser_type', '') or "") if eq else "",
-                f"{getattr(eq, 'diffuser_qty', 0):.0f}" if eq and getattr(eq, 'diffuser_qty', 0) else "",
+                (diff_type or "") if eq else "",
+                f"{diff_qty:.0f}" if eq and diff_qty else "",
             ]
             for c, text in enumerate(cells):
                 item = QTableWidgetItem(str(text))
@@ -102,8 +104,7 @@ class RoomEquipmentPanel(QWidget):
             visible = True
             if t:
                 row_text = " ".join(
-                    (self.table.item(r, c).text()
-                     if self.table.item(r, c) else "")
+                    (it.text() if (it := self.table.item(r, c)) is not None else "")
                     for c in range(self.table.columnCount())
                 ).lower()
                 visible = t in row_text

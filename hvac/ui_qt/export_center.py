@@ -202,7 +202,8 @@ class ExportCenter(QDialog):
 
         rb = QRadioButton()
         rb.setChecked(default)
-        rb.toggled.connect(lambda checked, k=fmt.key: checked and self._on_format_changed(k))
+        rb.toggled.connect(
+            lambda checked, k=fmt.key: self._on_format_changed(k) if checked else None)
         self._radio_group.addButton(rb)
         self._format_widgets[fmt.key] = rb
         rb.setProperty("fmt_key", fmt.key)

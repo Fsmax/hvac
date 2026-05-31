@@ -16,6 +16,13 @@ from hvac.models import Construction, Layer, _rsi_rse_for
 from hvac.catalogs.materials import MATERIALS, AIR_GAPS
 
 
+def _set_item_text(table: QTableWidget, row: int, col: int, text: str) -> None:
+    """Безопасно ставит текст ячейки (item() может вернуть None)."""
+    it = table.item(row, col)
+    if it is not None:
+        it.setText(text)
+
+
 class LayersEditor(QDialog):
     """Редактор слоёв одной конструкции.
 
@@ -125,8 +132,8 @@ class LayersEditor(QDialog):
         r_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         if layer.r_m2k_w > 0 and not (layer.lambda_w_mk and layer.thickness_mm):
             # воздушная прослойка — хранит прямой R
-            self.table.item(row, 1).setText("")
-            self.table.item(row, 2).setText("")
+            _set_item_text(self.table, row, 1, "")
+            _set_item_text(self.table, row, 2, "")
             r_item.setText(f"{layer.r_m2k_w:.3f}")
             r_item.setData(Qt.UserRole, "air")
             r_item.setFlags(r_item.flags() | Qt.ItemIsEditable)
@@ -150,11 +157,12 @@ class LayersEditor(QDialog):
             item.setText(f"{mat.lambda_w_mk:g}")
         elif text in AIR_GAPS:
             r = AIR_GAPS[text]
-            self.table.item(row, 1).setText("")
-            self.table.item(row, 2).setText("")
+            _set_item_text(self.table, row, 1, "")
+            _set_item_text(self.table, row, 2, "")
             r_item = self.table.item(row, 3)
-            r_item.setText(f"{r:.3f}")
-            r_item.setData(Qt.UserRole, "air")
+            if r_item is not None:
+                r_item.setText(f"{r:.3f}")
+                r_item.setData(Qt.UserRole, "air")
         self._refresh_summary()
 
     def _add_material_layer(self) -> None:

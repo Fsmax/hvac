@@ -238,7 +238,7 @@ class DuctEdgeDialog(QDialog):
     def _collect_fittings(self) -> List[DuctFitting]:
         result = []
         for row in range(self.fits_table.rowCount()):
-            kind_combo: QComboBox = self.fits_table.cellWidget(row, 0)
+            kind_combo = self.fits_table.cellWidget(row, 0)
             kind = kind_combo.currentData() if kind_combo else ""
             if not kind and kind_combo:
                 # пользователь мог ввести ключ свободно (editable)

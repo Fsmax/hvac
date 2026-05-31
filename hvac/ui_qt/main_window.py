@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+from functools import partial
 from pathlib import Path
 from typing import Dict
 
@@ -76,7 +77,7 @@ class MainWindow(QMainWindow):
         self.project = project
         self.bridge = ProjectBridge(project, self)
         self.commands = CommandRegistry()
-        self.palette: CommandPalette | None = None
+        self.cmd_palette: CommandPalette | None = None
         self._dirty = False
         # Глобальные actions (зарегистрированные через addAction для shortcut'ов).
         # Хранятся отдельно, чтобы их можно было корректно снять при
@@ -205,7 +206,7 @@ class MainWindow(QMainWindow):
                 id=f"go.{item.key}",
                 title=f"{go_prefix}{item.tooltip}",
                 category=cat_nav,
-                handler=(lambda k=item.key: self._navigate_to(k)),
+                handler=partial(self._navigate_to, item.key),
             ))
 
         # Файл
@@ -407,7 +408,7 @@ class MainWindow(QMainWindow):
 
         # 7. Command palette — следующее открытие создаст новую с
         # актуальным CommandRegistry.
-        self.palette = None
+        self.cmd_palette = None
 
     def _add_cmd_action(self, menu, cmd_id: str) -> None:
         cmd = self.commands.find(cmd_id)
@@ -587,6 +588,8 @@ class MainWindow(QMainWindow):
                               or "Ташкент")
         if dlg.exec() != dlg.Accepted:
             return
+        if dlg.template is None:
+            return
         n = apply_template(self.project, dlg.template,
                             project_name=dlg.project_name,
                             city=dlg.city)
@@ -636,7 +639,7 @@ class MainWindow(QMainWindow):
     def _action_toggle_theme(self) -> None:
         new_theme = Theme.LIGHT if current_theme() == Theme.DARK else Theme.DARK
         app = QApplication.instance()
-        if app is not None:
+        if isinstance(app, QApplication):
             apply_theme(app, new_theme)
         self.topbar.set_theme_icon(new_theme == Theme.DARK)
         cfg = user_settings.load()
@@ -644,9 +647,9 @@ class MainWindow(QMainWindow):
         user_settings.save(cfg)
 
     def _open_palette(self) -> None:
-        if self.palette is None:
-            self.palette = CommandPalette(self.commands, self)
-        self.palette.show_at(self)
+        if self.cmd_palette is None:
+            self.cmd_palette = CommandPalette(self.commands, self)
+        self.cmd_palette.show_at(self)
 
     # ---------- Закрытие ----------
     def closeEvent(self, event) -> None:

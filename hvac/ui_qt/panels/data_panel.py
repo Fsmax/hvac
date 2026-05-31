@@ -389,7 +389,7 @@ class DataPanel(QWidget):
 
     def _refresh_climate_labels(self) -> None:
         p = self.project.params
-        info = CLIMATE_DB.get(p.city, {})
+        info = dict(CLIMATE_DB.get(p.city) or {})
         self.lbl_t_heat.setText(f"{p.t_out_heating:+.1f}")
         self.lbl_t_cool.setText(f"{p.t_out_cooling:+.1f}")
         self.lbl_gsop.setText(
