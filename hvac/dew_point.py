@@ -1,30 +1,30 @@
 # -*- coding: utf-8 -*-
 """Проверка ограждающих конструкций на риск конденсации
-(СП 50.13330.2012 п. 5.7, Приложение Е).
+(КМК 2.01.04-18 / СП 50.13330.2012 п. 5.7, Приложение Е).
+
+Норматив переключается через project.params.thermal_norm
+("KMK_UZ" — основная, "SP_RU").
 
 Для каждой внешней ограждающей конструкции рассчитывает:
 
   • τ_int — температура внутренней поверхности при расчётных условиях
   • t_d   — точка росы воздуха помещения (по формуле Магнуса)
-  • Δt    — перепад t_in − τ_int (нормативный по СП 50)
+  • Δt    — перепад t_in − τ_int (нормативный)
 
 И флагует:
   • condensation_risk = True если τ_int < t_d (выпадение конденсата)
-  • normative_fail    = True если Δt > Δt_н по СП 50 Таблица 5
+  • normative_fail    = True если Δt > Δt_н (КМК Табл.4 / СП 50 Табл.5)
 
-Нормативные перепады Δt_н по СП 50 Табл. 5 (для жилых/общественных):
-  • Стены наружные:           4.0 K
-  • Покрытия (потолки):       3.0 K
-  • Чердачные перекрытия:     3.0 K
-  • Полы над неотап.:         2.0 K
-  • Окна, балконные двери:    нормативные R_окн, проверка не Δt
+Нормируемые перепады Δt_н (жилые / общественные):
+  • КМК 2.01.04-18 Табл.4: стены 4.0/5.0; покрытия 3.5/4.5; полы 2.0/2.5
+  • СП 50.13330 Табл.5:    стены 4.0/4.5; покрытия 3.0/4.0; полы 2.0/2.5
 
 Формулы:
 
-  R_si (сопротивление внутр. теплопереходу) по СП 50:
-    – стены, окна          R_si = 1/α_в = 1/8.7  ≈ 0.115 м²·К/Вт
-    – потолки              R_si = 1/8.0  ≈ 0.125
-    – полы                 R_si = 1/8.7  ≈ 0.115
+  R_si (сопротивление внутр. теплопереходу), α_в по КМК Табл.5/СП Табл.4:
+    – стены, полы, гладкие потолки   R_si = 1/8.7  ≈ 0.115 м²·К/Вт
+    – рёбристые потолки              R_si = 1/7.6  ≈ 0.132
+    – окна                           R_si = 1/8.0  ≈ 0.125
 
   Температура внутренней поверхности:
     τ_int = t_in − (t_in − t_out) · R_si · U
@@ -49,21 +49,40 @@ if TYPE_CHECKING:
 # Константы СП 50.13330
 # ============================================================================
 
-# Сопротивление теплопереходу внутренней поверхности, м²·К/Вт (СП 50 Табл. 4)
+# Сопротивление теплопереходу внутренней поверхности R_si = 1/α_в, м²·К/Вт.
+# Коэф. α_в по КМК 2.01.04-18 Табл.5 = СП 50.13330 Табл.4 (совпадают):
+# стены/полы/гладкие потолки 8.7; рёбристые потолки 7.6; окна 8.0; фонари 9.9.
 R_SI_WALL = 1.0 / 8.7        # 0.1149
-R_SI_CEILING = 1.0 / 8.0     # 0.1250
-R_SI_FLOOR = 1.0 / 8.7       # 0.1149  (для полов над неотапливаемыми)
+R_SI_CEILING = 1.0 / 8.7     # 0.1149  (гладкий потолок/покрытие; рёбристый — 1/7.6)
+R_SI_FLOOR = 1.0 / 8.7       # 0.1149
 R_SI_DEFAULT = R_SI_WALL
 
-# Нормативные перепады температур Δt_н по СП 50 Табл. 5
-# (для жилых, гостиниц, школ, больниц, общежитий, общественных зданий)
-DT_NORM = {
-    "wall":       4.0,    # наружные стены
-    "ceiling":    3.0,    # покрытия и чердачные перекрытия
-    "attic":      3.0,    # перекрытия чердачные
-    "floor":      2.0,    # перекрытия над проездами/подвалами/подпольями
-    "shower":     2.5,    # для помещений душевых, бассейнов (СП 50)
+# Нормируемый температурный перепад Δt_н, °C — по активной норме
+# (project.params.thermal_norm). КМК 2.01.04-18 Табл.4 (Узбекистан,
+# основная) и СП 50.13330 Табл.5 (РФ). Различаются «residential» (жилые,
+# лечебные, детские, учебные — строка 1 Табл.4) и «public» (общественные,
+# адм.-быт., производственные — строка 2).
+DT_NORM_BY_NORM = {
+    "KMK_UZ": {
+        "residential": {"wall": 4.0, "ceiling": 3.5, "attic": 3.5,
+                        "floor": 2.0, "shower": 2.5},
+        "public":      {"wall": 5.0, "ceiling": 4.5, "attic": 4.5,
+                        "floor": 2.5, "shower": 2.5},
+    },
+    "SP_RU": {
+        "residential": {"wall": 4.0, "ceiling": 3.0, "attic": 3.0,
+                        "floor": 2.0, "shower": 2.5},
+        "public":      {"wall": 4.5, "ceiling": 4.0, "attic": 4.0,
+                        "floor": 2.5, "shower": 2.5},
+    },
 }
+
+# Дефолтный набор (КМК, жилые) — для обратной совместимости API/тестов.
+DT_NORM = DT_NORM_BY_NORM["KMK_UZ"]["residential"]
+
+# Типы помещений «жилой» категории Δt_н (КМК Табл.4 строка 1). Остальные —
+# общественная категория (строка 2, более мягкие перепады).
+_RESIDENTIAL_ROOM_TYPES = {"Жилая комната", "Гостиничный номер"}
 
 # Стандартные значения внутренней относительной влажности для разных
 # типов помещений, % (используется если у Space нет своего rh_design)
@@ -152,14 +171,34 @@ def r_si_for_category(category: str) -> float:
     return R_SI_WALL
 
 
-def dt_normative_for_category(category: str) -> float:
-    """Δt_н по СП 50 Табл. 5 в зависимости от категории."""
+def is_public_room(room_type: str) -> bool:
+    """True — помещение относится к общественной категории Δt_н (КМК Табл.4
+    строка 2), False — к жилой/лечебной/учебной (строка 1)."""
+    return (room_type or "") not in _RESIDENTIAL_ROOM_TYPES
+
+
+def resolve_dt_norm(thermal_norm: str = "KMK_UZ",
+                    is_public: bool = False) -> Dict[str, float]:
+    """Набор Δt_н для активной нормы и категории здания (см. DT_NORM_BY_NORM)."""
+    by_norm = DT_NORM_BY_NORM.get(thermal_norm, DT_NORM_BY_NORM["KMK_UZ"])
+    return by_norm["public" if is_public else "residential"]
+
+
+def dt_normative_for_category(category: str,
+                              dt_norm: Optional[Dict[str, float]] = None) -> float:
+    """Δt_н по КМК Табл.4 / СП 50 Табл.5 в зависимости от категории.
+
+    dt_norm — набор по активной норме (resolve_dt_norm); по умолчанию
+    КМК/жилые (DT_NORM).
+    """
+    if dt_norm is None:
+        dt_norm = DT_NORM
     cat = (category or "").lower()
     if "потол" in cat or "перекр" in cat or "покры" in cat or "крыш" in cat:
-        return DT_NORM["ceiling"]
+        return dt_norm["ceiling"]
     if "пол" in cat:
-        return DT_NORM["floor"]
-    return DT_NORM["wall"]
+        return dt_norm["floor"]
+    return dt_norm["wall"]
 
 
 # ============================================================================
@@ -220,19 +259,24 @@ def _resolve_rh(space: "Space") -> float:
 
 
 def check_element(element: "BoundaryElement", space: "Space",
-                  t_out: float, rh_in: Optional[float] = None) -> CondensationCheck:
+                  t_out: float, rh_in: Optional[float] = None,
+                  dt_norm: Optional[Dict[str, float]] = None) -> CondensationCheck:
     """Проверяет один элемент ограждения на риск конденсации.
 
     Если rh_in не задан — определяется автоматически по типу помещения.
+    dt_norm — набор Δt_н по активной норме/категории здания (resolve_dt_norm);
+    по умолчанию КМК/жилые.
     """
     if rh_in is None:
         rh_in = _resolve_rh(space)
+    if dt_norm is None:
+        dt_norm = DT_NORM
 
     r_si = r_si_for_category(element.category)
-    dt_n = dt_normative_for_category(element.category)
+    dt_n = dt_normative_for_category(element.category, dt_norm)
     # Душевые/санузлы используют более строгий перепад
     if space.room_type == "Санузел":
-        dt_n = DT_NORM["shower"]
+        dt_n = dt_norm["shower"]
 
     t_surface = surface_temperature(element.u_value, space.t_in_heat,
                                     t_out, r_si)
@@ -276,6 +320,7 @@ def analyze_project(project: "HVACProject",
     """
     results: List[CondensationCheck] = []
     t_out = project.params.t_out_heating
+    thermal_norm = getattr(project.params, "thermal_norm", "KMK_UZ")
 
     for element in project.elements:
         if not include_internal and not element.is_exterior:
@@ -293,7 +338,8 @@ def analyze_project(project: "HVACProject",
             continue
 
         rh = rh_override if rh_override else _resolve_rh(space)
-        results.append(check_element(element, space, t_out, rh))
+        dt_norm = resolve_dt_norm(thermal_norm, is_public_room(space.room_type))
+        results.append(check_element(element, space, t_out, rh, dt_norm))
 
     return results
 

@@ -282,6 +282,12 @@ class ProjectParameters:
     # См. hvac/catalogs/smoke_norms.py
     smoke_norm: str = "SP7_RU"
 
+    # Активный норматив строительной теплотехники (Δt_н по таблицам):
+    #   "KMK_UZ" — КМК 2.01.04-18 (Узбекистан, по умолчанию — основная норма)
+    #   "SP_RU"  — СП 50.13330 (РФ)
+    # См. hvac/dew_point.py (DT_NORM_BY_NORM).
+    thermal_norm: str = "KMK_UZ"
+
     def apply_city(self, city_name: str) -> bool:
         """Применяет климат города из CLIMATE_DB. Возвращает True если нашло."""
         from hvac.catalogs.climate import CLIMATE_DB

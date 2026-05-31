@@ -8,6 +8,7 @@ from hvac.dew_point import (
     dew_point_c, saturation_pressure_pa, surface_temperature,
     r_si_for_category, dt_normative_for_category,
     R_SI_WALL, R_SI_CEILING, R_SI_FLOOR, DT_NORM,
+    DT_NORM_BY_NORM, resolve_dt_norm, is_public_room,
     ROOM_TYPE_RH_DESIGN,
 )
 
@@ -111,6 +112,54 @@ class TestDtNormative(unittest.TestCase):
 
     def test_floors(self):
         self.assertEqual(dt_normative_for_category("Пол"), DT_NORM["floor"])
+
+
+class TestCeilingRSi(unittest.TestCase):
+    """α_в потолка — по КМК Табл.5/СП Табл.4 гладкий потолок = 8.7 (не 8.0)."""
+
+    def test_ceiling_rsi_is_one_over_8_7(self):
+        self.assertAlmostEqual(R_SI_CEILING, 1.0 / 8.7, places=4)
+        # гладкий потолок = стена/пол по α_в
+        self.assertEqual(R_SI_CEILING, R_SI_WALL)
+
+
+class TestDtNormByNorm(unittest.TestCase):
+    """Переключение Δt_н по активной норме (КМК / СП) и категории здания."""
+
+    def test_kmk_residential_ceiling_is_35(self):
+        s = resolve_dt_norm("KMK_UZ", is_public=False)
+        self.assertEqual(s["wall"], 4.0)
+        self.assertEqual(s["ceiling"], 3.5)   # КМК Табл.4 (не 3.0)
+        self.assertEqual(s["floor"], 2.0)
+
+    def test_sp_residential_ceiling_is_30(self):
+        s = resolve_dt_norm("SP_RU", is_public=False)
+        self.assertEqual(s["ceiling"], 3.0)   # СП 50 Табл.5
+
+    def test_kmk_public_relaxed(self):
+        s = resolve_dt_norm("KMK_UZ", is_public=True)
+        self.assertEqual(s["wall"], 5.0)
+        self.assertEqual(s["ceiling"], 4.5)
+        self.assertEqual(s["floor"], 2.5)
+
+    def test_unknown_norm_falls_back_to_kmk(self):
+        self.assertEqual(resolve_dt_norm("???", False),
+                         resolve_dt_norm("KMK_UZ", False))
+
+    def test_default_dt_norm_is_kmk_residential(self):
+        self.assertEqual(DT_NORM, DT_NORM_BY_NORM["KMK_UZ"]["residential"])
+
+    def test_is_public_room(self):
+        self.assertFalse(is_public_room("Жилая комната"))
+        self.assertFalse(is_public_room("Гостиничный номер"))
+        self.assertTrue(is_public_room("Офис"))
+        self.assertTrue(is_public_room("Магазин / торговля"))
+
+    def test_dt_normative_respects_passed_set(self):
+        sp = resolve_dt_norm("SP_RU", is_public=False)
+        kmk = resolve_dt_norm("KMK_UZ", is_public=False)
+        self.assertEqual(dt_normative_for_category("Покрытие", sp), 3.0)
+        self.assertEqual(dt_normative_for_category("Покрытие", kmk), 3.5)
 
 
 class TestRoomTypeRH(unittest.TestCase):
