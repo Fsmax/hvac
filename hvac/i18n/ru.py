@@ -390,10 +390,10 @@ RU: Dict[str, str] = {
 
     # ========== Panel: Equipment ==========
     "panel.equipment.title":  "Оборудование (системы)",
-    "panel.equipment.subtitle": ("Каталоги систем отопления / охлаждения / "
-                                  "вентиляции. Системы создаются "
-                                  "автоматически при назначении зон в "
-                                  "«Зонах и системах»."),
+    "panel.equipment.subtitle": ("Подбор источников по контурам: мощность и "
+                                  "количество котлов / чиллеров, нагрузка "
+                                  "контуров, DN, Δp и насосы. Системы и контуры "
+                                  "задаются в «Зонах и системах»."),
     "panel.equipment.tab.heat":  "Отопление",
     "panel.equipment.tab.cool":  "Охлаждение",
     "panel.equipment.tab.ahu":   "Вентиляция (AHU)",
@@ -415,6 +415,53 @@ RU: Dict[str, str] = {
     "panel.equipment.col.q_sens": "Q лето (явная), кВт",
     "panel.equipment.col.q_lat":  "Q лето (скрытая), кВт",
     "panel.equipment.col.flow":   "Расход, м³/ч",
+
+    # ----- Подбор источников (деревья Источник→Контуры) -----
+    "panel.equipment.btn.compute":      "Посчитать подбор",
+    "panel.equipment.lbl.margin_heat":  "Запас тепло ×",
+    "panel.equipment.lbl.margin_cool":  "Запас холод ×",
+    "panel.equipment.tcol.name":        "Источник / контур",
+    "panel.equipment.tcol.load":        "Нагрузка, кВт",
+    "panel.equipment.tcol.pick":        "Подбор / тип",
+    "panel.equipment.tcol.dn":          "DN",
+    "panel.equipment.tcol.dp":          "Δp, кПа",
+    "panel.equipment.tcol.pump":        "Насос",
+    "panel.equipment.fmt.units":        "{kw} кВт × {n}",
+    "panel.equipment.fmt.pump":         "{model} · {flow} м³/ч · {head} м",
+    "panel.equipment.direct":           "Без контура",
+    "panel.equipment.dhw":              ("ГВС: {kw} кВт — добавьте к источнику, "
+                                          "греющему воду"),
+    "panel.equipment.acol.ahu":         "AHU",
+    "panel.equipment.acol.flow":        "Расход, м³/ч",
+    "panel.equipment.acol.fan":         "Вентилятор",
+    "panel.equipment.acol.q_heater":    "Калорифер, кВт",
+    "panel.equipment.acol.q_cooler":    "Охладитель, кВт",
+    "panel.equipment.acol.recovery":    "Рекуператор",
+    "panel.equipment.status.computed":  "Подбор обновлён",
+    # добавление / редактирование (ручная настройка)
+    "panel.equipment.btn.add_boiler":   "+ Котёл",
+    "panel.equipment.btn.add_chiller":  "+ Чиллер",
+    "panel.equipment.btn.add_ahu":      "+ AHU",
+    "panel.equipment.hint.edit":        ("Двойной клик по источнику / контуру / "
+                                          "AHU — настроить параметры и привязки."),
+    "panel.equipment.hint.required":    "Расчётная нагрузка: {kw} кВт",
+    "panel.equipment.fmt.manual":       "{pick} (вручную)",
+    "panel.equipment.dlg.source_title": "Источник: {name}",
+    "panel.equipment.dlg.circuit_title":"Контур: {name}",
+    "panel.equipment.dlg.ahu_title":    "AHU: {name}",
+    "panel.equipment.dlg.add_boiler":   "Новый котёл / источник тепла",
+    "panel.equipment.dlg.add_chiller":  "Новый чиллер / источник холода",
+    "panel.equipment.dlg.add_ahu":      "Новая приточная установка (AHU)",
+    "panel.equipment.f.name":           "Имя:",
+    "panel.equipment.f.capacity":       "Ручная мощность агрегата, кВт (0 — авто)",
+    "panel.equipment.f.units":          "Количество агрегатов",
+    "panel.equipment.f.model":          "Модель",
+    "panel.equipment.f.t_in_s":         "t притока лето, °C",
+    "panel.equipment.f.heating_circuit":"Калорифер → контур",
+    "panel.equipment.f.cooling_circuit":"Охладитель → контур",
+    "panel.equipment.f.pipe_material":  "Материал труб",
+    "panel.equipment.f.pump_reserve":   "Запас насоса ×",
+    "panel.equipment.f.has_recovery":   "Рекуперация",
 
     # ========== Panel: Ventilation ==========
     "panel.ventilation.title":    "Вентиляция",

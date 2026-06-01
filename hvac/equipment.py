@@ -164,6 +164,13 @@ class HeatingSystem:
     t_return: float = 60.0                 # обратки, °C
     fuel: str = "gas"                      # "gas" / "electric" / "diesel" / "central"
     efficiency: float = 0.92               # КПД источника
+
+    # Ручной подбор (override авто-расчёта). Если design_capacity_kw>0 —
+    # панель «Оборудование» показывает эту мощность/количество/модель вместо
+    # авто-подбора по нагрузке. 0 / "" — авто.
+    design_capacity_kw: float = 0.0        # единичная мощность агрегата, кВт
+    unit_count: int = 0                    # количество агрегатов (каскад/резерв)
+    selected_model: str = ""               # выбранная модель
     note: str = ""
 
 
@@ -177,4 +184,9 @@ class CoolingSystem:
     t_return: float = 12.0                 # обратки, °C
     cop: float = 3.5                       # коэффициент эффективности (EER/COP)
     refrigerant: str = "R410A"
+
+    # Ручной подбор (override авто-расчёта) — см. HeatingSystem.
+    design_capacity_kw: float = 0.0
+    unit_count: int = 0
+    selected_model: str = ""
     note: str = ""

@@ -396,10 +396,10 @@ UZ: Dict[str, str] = {
 
     # ========== Panel: Equipment ==========
     "panel.equipment.title":   "Jihozlar (tizimlar)",
-    "panel.equipment.subtitle": ("Isitish / sovutish / ventilyatsiya "
-                                  "tizimlari katalogi. Tizimlar «Zonalar va "
-                                  "tizimlar»da zona belgilanganda "
-                                  "avtomatik yaratiladi."),
+    "panel.equipment.subtitle": ("Manbalarni konturlar bo‘yicha tanlash: "
+                                  "qozon / chiller quvvati va soni, kontur "
+                                  "yuklamasi, DN, Δp va nasoslar. Tizim va "
+                                  "konturlar «Zonalar va tizimlar»da beriladi."),
     "panel.equipment.tab.heat":  "Isitish",
     "panel.equipment.tab.cool":  "Sovutish",
     "panel.equipment.tab.ahu":   "Ventilyatsiya (AHU)",
@@ -421,6 +421,53 @@ UZ: Dict[str, str] = {
     "panel.equipment.col.q_sens": "Q yoz (oshkor), kVt",
     "panel.equipment.col.q_lat":  "Q yoz (yashirin), kVt",
     "panel.equipment.col.flow":   "Sarf, m³/soat",
+
+    # ----- Manbalarni tanlash (Manba→Konturlar daraxti) -----
+    "panel.equipment.btn.compute":      "Tanlashni hisoblash",
+    "panel.equipment.lbl.margin_heat":  "Issiqlik zaxira ×",
+    "panel.equipment.lbl.margin_cool":  "Sovuq zaxira ×",
+    "panel.equipment.tcol.name":        "Manba / kontur",
+    "panel.equipment.tcol.load":        "Yuklama, kVt",
+    "panel.equipment.tcol.pick":        "Tanlov / turi",
+    "panel.equipment.tcol.dn":          "DN",
+    "panel.equipment.tcol.dp":          "Δp, kPa",
+    "panel.equipment.tcol.pump":        "Nasos",
+    "panel.equipment.fmt.units":        "{kw} kVt × {n}",
+    "panel.equipment.fmt.pump":         "{model} · {flow} m³/soat · {head} m",
+    "panel.equipment.direct":           "Kontursiz",
+    "panel.equipment.dhw":              ("IIS: {kw} kVt — suvni isituvchi "
+                                          "manbaga qo‘shing"),
+    "panel.equipment.acol.ahu":         "AHU",
+    "panel.equipment.acol.flow":        "Sarf, m³/soat",
+    "panel.equipment.acol.fan":         "Ventilyator",
+    "panel.equipment.acol.q_heater":    "Kalorifer, kVt",
+    "panel.equipment.acol.q_cooler":    "Sovutgich, kVt",
+    "panel.equipment.acol.recovery":    "Rekuperator",
+    "panel.equipment.status.computed":  "Tanlov yangilandi",
+    # qo‘shish / tahrirlash (qo‘lda sozlash)
+    "panel.equipment.btn.add_boiler":   "+ Qozon",
+    "panel.equipment.btn.add_chiller":  "+ Chiller",
+    "panel.equipment.btn.add_ahu":      "+ AHU",
+    "panel.equipment.hint.edit":        ("Manba / kontur / AHU ustiga ikki marta "
+                                          "bosing — parametr va bog‘lanishlarni sozlash."),
+    "panel.equipment.hint.required":    "Hisobiy yuklama: {kw} kVt",
+    "panel.equipment.fmt.manual":       "{pick} (qo‘lda)",
+    "panel.equipment.dlg.source_title": "Manba: {name}",
+    "panel.equipment.dlg.circuit_title":"Kontur: {name}",
+    "panel.equipment.dlg.ahu_title":    "AHU: {name}",
+    "panel.equipment.dlg.add_boiler":   "Yangi qozon / issiqlik manbai",
+    "panel.equipment.dlg.add_chiller":  "Yangi chiller / sovuq manbai",
+    "panel.equipment.dlg.add_ahu":      "Yangi havo tayyorlash qurilmasi (AHU)",
+    "panel.equipment.f.name":           "Nomi:",
+    "panel.equipment.f.capacity":       "Qo‘lda agregat quvvati, kVt (0 — avto)",
+    "panel.equipment.f.units":          "Agregatlar soni",
+    "panel.equipment.f.model":          "Model",
+    "panel.equipment.f.t_in_s":         "t kelish yoz, °C",
+    "panel.equipment.f.heating_circuit":"Kalorifer → kontur",
+    "panel.equipment.f.cooling_circuit":"Sovutgich → kontur",
+    "panel.equipment.f.pipe_material":  "Quvur materiali",
+    "panel.equipment.f.pump_reserve":   "Nasos zaxirasi ×",
+    "panel.equipment.f.has_recovery":   "Rekuperatsiya",
 
     # ========== Panel: Ventilation ==========
     "panel.ventilation.title":    "Ventilyatsiya",

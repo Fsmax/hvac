@@ -7,6 +7,31 @@
 
 from __future__ import annotations
 
+import math
+from typing import List, Tuple
+
+
+# Стандартные ряды единичной мощности (кВт) — для подбора КОЛИЧЕСТВА
+# агрегатов источника. Те же ряды, что в suggest_boiler_size/chiller_size.
+BOILER_KW_LADDER = [25, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000]
+CHILLER_KW_LADDER = [30, 50, 100, 150, 200, 300, 500, 750, 1000, 1500]
+
+
+def pick_units(required_kw: float, ladder: List[int]) -> Tuple[float, int]:
+    """Подбирает (единичная_мощность_кВт, количество) под требуемую мощность.
+
+    Один агрегат ближайшего большего типоразмера, пока хватает ряда; если
+    нагрузка превышает крупнейший типоразмер — каскад из N одинаковых
+    крупнейших агрегатов (округление вверх).
+    """
+    if required_kw <= 0 or not ladder:
+        return (0.0, 0)
+    for size in ladder:
+        if required_kw <= size:
+            return (float(size), 1)
+    largest = float(ladder[-1])
+    return (largest, max(1, math.ceil(required_kw / largest)))
+
 
 def suggest_ahu_size(airflow_m3h: float) -> str:
     """Подсказывает ближайший типовой размер AHU/вентилятора по расходу.
