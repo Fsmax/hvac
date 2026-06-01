@@ -9,8 +9,10 @@ from hvac.engine.base import (
     air_density,
 )
 
-# Импорты ниже — регистрируют движки в реестре через декораторы
+# Импорты ниже — регистрируют движки в реестре через декораторы.
+# Порядок импорта = порядок в выпадающем списке «Методика».
 from hvac.engine import sp50  # noqa: F401
+from hvac.engine import kmk   # noqa: F401
 from hvac.engine import ventilation  # noqa: F401
 
 # Чтобы добавить новый движок (например ASHRAE), создайте hvac/engine/ashrae.py

@@ -372,6 +372,52 @@ class ManualEntryMixin:
                 continue
         return n
 
+    # ---------- Оборудование помещения ----------
+    def set_room_equipment(self, space_id: str, **kwargs) -> bool:
+        """Назначает поля оборудования для помещения.
+        Создаёт RoomEquipment если ещё нет."""
+        sp = self._space_by_id.get(space_id)
+        if sp is None:
+            return False
+        eq = sp.get_or_create_equipment()
+        for k, v in kwargs.items():
+            if hasattr(eq, k):
+                setattr(eq, k, v)
+        self.emit("equipment_changed")
+        return True
+
+    def apply_room_equipment(self, space_ids, fields: dict) -> int:
+        """Применяет один набор полей оборудования к нескольким помещениям
+        (групповое назначение / вставка из буфера). Возвращает число
+        затронутых помещений. Событие equipment_changed эмитится один раз."""
+        n = 0
+        for sid in space_ids:
+            sp = self._space_by_id.get(sid)
+            if sp is None:
+                continue
+            eq = sp.get_or_create_equipment()
+            for k, v in fields.items():
+                if hasattr(eq, k):
+                    setattr(eq, k, v)
+            n += 1
+        if n:
+            self.emit("equipment_changed")
+        return n
+
+    def clear_room_equipment(self, space_ids) -> int:
+        """Снимает оборудование с указанных помещений (room_equipment=None).
+        Возвращает число очищенных (где оборудование было)."""
+        n = 0
+        for sid in space_ids:
+            sp = self._space_by_id.get(sid)
+            if sp is None or sp.room_equipment is None:
+                continue
+            sp.room_equipment = None
+            n += 1
+        if n:
+            self.emit("equipment_changed")
+        return n
+
 
 # ===== Импорт-хелперы =====
 _HEADER_SYNONYMS = {
@@ -415,17 +461,3 @@ def _cell_float(row, idx) -> float:
         return float(str(v).replace(",", "."))
     except (TypeError, ValueError):
         return 0.0
-
-    # ---------- Оборудование помещения ----------
-    def set_room_equipment(self, space_id: str, **kwargs) -> bool:
-        """Назначает поля оборудования для помещения.
-        Создаёт RoomEquipment если ещё нет."""
-        sp = self._space_by_id.get(space_id)
-        if sp is None:
-            return False
-        eq = sp.get_or_create_equipment()
-        for k, v in kwargs.items():
-            if hasattr(eq, k):
-                setattr(eq, k, v)
-        self.emit("equipment_changed")
-        return True

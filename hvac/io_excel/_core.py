@@ -28,7 +28,7 @@ def write_core_sheets(wb, project) -> None:
         ("Расч. наружная летом, °C", p.t_out_cooling),
         ("Суточная амплитуда летом, K", p.daily_amplitude),
         ("Пиковая солнечная радиация, Вт/м²", p.solar_intensity_w_m2),
-        ("ГСОП (база 18°C)", p.gsop_18),
+        ("ГСОП (t_в=+20°C, ≤8°C)", p.gsop_18),
         ("Методика", p.methodology),
         ("Коэффициент инфильтрации k", p.inf_correction_k),
         ("Запас на отопление", p.safety_margin_heating),

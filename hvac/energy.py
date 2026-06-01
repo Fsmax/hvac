@@ -100,7 +100,7 @@ class EnergyPassport:
     # ===== Исходные =====
     project_name: str = ""
     city: str = ""
-    gsop_18: float = 0.0                  # ГСОП база +18, °C·сут
+    gsop_18: float = 0.0                  # ГСОП (t_в=+20°C, ≤8°C), °C·сут
     t_out_heating: float = 0.0            # расчётная зимняя
     total_area_m2: float = 0.0            # площадь всех помещений
     total_volume_m3: float = 0.0          # объём
@@ -388,7 +388,8 @@ def calculate_passport(project: "HVACProject",
     # Dd по КМК 2.01.04-18 форм.(1): (tв − tот.пер)·zот.пер для периода со
     # среднесуточной t ≤ 10°C. Если климат города содержит периоды ≤8/≤12°C
     # (ШНҚ 2.01.01-22 Табл.4) — Dd считается ТОЧНО (интерполяция на 10°C);
-    # иначе — приближение через базовый ГСОП (+18°C) с пересчётом базы на tв.
+    # иначе — приближение базовым ГСОП (та же база tв=+20°C, но порог ≤8°C —
+    # период ≤10°C чуть длиннее, поэтому это оценка снизу).
     t_in_shnq = 20.0
     _clim: Mapping[str, Any] = CLIMATE_DB.get(params.city, {})
     _period10 = heating_period_at(_clim, 10.0)
@@ -397,7 +398,7 @@ def calculate_passport(project: "HVACProject",
                                       _period10["z_days"])
         dd_exact = True
     else:
-        dd_shnq = params.gsop_18 + season["z_days"] * (t_in_shnq - 18.0)
+        dd_shnq = params.gsop_18           # уже база tв=+20°C
         dd_exact = False
     q_ov_norm = normative_q_ov_shnq(shnq_cat, n_floors, dd_shnq) or 0.0
     shnq_compliant = (q_design_specific <= q_ov_norm) if q_ov_norm > 0 else None

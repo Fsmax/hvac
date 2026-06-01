@@ -233,8 +233,10 @@ class ProjectParameters:
     t_out_cooling: float = 36.0
     daily_amplitude: float = 14.0
     solar_intensity_w_m2: float = 750.0
-    gsop_18: float = 0.0
-    methodology: str = "СП 50.13330"
+    gsop_18: float = 0.0          # ГСОП (t_в=+20°C, ≤8°C); имя «_18» историческое
+    # Должно совпадать с именем зарегистрированного движка (hvac/engine).
+    # Узбекистан по умолчанию: КМК (соответствует thermal_norm="KMK_UZ").
+    methodology: str = "КМК 2.04.05-91 + КМК 2.01.04-18"
     inf_correction_k: float = 0.7
     safety_margin_heating: float = 1.10
     safety_margin_cooling: float = 1.15

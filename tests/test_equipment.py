@@ -113,6 +113,109 @@ class TestAHULoads:
         assert loads["Блок B01"]["n_spaces"] == 2
 
 
+class TestRoomEquipment:
+    """Назначение конечного оборудования в помещения (project.set_room_equipment)."""
+
+    def test_method_is_attached_to_project(self):
+        """Регрессия: set_room_equipment должен быть МЕТОДОМ проекта, а не
+        потерянной вложенной функцией (баг отступа в _project_manual_entry)."""
+        project = HVACProject()
+        assert hasattr(project, "set_room_equipment")
+        assert callable(project.set_room_equipment)
+
+    def test_set_creates_equipment(self):
+        project = HVACProject()
+        sp = _add_space(project, "1", "101", "L1", 20)
+        ok = project.set_room_equipment(
+            "1", heating_terminal_type="Радиатор стальной",
+            heating_terminal_power_w=1200, heating_terminal_qty=2)
+        assert ok is True
+        assert sp.room_equipment is not None
+        assert sp.room_equipment.heating_total_w == 2400
+
+    def test_unknown_space_returns_false(self):
+        project = HVACProject()
+        assert project.set_room_equipment("nope", heating_terminal_qty=1) is False
+
+    def test_emits_equipment_changed(self):
+        project = HVACProject()
+        _add_space(project, "1", "101", "L1", 20)
+        seen = []
+        project.subscribe("equipment_changed", lambda **k: seen.append(True))
+        project.set_room_equipment("1", heating_terminal_qty=1)
+        assert seen == [True]
+
+    def test_ignores_unknown_fields(self):
+        project = HVACProject()
+        sp = _add_space(project, "1", "101", "L1", 20)
+        project.set_room_equipment("1", heating_terminal_qty=1, bogus_field=999)
+        assert not hasattr(sp.room_equipment, "bogus_field")
+
+    def test_round_trip_persistence(self):
+        from hvac.io_json import save_project, load_project
+        project = HVACProject()
+        _add_space(project, "1", "101", "L1", 20)
+        project.set_room_equipment(
+            "1", cooling_terminal_type="Фанкойл кассетный",
+            cooling_terminal_power_w=3500, cooling_terminal_qty=1,
+            notes="осевой")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json",
+                                          delete=False) as f:
+            path = f.name
+        try:
+            save_project(project, path)
+            new = HVACProject()
+            _add_space(new, "1", "101", "L1", 20)
+            load_project(new, path)
+            eq = new._space_by_id["1"].room_equipment
+            assert eq is not None
+            assert eq.cooling_terminal_type == "Фанкойл кассетный"
+            assert eq.cooling_total_w == 3500
+            assert eq.notes == "осевой"
+        finally:
+            os.unlink(path)
+
+    def test_apply_to_multiple(self):
+        project = HVACProject()
+        a = _add_space(project, "1", "101", "L1", 20)
+        b = _add_space(project, "2", "102", "L1", 20)
+        c = _add_space(project, "3", "103", "L1", 20)
+        n = project.apply_room_equipment(
+            ["1", "2", "3"],
+            {"heating_terminal_type": "Радиатор стальной",
+             "heating_terminal_power_w": 1000, "heating_terminal_qty": 1})
+        assert n == 3
+        for sp in (a, b, c):
+            assert sp.room_equipment.heating_total_w == 1000
+
+    def test_apply_skips_unknown_ids(self):
+        project = HVACProject()
+        _add_space(project, "1", "101", "L1", 20)
+        n = project.apply_room_equipment(["1", "missing"],
+                                         {"heating_terminal_qty": 2})
+        assert n == 1
+
+    def test_clear_removes_equipment(self):
+        project = HVACProject()
+        sp = _add_space(project, "1", "101", "L1", 20)
+        project.set_room_equipment("1", heating_terminal_qty=2)
+        assert sp.room_equipment is not None
+        n = project.clear_room_equipment(["1"])
+        assert n == 1
+        assert sp.room_equipment is None
+        # повторная очистка пустого — 0
+        assert project.clear_room_equipment(["1"]) == 0
+
+    def test_bulk_emits_once(self):
+        project = HVACProject()
+        _add_space(project, "1", "101", "L1", 20)
+        _add_space(project, "2", "102", "L1", 20)
+        seen = []
+        project.subscribe("equipment_changed", lambda **k: seen.append(1))
+        project.apply_room_equipment(["1", "2"], {"heating_terminal_qty": 1})
+        assert len(seen) == 1
+
+
 class TestPersistence:
 
     def test_save_load_systems(self):
