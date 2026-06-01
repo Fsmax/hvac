@@ -8,11 +8,11 @@
 from __future__ import annotations
 from typing import List, Optional
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
-    QFormLayout, QHBoxLayout, QHeaderView, QLabel, QMessageBox,
+    QFormLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMessageBox,
     QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -258,6 +258,32 @@ class BoundariesPanel(QWidget):
         self.table.setFixedHeight(
             header_h + n * row_h + 2 * self.table.frameWidth() + 2)
 
+    def _as_picker(self, combo: QComboBox) -> None:
+        """Делает комбобокс read-only «выбиралкой»: текущий текст рисуется
+        через QLineEdit (чёткий, как у остальных комбобоксов приложения), но
+        печатать нельзя — только выбор из списка.
+
+        Зачем: нередактируемые QComboBox на нативном стиле Windows рисуют
+        текущий текст системным цветом — тускло/нечитаемо в тёмной и светлой
+        теме. Все прочие комбобоксы в приложении тоже editable, поэтому
+        читаются нормально. Клик по полю (а не только по стрелке) открывает
+        список — см. eventFilter."""
+        combo.setEditable(True)
+        combo.setInsertPolicy(QComboBox.NoInsert)
+        le = combo.lineEdit()
+        le.setReadOnly(True)
+        le.setContextMenuPolicy(Qt.NoContextMenu)
+        le.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        # Клик по read-only полю комбобокса открывает выпадающий список.
+        if (event.type() == QEvent.MouseButtonPress
+                and isinstance(obj, QLineEdit)
+                and isinstance(obj.parent(), QComboBox)):
+            obj.parent().showPopup()
+            return True
+        return super().eventFilter(obj, event)
+
     def _append_row(self, el: BoundaryElement) -> None:
         row = self.table.rowCount()
         self.table.insertRow(row)
@@ -274,7 +300,7 @@ class BoundariesPanel(QWidget):
 
         # Колонка 1 — конструкция (выпадающий из каталога)
         combo = QComboBox()
-        combo.setEditable(False)
+        self._as_picker(combo)
         matching = [c for c in self.project.constructions.values()
                     if c.category == cat]
         for c in matching:
@@ -298,6 +324,7 @@ class BoundariesPanel(QWidget):
 
         # Колонка 3 — ориентация
         orient_combo = QComboBox()
+        self._as_picker(orient_combo)
         orient_combo.addItems(_ORIENTATIONS)
         if el.orientation:
             orient_combo.setCurrentText(el.orientation)
@@ -313,6 +340,7 @@ class BoundariesPanel(QWidget):
 
         # Колонка 5 — наружное
         ext_combo = QComboBox()
+        self._as_picker(ext_combo)
         yes_lbl = _t("panel.boundaries.ext_yes")
         no_lbl = _t("panel.boundaries.ext_no")
         ext_combo.addItems([yes_lbl, no_lbl])

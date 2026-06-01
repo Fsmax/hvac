@@ -72,3 +72,21 @@ def test_height_capped_for_many_rows(qapp):
 
 def test_height_grows_with_more_rows(qapp):
     assert _panel(6).table.height() > _panel(2).table.height()
+
+
+def test_cell_combos_are_readonly_pickers(qapp):
+    """Регрессия читаемости: комбобоксы-ячейки editable+read-only (текст
+    рисуется через QLineEdit, как у остальных комбобоксов приложения), но
+    печатать нельзя — только выбор из списка."""
+    panel = _panel(1)
+    for col in (1, 3, 5):  # конструкция / ориентация / наружное
+        combo = panel.table.cellWidget(0, col)
+        assert combo.isEditable() is True
+        assert combo.lineEdit().isReadOnly() is True
+
+
+def test_construction_combo_preserves_key(qapp):
+    """userData (ключ конструкции) сохраняется при editable-комбобоксе."""
+    panel = _panel(1)
+    combo = panel.table.cellWidget(0, 1)
+    assert combo.currentData() == "k0"
