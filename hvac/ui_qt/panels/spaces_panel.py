@@ -14,9 +14,10 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QFileDialog, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QMessageBox, QPushButton, QSizePolicy,
-    QSplitter, QStyledItemDelegate, QTableView, QVBoxLayout, QWidget,
+    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
+    QFileDialog, QFormLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QMenu, QMessageBox, QPushButton, QSizePolicy, QSplitter, QStackedWidget,
+    QStyledItemDelegate, QTableView, QVBoxLayout, QWidget,
 )
 
 from hvac.catalogs.room_types import (
@@ -31,6 +32,9 @@ from hvac.ui_qt.panels.properties_panel import PropertiesPanel
 from hvac.ui_qt.theme import tokens
 from hvac.ui_qt.widgets.space_dialog import (
     BuildingTemplateDialog, SpaceDialog,
+)
+from hvac.ui_qt.widgets.table_edit import (
+    EditableTableModelMixin, TableEditBinder,
 )
 
 
@@ -82,12 +86,24 @@ def _q_density(sp: Space) -> float:
     return sp.heat_loss_w / sp.area_m2
 
 
-class SpacesTableModel(QAbstractTableModel):
+class SpacesTableModel(EditableTableModelMixin, QAbstractTableModel):
     """Модель таблицы поверх project.spaces.
 
     Реактивна на сигналы bridge — после dataLoaded / calculationDone
     модель полностью перевыпускается через layoutChanged.
     """
+
+    # Поля для снимков undo/redo: редактируемые + производные от смены типа
+    # (apply_room_type_defaults меняет температуры, людей, освещение и т.д.)
+    # + системы + флаг ручной правки.
+    _SNAP_FIELDS = (
+        "room_type", "t_in_heat", "t_in_cool", "occupancy_people",
+        "lighting_w_m2", "equipment_w_m2", "ach_inf",
+        "is_corner", "has_floor_to_ground", "has_roof", "is_top_floor",
+        "floor_over_unheated_n",
+        "system_heating", "system_cooling", "system_ventilation",
+        "user_modified",
+    )
 
     COLUMNS: List[Column] = [
         Column("panel.spaces.col.number",   "number",         80,
@@ -123,6 +139,9 @@ class SpacesTableModel(QAbstractTableModel):
         super().__init__(parent)
         self.project = project
         self.bridge = bridge
+        self._init_edit_history()
+        self._EDITABLE_COLS = {i for i, c in enumerate(self.COLUMNS)
+                               if c.editable}
         # Сабскрайбимся на события, которые меняют содержимое
         bridge.dataLoaded.connect(self._full_reset)
         bridge.projectLoaded.connect(self._full_reset)
@@ -194,34 +213,44 @@ class SpacesTableModel(QAbstractTableModel):
                 role: int = Qt.EditRole) -> bool:
         if role != Qt.EditRole or not index.isValid():
             return False
-        sp = self.project.spaces[index.row()]
-        col = self.COLUMNS[index.column()]
-        if not col.editable:
-            return False
+        return self.commit_cell(index.row(), index.column(), value)
 
+    # ---- Хуки EditableTableModelMixin ----
+    def _snapshot_row(self, row: int) -> dict:
+        sp = self.project.spaces[row]
+        return {f: getattr(sp, f) for f in self._SNAP_FIELDS}
+
+    def _restore_row(self, row: int, snap: dict) -> None:
+        sp = self.project.spaces[row]
+        for f, v in snap.items():
+            setattr(sp, f, v)
+
+    def _apply_cell(self, row: int, col: int, raw) -> bool:
+        sp = self.project.spaces[row]
+        col_def = self.COLUMNS[col]
+        if not col_def.editable:
+            return False
         try:
-            if col.key == "room_type":
-                sp.room_type = str(value)
+            if col_def.key == "room_type":
+                sp.room_type = str(raw)
                 apply_room_type_defaults(sp)
-            elif col.key == "t_in_heat":
-                sp.t_in_heat = float(value)
-            elif col.key == "system_heating":
-                sp.system_heating = str(value)
+            elif col_def.key == "t_in_heat":
+                sp.t_in_heat = float(raw)
+            elif col_def.key == "system_heating":
+                sp.system_heating = str(raw)
             else:
-                setattr(sp, col.key, value)
+                setattr(sp, col_def.key, raw)
             sp.user_modified = True
         except (TypeError, ValueError):
             return False
-
-        # При смене типа меняется ещё пачка полей — перерисовываем строку
-        top = self.index(index.row(), 0)
-        bot = self.index(index.row(), self.columnCount() - 1)
-        self.dataChanged.emit(top, bot)
-        self.bridge.dirtyChanged.emit(True)
         return True
+
+    def _cell_edit_value(self, row: int, col: int):
+        return getattr(self.project.spaces[row], self.COLUMNS[col].key)
 
     # ---- Внутреннее ----
     def _full_reset(self, *args: Any) -> None:
+        self.clear_edit_history()
         self.beginResetModel()
         self.endResetModel()
 
@@ -316,6 +345,68 @@ class ComboDelegate(QStyledItemDelegate):
 
     def setModelData(self, editor: QComboBox, model, index):
         model.setData(index, editor.currentText(), Qt.EditRole)
+
+
+# ===========================================================================
+# Диалог групповой правки
+# ===========================================================================
+
+
+class SpacesBulkDialog(QDialog):
+    """Групповая правка выделенных помещений: тип / зимняя tв / система."""
+
+    def __init__(self, n_selected: int, room_types, zones,
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setWindowTitle(_t("panel.spaces.bulk.title"))
+        self.setModal(True)
+        form = QFormLayout(self)
+
+        self.field_combo = QComboBox()
+        self._fields = [
+            ("room_type", _t("panel.spaces.col.type")),
+            ("t_in_heat", _t("panel.spaces.col.t_heat")),
+            ("system_heating", _t("panel.spaces.col.zone")),
+        ]
+        for key, label in self._fields:
+            self.field_combo.addItem(label, key)
+        form.addRow(_t("panel.spaces.bulk.field"), self.field_combo)
+
+        self.stack = QStackedWidget()
+        self.type_combo = QComboBox()
+        self.type_combo.addItems(list(room_types))
+        self.t_spin = QDoubleSpinBox()
+        self.t_spin.setRange(-50.0, 50.0)
+        self.t_spin.setDecimals(1)
+        self.t_spin.setValue(20.0)
+        self.t_spin.setSuffix(" °C")
+        self.zone_combo = QComboBox()
+        self.zone_combo.setEditable(True)
+        self.zone_combo.addItems(list(zones))
+        for w in (self.type_combo, self.t_spin, self.zone_combo):
+            self.stack.addWidget(w)
+        form.addRow(_t("panel.spaces.bulk.value"), self.stack)
+        self.field_combo.currentIndexChanged.connect(self.stack.setCurrentIndex)
+
+        hint = QLabel(_t("panel.spaces.bulk.hint").format(n=n_selected))
+        hint.setProperty("role", "muted")
+        form.addRow(hint)
+
+        box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        box.button(QDialogButtonBox.Ok).setText(_t("btn.apply"))
+        box.button(QDialogButtonBox.Cancel).setText(_t("btn.cancel"))
+        box.accepted.connect(self.accept)
+        box.rejected.connect(self.reject)
+        form.addRow(box)
+
+    def result_value(self):
+        """Возвращает (field_key, value)."""
+        key = self.field_combo.currentData()
+        if key == "room_type":
+            return key, self.type_combo.currentText()
+        if key == "t_in_heat":
+            return key, self.t_spin.value()
+        return key, self.zone_combo.currentText()
 
 
 # ===========================================================================
@@ -436,9 +527,11 @@ class SpacesPanel(QWidget):
         self.table.horizontalHeader().setStretchLastSection(True)
         for i, col in enumerate(SpacesTableModel.COLUMNS):
             self.table.setColumnWidth(i, col.width)
-        # Ctrl+C — копирование выделения в буфер (TSV, вставляется в Excel).
-        from hvac.ui_qt.widgets.table_clipboard import install_copy
-        install_copy(self.table)
+        # Excel-горячие клавиши: Ctrl+C/V/D, Ctrl+Z/Y (буфер/fill-down/undo).
+        self._edit = TableEditBinder(self.table, self.proxy, self.model,
+                                     self.bridge)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
 
         # Делегаты для редактируемых колонок
         type_col = next(i for i, c in enumerate(SpacesTableModel.COLUMNS)
@@ -547,6 +640,70 @@ class SpacesPanel(QWidget):
             self.table.setCurrentIndex(pidx)
             self.table.scrollTo(pidx, QAbstractItemView.PositionAtCenter)
             self.table.setFocus()
+
+    # ===== Групповая правка / контекстное меню =====
+    def _selected_source_rows(self) -> List[int]:
+        sel = self.table.selectionModel()
+        if sel is None:
+            return []
+        return sorted({self.proxy.mapToSource(idx).row()
+                       for idx in sel.selectedRows()})
+
+    def _bulk_edit(self) -> None:
+        rows = self._selected_source_rows()
+        if not rows:
+            QMessageBox.information(self, _t("panel.spaces.bulk.title"),
+                                    _t("panel.spaces.bulk.no_selection"))
+            return
+        dlg = SpacesBulkDialog(len(rows), get_all_room_types(),
+                               self._existing_zones(), self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        field_key, value = dlg.result_value()
+        col = next(i for i, c in enumerate(SpacesTableModel.COLUMNS)
+                   if c.key == field_key)
+        n = self.model.set_cells({(r, col): value for r in rows})
+        self.bridge.statusMessage.emit(
+            _t("panel.spaces.bulk.applied").format(n=n), 4000)
+
+    def _show_context_menu(self, pos) -> None:
+        if not self.project.spaces:
+            return
+        rows = self._selected_source_rows()
+        sel = self.table.selectionModel()
+        has_sel = bool(sel and sel.selectedIndexes())
+        menu = QMenu(self)
+        act_bulk = menu.addAction(_t("panel.spaces.bulk.menu"))
+        menu.addSeparator()
+        act_copy = menu.addAction(_t("tableedit.ctx.copy"))
+        act_paste = menu.addAction(_t("tableedit.ctx.paste"))
+        act_fill = menu.addAction(_t("tableedit.ctx.fill_down"))
+        menu.addSeparator()
+        act_undo = menu.addAction(_t("tableedit.ctx.undo"))
+        act_redo = menu.addAction(_t("tableedit.ctx.redo"))
+        act_bulk.setEnabled(bool(rows))
+        act_copy.setEnabled(has_sel)
+        act_fill.setEnabled(has_sel)
+        act_undo.setEnabled(self.model.can_undo())
+        act_redo.setEnabled(self.model.can_redo())
+        chosen = menu.exec(self.table.viewport().mapToGlobal(pos))
+        if chosen is None:
+            return
+        if chosen is act_bulk:
+            self._bulk_edit()
+        elif chosen is act_copy:
+            from hvac.ui_qt.widgets.table_clipboard import (
+                copy_selection_to_clipboard,
+            )
+            copy_selection_to_clipboard(self.table)
+        elif chosen is act_paste:
+            self._edit.paste()
+        elif chosen is act_fill:
+            self._edit.fill_down()
+        elif chosen is act_undo:
+            self._edit.undo()
+        elif chosen is act_redo:
+            self._edit.redo()
 
     def _on_row_changed(self, current: QModelIndex, _previous: QModelIndex) -> None:
         if not current.isValid():

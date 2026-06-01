@@ -21,7 +21,7 @@ from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, QSortFilterProx
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QTableView, QVBoxLayout, QWidget,
+    QLineEdit, QMenu, QMessageBox, QPushButton, QTableView, QVBoxLayout, QWidget,
 )
 
 from hvac.catalogs.constructions import (
@@ -35,6 +35,9 @@ from hvac.models import Construction
 from hvac.project import HVACProject
 from hvac.ui_qt.bridge import ProjectBridge
 from hvac.ui_qt.widgets.layers_editor import LayersEditor
+from hvac.ui_qt.widgets.table_edit import (
+    EditableTableModelMixin, TableEditBinder,
+)
 
 
 # Коэффициент «подозрительно высокого» U — выше типичного × этот фактор
@@ -56,7 +59,7 @@ _HEADER_KEYS = (
 )
 
 
-class ConstructionsModel(QAbstractTableModel):
+class ConstructionsModel(EditableTableModelMixin, QAbstractTableModel):
     COL_CATEGORY = 0
     COL_FAMILY = 1
     COL_TYPE = 2
@@ -69,6 +72,9 @@ class ConstructionsModel(QAbstractTableModel):
     COL_AREA = 9
     COL_NOTE = 10
     EDITABLE = {COL_U, COL_SHGC, COL_NOTE}
+    _EDITABLE_COLS = EDITABLE
+    # Поля для снимков undo/redo (правка U сбрасывает слои и дописывает note).
+    _SNAP_FIELDS = ("u_value", "shgc", "note", "thickness_mm")
 
     def __init__(self, project: HVACProject, bridge: ProjectBridge):
         super().__init__()
@@ -76,17 +82,31 @@ class ConstructionsModel(QAbstractTableModel):
         self.bridge = bridge
         self._items: List[Construction] = []
         self._usage: dict = {}
+        self._item_keys: List[str] = []
+        self._init_edit_history()
+        # Полная перезагрузка данных обнуляет историю; точечная правка U/SHGC
+        # (constructionsChanged) — нет: _reload чистит историю только если
+        # изменился состав/порядок каталога (см. ниже).
         bridge.dataLoaded.connect(self._reload)
         bridge.projectLoaded.connect(self._reload)
         bridge.constructionsChanged.connect(self._reload)
         self._reload()
 
     def _reload(self, *args: Any) -> None:
-        self.beginResetModel()
-        self._items = sorted(
+        new_items = sorted(
             self.project.constructions.values(),
             key=lambda c: (c.category, c.family or "", c.type_name or ""),
         )
+        new_keys = [c.key for c in new_items]
+        # Снимки undo адресуют строки по индексу: если состав или порядок
+        # каталога изменился (загрузка проекта, импорт, удаление) — история
+        # недействительна. Если изменились лишь значения (U/SHGC/note) —
+        # ключи те же, порядок тот же, историю сохраняем.
+        if new_keys != self._item_keys:
+            self.clear_edit_history()
+        self.beginResetModel()
+        self._items = new_items
+        self._item_keys = new_keys
         self._usage = self.project.construction_usage()
         self.endResetModel()
 
@@ -221,57 +241,67 @@ class ConstructionsModel(QAbstractTableModel):
     def setData(self, index, value, role=Qt.EditRole):
         if role != Qt.EditRole or not index.isValid():
             return False
-        c = self._items[index.row()]
-        col = index.column()
+        return self.commit_cell(index.row(), index.column(), value)
+
+    # ---- Хуки EditableTableModelMixin ----
+    def _snapshot_row(self, row: int) -> dict:
+        c = self._items[row]
+        snap = {f: getattr(c, f) for f in self._SNAP_FIELDS}
+        snap["layers"] = list(c.layers)
+        return snap
+
+    def _restore_row(self, row: int, snap: dict) -> None:
+        c = self._items[row]
+        for f, v in snap.items():
+            if f == "layers":
+                c.layers = list(v)
+            else:
+                setattr(c, f, v)
+
+    def _apply_cell(self, row: int, col: int, raw) -> bool:
+        c = self._items[row]
         try:
             if col == self.COL_U:
-                c.u_value = float(value)
-                # Если были слои — ручная правка U их перекрывает,
-                # помечаем в note чтобы пользователь видел расхождение
+                c.u_value = float(raw)
+                # Ручная правка U перекрывает слои — помечаем в note.
                 if c.layers:
                     c.note = (c.note or "") + _t("panel.constructions.note_manual_u")
                     c.layers = []
             elif col == self.COL_SHGC:
-                c.shgc = float(value)
+                c.shgc = float(raw)
             elif col == self.COL_NOTE:
-                c.note = str(value)
+                c.note = str(raw)
             else:
                 return False
         except (TypeError, ValueError):
             return False
-        self.dataChanged.emit(index, index)
-        self.bridge.dirtyChanged.emit(True)
-        self.project.emit("constructions_changed")
         return True
 
-    # Bulk-операции
+    def _cell_edit_value(self, row: int, col: int):
+        c = self._items[row]
+        return {self.COL_U: c.u_value, self.COL_SHGC: c.shgc,
+                self.COL_NOTE: c.note}[col]
+
+    def _after_change(self, rows) -> None:
+        # Обновляем зависимые панели (расчёт использует U). Триггерит _reload,
+        # но он сохраняет историю, т.к. состав каталога не меняется.
+        self.project.emit("constructions_changed")
+
+    # Bulk-операции (отменяемые через единый _commit)
     def bulk_set_u(self, rows: List[int], u_value: float) -> int:
-        n = 0
-        for row in rows:
-            if 0 <= row < len(self._items):
-                self._items[row].u_value = u_value
-                if self._items[row].layers:
-                    self._items[row].layers = []
-                n += 1
-        if n:
-            self.beginResetModel()
-            self.endResetModel()
-            self.bridge.dirtyChanged.emit(True)
-            self.project.emit("constructions_changed")
-        return n
+        def mutate(rs):
+            for row in rs:
+                c = self._items[row]
+                c.u_value = u_value
+                if c.layers:
+                    c.layers = []
+        return self._commit(rows, mutate)
 
     def bulk_apply_preset(self, rows: List[int], preset_name: str) -> int:
-        n = 0
-        for row in rows:
-            if 0 <= row < len(self._items):
-                if apply_preset(self._items[row], preset_name):
-                    n += 1
-        if n:
-            self.beginResetModel()
-            self.endResetModel()
-            self.bridge.dirtyChanged.emit(True)
-            self.project.emit("constructions_changed")
-        return n
+        def mutate(rs):
+            for row in rs:
+                apply_preset(self._items[row], preset_name)
+        return self._commit(rows, mutate)
 
 
 # ===========================================================================
@@ -416,9 +446,11 @@ class ConstructionsPanel(QWidget):
         for i, w in enumerate(widths):
             self.table.setColumnWidth(i, w)
         self.table.doubleClicked.connect(self._on_double_click)
-        # Ctrl+C — копирование выделения в буфер (TSV, вставляется в Excel).
-        from hvac.ui_qt.widgets.table_clipboard import install_copy
-        install_copy(self.table)
+        # Excel-горячие клавиши: Ctrl+C/V/D, Ctrl+Z/Y (буфер/fill-down/undo).
+        self._edit = TableEditBinder(self.table, self.proxy, self.model,
+                                     self.bridge)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
 
         outer.addWidget(self.table, stretch=1)
 
@@ -474,6 +506,49 @@ class ConstructionsPanel(QWidget):
         for idx in self.table.selectionModel().selectedRows():
             rows.add(self.proxy.mapToSource(idx).row())
         return sorted(rows)
+
+    def _show_context_menu(self, pos) -> None:
+        if not self.project.constructions:
+            return
+        sel = self.table.selectionModel()
+        has_sel = bool(sel and sel.selectedIndexes())
+        rows = self._selected_source_rows()
+        menu = QMenu(self)
+        act_bulk = menu.addAction(_t("panel.constructions.btn_bulk_u"))
+        act_preset = menu.addAction(_t("panel.constructions.btn_preset"))
+        menu.addSeparator()
+        act_copy = menu.addAction(_t("tableedit.ctx.copy"))
+        act_paste = menu.addAction(_t("tableedit.ctx.paste"))
+        act_fill = menu.addAction(_t("tableedit.ctx.fill_down"))
+        menu.addSeparator()
+        act_undo = menu.addAction(_t("tableedit.ctx.undo"))
+        act_redo = menu.addAction(_t("tableedit.ctx.redo"))
+        act_bulk.setEnabled(bool(rows))
+        act_preset.setEnabled(bool(rows))
+        act_copy.setEnabled(has_sel)
+        act_fill.setEnabled(has_sel)
+        act_undo.setEnabled(self.model.can_undo())
+        act_redo.setEnabled(self.model.can_redo())
+        chosen = menu.exec(self.table.viewport().mapToGlobal(pos))
+        if chosen is None:
+            return
+        if chosen is act_bulk:
+            self._bulk_edit_u()
+        elif chosen is act_preset:
+            self._apply_preset()
+        elif chosen is act_copy:
+            from hvac.ui_qt.widgets.table_clipboard import (
+                copy_selection_to_clipboard,
+            )
+            copy_selection_to_clipboard(self.table)
+        elif chosen is act_paste:
+            self._edit.paste()
+        elif chosen is act_fill:
+            self._edit.fill_down()
+        elif chosen is act_undo:
+            self._edit.undo()
+        elif chosen is act_redo:
+            self._edit.redo()
 
     # ---------- действия ----------
     def _on_double_click(self, idx) -> None:

@@ -19,6 +19,7 @@ from hvac.ui_qt.bridge import ProjectBridge
 from hvac.ui_qt.theme import tokens
 from hvac.ui_qt.widgets.card import Card
 from hvac.ui_qt.widgets.table_clipboard import clipboard_grid, install_copy
+from hvac.ui_qt.widgets.table_edit import EditableTableModelMixin
 
 
 _VENT_HEADER_KEYS = [
@@ -36,16 +37,21 @@ _COL_SUPPLY, _COL_EXHAUST, _COL_HOOD = 5, 6, 7
 _EDITABLE_VENT_COLS = (_COL_SUPPLY, _COL_EXHAUST, _COL_HOOD)
 
 
-class VentilationModel(QAbstractTableModel):
+class VentilationModel(EditableTableModelMixin, QAbstractTableModel):
+
+    _EDITABLE_COLS = {_COL_SUPPLY, _COL_EXHAUST, _COL_HOOD}
+    _BULK_ATTR = {_COL_SUPPLY: "supply_m3h",
+                  _COL_EXHAUST: "exhaust_m3h",
+                  _COL_HOOD: "hood_m3h"}
+    # Поля, снимаемые для отмены/повтора.
+    _SNAPSHOT_FIELDS = ("supply_m3h", "exhaust_m3h", "hood_m3h",
+                        "ach_calculated", "vent_user_modified")
 
     def __init__(self, project: HVACProject, bridge: ProjectBridge):
         super().__init__()
         self.project = project
         self.bridge = bridge
-        # Стеки отмены/повтора табличных правок (снимки полей помещений).
-        self._undo_stack: list = []
-        self._redo_stack: list = []
-        self._undo_limit = 200
+        self._init_edit_history()
         bridge.dataLoaded.connect(self._reset)
         bridge.projectLoaded.connect(self._reset)
         bridge.ventilationDone.connect(self._reset)
@@ -53,8 +59,7 @@ class VentilationModel(QAbstractTableModel):
     def _reset(self, *args: Any) -> None:
         # Перезагрузка данных/пересчёт обнуляют историю — снимки ссылаются на
         # прежние строки и больше не валидны.
-        self._undo_stack.clear()
-        self._redo_stack.clear()
+        self.clear_edit_history()
         self.beginResetModel()
         self.endResetModel()
 
@@ -117,122 +122,35 @@ class VentilationModel(QAbstractTableModel):
     def setData(self, index, value, role=Qt.EditRole):
         if role != Qt.EditRole or not index.isValid():
             return False
-        col = index.column()
-        if col not in _EDITABLE_VENT_COLS:
-            return False
-        try:
-            v = max(float(value), 0.0)
-        except (TypeError, ValueError):
-            return False
-        row = index.row()
+        return self.commit_cell(index.row(), index.column(), value)
 
-        def mutate(_rows):
-            self._set_flow(row, col, v)
-
-        self._commit([row], mutate)
-        return True
-
-    # ---------- Общая инфраструктура правок (+ undo/redo) ----------
-    _BULK_ATTR = {_COL_SUPPLY: "supply_m3h",
-                  _COL_EXHAUST: "exhaust_m3h",
-                  _COL_HOOD: "hood_m3h"}
-
-    # Поля, которые снимаются в снимок для отмены/повтора.
-    _SNAPSHOT_FIELDS = ("supply_m3h", "exhaust_m3h", "hood_m3h",
-                        "ach_calculated", "vent_user_modified")
-
+    # ---------- Хуки EditableTableModelMixin ----------
     def _recompute_ach(self, sp) -> None:
         if sp.volume_m3 > 0:
             sp.ach_calculated = max(sp.supply_m3h, sp.exhaust_m3h) / sp.volume_m3
 
-    def _set_flow(self, row: int, col: int, value: float) -> None:
-        """Пишет один расход и помечает помещение ручной правкой."""
+    def _snapshot_row(self, row: int) -> dict:
         sp = self.project.spaces[row]
-        setattr(sp, self._BULK_ATTR[col], max(value, 0.0))
+        return {f: getattr(sp, f) for f in self._SNAPSHOT_FIELDS}
+
+    def _restore_row(self, row: int, snap: dict) -> None:
+        sp = self.project.spaces[row]
+        for f, v in snap.items():
+            setattr(sp, f, v)
+
+    def _apply_cell(self, row: int, col: int, raw) -> bool:
+        try:
+            v = max(float(raw), 0.0)
+        except (TypeError, ValueError):
+            return False
+        sp = self.project.spaces[row]
+        setattr(sp, self._BULK_ATTR[col], v)
         sp.vent_user_modified = True
         self._recompute_ach(sp)
+        return True
 
-    def _snapshot(self, rows) -> dict:
-        out = {}
-        for r in rows:
-            sp = self.project.spaces[r]
-            out[r] = {f: getattr(sp, f) for f in self._SNAPSHOT_FIELDS}
-        return out
-
-    def _restore(self, snap: dict) -> None:
-        for r, fields in snap.items():
-            if 0 <= r < len(self.project.spaces):
-                sp = self.project.spaces[r]
-                for f, v in fields.items():
-                    setattr(sp, f, v)
-        self._emit_rows_changed(list(snap.keys()))
-        self.bridge.dirtyChanged.emit(True)
-
-    def _commit(self, rows, mutate) -> int:
-        """Снимает состояние до/после мутации, кладёт разницу в undo-стек,
-        перерисовывает изменённые строки. Возвращает число изменившихся
-        помещений."""
-        rows = [r for r in dict.fromkeys(rows)
-                if 0 <= r < len(self.project.spaces)]
-        if not rows:
-            return 0
-        before = self._snapshot(rows)
-        mutate(rows)
-        after = self._snapshot(rows)
-        changed = [r for r in rows if before[r] != after[r]]
-        if not changed:
-            return 0
-        self._undo_stack.append(({r: before[r] for r in changed},
-                                 {r: after[r] for r in changed}))
-        if len(self._undo_stack) > self._undo_limit:
-            self._undo_stack.pop(0)
-        self._redo_stack.clear()
-        self._emit_rows_changed(changed)
-        self.bridge.dirtyChanged.emit(True)
-        return len(changed)
-
-    def can_undo(self) -> bool:
-        return bool(self._undo_stack)
-
-    def can_redo(self) -> bool:
-        return bool(self._redo_stack)
-
-    def undo(self) -> int:
-        if not self._undo_stack:
-            return 0
-        before, after = self._undo_stack.pop()
-        self._redo_stack.append((before, after))
-        self._restore(before)
-        return len(before)
-
-    def redo(self) -> int:
-        if not self._redo_stack:
-            return 0
-        before, after = self._redo_stack.pop()
-        self._undo_stack.append((before, after))
-        self._restore(after)
-        return len(after)
-
-    def set_cells(self, edits: dict) -> int:
-        """Применяет правки {(source_row, col): value} как одну отменяемую
-        операцию (для вставки и заполнения вниз). Возвращает число
-        изменённых помещений."""
-        valid = {(r, c): v for (r, c), v in edits.items()
-                 if c in _EDITABLE_VENT_COLS
-                 and 0 <= r < len(self.project.spaces)}
-        if not valid:
-            return 0
-        rows = [r for (r, _c) in valid]
-
-        def mutate(_rows):
-            for (r, c), v in valid.items():
-                setattr(self.project.spaces[r], self._BULK_ATTR[c],
-                        max(v, 0.0))
-                self.project.spaces[r].vent_user_modified = True
-            for r in set(rows):
-                self._recompute_ach(self.project.spaces[r])
-
-        return self._commit(rows, mutate)
+    def _cell_edit_value(self, row: int, col: int):
+        return getattr(self.project.spaces[row], self._BULK_ATTR[col])
 
     # ---------- Групповая правка ----------
 
@@ -289,13 +207,6 @@ class VentilationModel(QAbstractTableModel):
                 sp.ach_calculated = br.get("ach_calculated", 0.0)
 
         return self._commit(source_rows, mutate)
-
-    def _emit_rows_changed(self, rows) -> None:
-        if not rows:
-            return
-        top = self.index(min(rows), 0)
-        bot = self.index(max(rows), self.columnCount() - 1)
-        self.dataChanged.emit(top, bot)
 
 
 class BulkVentDialog(QDialog):

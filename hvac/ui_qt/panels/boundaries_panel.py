@@ -162,6 +162,11 @@ class BoundariesPanel(QWidget):
         for i, w in enumerate(widths):
             self.table.setColumnWidth(i, w)
         self.table.setMinimumWidth(sum(widths) + 30)
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        # Ctrl+C — копирование выделения в буфер (TSV → Excel). Ячейки-комбо
+        # копируются как текст элемента; пустые — как "".
+        from hvac.ui_qt.widgets.table_clipboard import install_copy
+        install_copy(self.table)
         root.addWidget(self.table, stretch=1)
         self.table.itemChanged.connect(self._on_item_changed)
 

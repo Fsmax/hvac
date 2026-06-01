@@ -39,6 +39,17 @@ RU: Dict[str, str] = {
     "sidebar.engineering":   "Подробная инженерия v4.1",
     "sidebar.problems":      "Проблемы",
 
+    # ========== Табличные правки (общее: буфер/fill-down/undo) ==========
+    "tableedit.paste":       "Вставлено значений: {n}",
+    "tableedit.fill":        "Заполнено вниз: {n}",
+    "tableedit.undo":        "Отменено ({n})",
+    "tableedit.redo":        "Повторено ({n})",
+    "tableedit.ctx.copy":    "Копировать (Ctrl+C)",
+    "tableedit.ctx.paste":   "Вставить (Ctrl+V)",
+    "tableedit.ctx.fill_down": "Заполнить вниз (Ctrl+D)",
+    "tableedit.ctx.undo":    "Отменить (Ctrl+Z)",
+    "tableedit.ctx.redo":    "Повторить (Ctrl+Y)",
+
     # ========== Topbar ==========
     "topbar.recalc":         "Пересчитать",
     "topbar.save":           "Сохранить",
@@ -280,6 +291,14 @@ RU: Dict[str, str] = {
                                            "из {path}."),
     "panel.spaces.status.tpl_created":  "Создано {n} помещений по шаблону.",
     "panel.spaces.default_level":       "1 этаж",
+    "panel.spaces.bulk.menu":           "Групповая правка выделенных…",
+    "panel.spaces.bulk.title":          "Групповая правка помещений",
+    "panel.spaces.bulk.field":          "Поле",
+    "panel.spaces.bulk.value":          "Значение",
+    "panel.spaces.bulk.hint":           "Будет применено к {n} выделенным помещениям.",
+    "panel.spaces.bulk.no_selection":   ("Не выделено ни одного помещения. "
+                                          "Выделите строки (Ctrl/Shift) и повторите."),
+    "panel.spaces.bulk.applied":        "Групповая правка: обновлено {n}",
 
     # ========== Common ==========
     "btn.refresh":            "Обновить",

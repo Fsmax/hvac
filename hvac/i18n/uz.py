@@ -42,6 +42,17 @@ UZ: Dict[str, str] = {
     "sidebar.engineering":   "Mukammal injiniring v4.1",
     "sidebar.problems":      "Muammolar",
 
+    # ========== Jadval tahrirlari (umumiy: bufer/fill-down/undo) ==========
+    "tableedit.paste":       "Joylangan qiymatlar: {n}",
+    "tableedit.fill":        "Pastga to‘ldirildi: {n}",
+    "tableedit.undo":        "Bekor qilindi ({n})",
+    "tableedit.redo":        "Qaytarildi ({n})",
+    "tableedit.ctx.copy":    "Nusxalash (Ctrl+C)",
+    "tableedit.ctx.paste":   "Joylash (Ctrl+V)",
+    "tableedit.ctx.fill_down": "Pastga to‘ldirish (Ctrl+D)",
+    "tableedit.ctx.undo":    "Bekor qilish (Ctrl+Z)",
+    "tableedit.ctx.redo":    "Qaytarish (Ctrl+Y)",
+
     # ========== Topbar ==========
     "topbar.recalc":         "Qayta hisoblash",
     "topbar.save":           "Saqlash",
@@ -285,6 +296,14 @@ UZ: Dict[str, str] = {
                                            "import qilindi."),
     "panel.spaces.status.tpl_created":  "Shablon bo‘yicha {n} ta xona yaratildi.",
     "panel.spaces.default_level":       "1-qavat",
+    "panel.spaces.bulk.menu":           "Tanlanganlarni guruhli tahrir…",
+    "panel.spaces.bulk.title":          "Xonalarni guruhli tahrirlash",
+    "panel.spaces.bulk.field":          "Maydon",
+    "panel.spaces.bulk.value":          "Qiymat",
+    "panel.spaces.bulk.hint":           "{n} ta tanlangan xonaga qo‘llaniladi.",
+    "panel.spaces.bulk.no_selection":   ("Hech qanday xona tanlanmagan. "
+                                          "Qatorlarni (Ctrl/Shift) tanlab, qayta urinib ko‘ring."),
+    "panel.spaces.bulk.applied":        "Guruhli tahrir: {n} ta yangilandi",
 
     # ========== Common ==========
     "btn.refresh":            "Yangilash",
