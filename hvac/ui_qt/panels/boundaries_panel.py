@@ -13,7 +13,8 @@ from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
     QFormLayout, QHBoxLayout, QHeaderView, QLabel, QMessageBox,
-    QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QPushButton, QStyleFactory, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QWidget,
 )
 
 from hvac.data_loader import is_excluded_category
@@ -125,6 +126,11 @@ class BoundariesPanel(QWidget):
         self.project = project
         self.bridge = bridge
         self._space: Optional[Space] = None
+        # На нативном стиле Windows текст QComboBox-ячеек внутри QTableWidget
+        # рисуется системным (тёмным) цветом, игнорируя QSS-палитру → не виден
+        # в тёмной теме. Fusion-стиль уважает QSS/палитру и тему-агностичен.
+        # Держим ссылку: setStyle() не забирает владение.
+        self._combo_style = QStyleFactory.create("Fusion")
 
         root = QVBoxLayout(self)
         root.setContentsMargins(8, 8, 8, 8)
@@ -254,6 +260,8 @@ class BoundariesPanel(QWidget):
 
         # Колонка 1 — конструкция (выпадающий из каталога)
         combo = QComboBox()
+        if self._combo_style is not None:
+            combo.setStyle(self._combo_style)
         combo.setEditable(False)
         matching = [c for c in self.project.constructions.values()
                     if c.category == cat]
@@ -278,6 +286,8 @@ class BoundariesPanel(QWidget):
 
         # Колонка 3 — ориентация
         orient_combo = QComboBox()
+        if self._combo_style is not None:
+            orient_combo.setStyle(self._combo_style)
         orient_combo.addItems(_ORIENTATIONS)
         if el.orientation:
             orient_combo.setCurrentText(el.orientation)
@@ -293,6 +303,8 @@ class BoundariesPanel(QWidget):
 
         # Колонка 5 — наружное
         ext_combo = QComboBox()
+        if self._combo_style is not None:
+            ext_combo.setStyle(self._combo_style)
         yes_lbl = _t("panel.boundaries.ext_yes")
         no_lbl = _t("panel.boundaries.ext_no")
         ext_combo.addItems([yes_lbl, no_lbl])

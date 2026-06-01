@@ -25,6 +25,7 @@ from hvac.ui_qt.commands import Command, CommandRegistry
 from hvac.ui_qt.export_center import ExportCenter
 from hvac.ui_qt.panels.calculation_panel import CalculationPanel
 from hvac.ui_qt.panels.charts_panel import ChartsPanel
+from hvac.ui_qt.panels.comparison_panel import ComparisonPanel
 from hvac.ui_qt.panels.constructions_panel import ConstructionsPanel
 from hvac.ui_qt.panels.data_panel import DataPanel
 from hvac.ui_qt.panels.equipment_panel import EquipmentPanel
@@ -63,6 +64,7 @@ def _build_sidebar_items():
         SidebarItem("charts",         "📊", _t("sidebar.charts")),
         SidebarItem("extensions",     "⚡", _t("sidebar.extensions")),
         SidebarItem("engineering",    "🔬", _t("sidebar.engineering")),
+        SidebarItem("comparison",     "⚖", _t("sidebar.comparison")),
         SidebarItem("problems",       "⚠", _t("sidebar.problems")),
     ]
 
@@ -90,6 +92,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("HVAC Calculator")
         self.resize(1480, 920)
         self.setMinimumSize(1100, 700)
+        self.setAcceptDrops(True)  # перетаскивание .hvac.json / CSV на окно
 
         self._build_ui()
         self._register_commands()
@@ -173,6 +176,8 @@ class MainWindow(QMainWindow):
                              RoomEquipmentPanel(self.project, self.bridge))
         self._register_panel("engineering",
                              EngineeringPanel(self.project, self.bridge))
+        self._register_panel("comparison",
+                             ComparisonPanel(self.project, self.bridge))
         self._register_panel("problems",
                              ProblemsPanel(self.project, self.bridge,
                                            navigate=self._navigate_to_space))
@@ -525,6 +530,10 @@ class MainWindow(QMainWindow):
             self.recent_menu.addAction(act)
 
     def _open_recent(self, path: str) -> None:
+        self._load_project_path(path)
+
+    def _load_project_path(self, path: str) -> None:
+        """Загружает проект из .hvac.json (recent / drag-drop)."""
         if not Path(path).exists():
             QMessageBox.warning(
                 self, _t("dialog.file_not_found.title"),
@@ -535,8 +544,57 @@ class MainWindow(QMainWindow):
             self.project.emit("project_loaded")
             user_settings.push_recent(path)
             self._refresh_recent()
+            self.statusBar().showMessage(
+                _t("status.dropped_project").format(name=Path(path).name), 4000)
         except Exception as e:
             QMessageBox.critical(self, _t("dialog.error.title"), str(e))
+
+    # ---------- Drag & drop файлов ----------
+    def dragEnterEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        md = event.mimeData()
+        if md.hasUrls():
+            for url in md.urls():
+                low = url.toLocalFile().lower()
+                if low.endswith((".hvac.json", ".json", ".csv")):
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dropEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        paths = [u.toLocalFile() for u in event.mimeData().urls()
+                 if u.isLocalFile()]
+        if not paths:
+            event.ignore()
+            return
+        event.acceptProposedAction()
+        jsons = [p for p in paths if p.lower().endswith(".json")]
+        csvs = [p for p in paths if p.lower().endswith(".csv")]
+        if jsons:
+            self._load_project_path(jsons[0])
+        elif csvs:
+            self._load_dropped_csv(csvs)
+
+    def _load_dropped_csv(self, csvs: list[str]) -> None:
+        """Грузит пару spaces.csv + thermal_all.csv, найденную среди дропнутых
+        файлов (или соседнюю thermal_all.csv рядом со spaces.csv)."""
+        def _find(token: str):
+            return next((p for p in csvs
+                         if token in Path(p).name.lower()), None)
+        spaces = _find("space")
+        thermal = _find("thermal")
+        if spaces and not thermal:
+            cand = Path(spaces).parent / "thermal_all.csv"
+            if cand.exists():
+                thermal = str(cand)
+        if spaces and thermal:
+            try:
+                self.project.load(spaces, thermal)
+            except Exception as e:
+                QMessageBox.critical(self, _t("dialog.error.title"), str(e))
+            return
+        # Неполный набор — отправляем пользователя на вкладку «Данные».
+        self._navigate_to("data")
+        self.statusBar().showMessage(_t("status.drop_need_both"), 5000)
 
     # ---------- Auto-save ----------
     def _setup_autosave(self) -> None:

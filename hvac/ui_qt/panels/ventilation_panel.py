@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
-from PySide6.QtGui import QBrush, QColor, QKeySequence, QShortcut
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
     QFormLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMenu,
@@ -18,8 +18,9 @@ from hvac.project import HVACProject
 from hvac.ui_qt.bridge import ProjectBridge
 from hvac.ui_qt.theme import tokens
 from hvac.ui_qt.widgets.card import Card
-from hvac.ui_qt.widgets.table_clipboard import clipboard_grid, install_copy
-from hvac.ui_qt.widgets.table_edit import EditableTableModelMixin
+from hvac.ui_qt.widgets.table_edit import (
+    EditableTableModelMixin, TableEditBinder,
+)
 
 
 _VENT_HEADER_KEYS = [
@@ -35,6 +36,17 @@ _VENT_HEADER_KEYS = [
 # больше не перетирает это помещение (см. HVACProject.calculate_ventilation).
 _COL_SUPPLY, _COL_EXHAUST, _COL_HOOD = 5, 6, 7
 _EDITABLE_VENT_COLS = (_COL_SUPPLY, _COL_EXHAUST, _COL_HOOD)
+
+# Нормативные пресеты расхода для выделенных помещений (СП 60 / СП 54).
+# (i18n-ключ, колонка, режим apply_bulk, значение).
+_AIRFLOW_PRESETS = [
+    ("panel.ventilation.preset.toilet",     _COL_EXHAUST, "ach", 10.0),
+    ("panel.ventilation.preset.toilet_ind", _COL_EXHAUST, "set", 50.0),
+    ("panel.ventilation.preset.shower",     _COL_EXHAUST, "set", 75.0),
+    ("panel.ventilation.preset.kitchen",    _COL_EXHAUST, "set", 60.0),
+    ("panel.ventilation.preset.living",     _COL_SUPPLY,  "ach", 1.0),
+    ("panel.ventilation.preset.office",     _COL_SUPPLY,  "ach", 3.0),
+]
 
 
 class VentilationModel(EditableTableModelMixin, QAbstractTableModel):
@@ -347,17 +359,8 @@ class VentilationPanel(QWidget):
         # Горячие клавиши «как в Excel»: копировать/вставить/заполнить вниз,
         # отменить/повторить. Контекст — таблица, чтобы не конфликтовать
         # с глобальными shortcut'ами главного окна.
-        install_copy(self.table)
-        for seq, slot in (
-            (QKeySequence.Paste, self._paste),
-            (QKeySequence("Ctrl+D"), self._fill_down),
-            (QKeySequence.Undo, self._undo),
-            (QKeySequence.Redo, self._redo),
-            (QKeySequence("Ctrl+Shift+Z"), self._redo),
-        ):
-            sc = QShortcut(seq, self.table)
-            sc.setContext(Qt.WidgetWithChildrenShortcut)
-            sc.activated.connect(slot)
+        self._edit = TableEditBinder(self.table, self.proxy, self.model,
+                                     self.bridge)
 
         bridge.dataLoaded.connect(self._refresh_summary)
         bridge.projectLoaded.connect(self._refresh_summary)
@@ -410,88 +413,18 @@ class VentilationPanel(QWidget):
             _t("panel.ventilation.bulk.applied").format(n=n), 4000)
 
     # ---------- Буфер обмена / заполнение / отмена ----------
-    @staticmethod
-    def _coerce(text: str):
-        """Строку буфера → неотрицательное число или None, если не число."""
-        s = (text or "").strip().replace(" ", "").replace(",", ".")
-        if not s:
-            return None
-        try:
-            return max(float(s), 0.0)
-        except ValueError:
-            return None
-
+    # Тонкие делегаты к общему движку (имена сохранены — их зовут меню и тесты).
     def _paste(self) -> None:
-        grid = clipboard_grid()
-        if not grid:
-            return
-        sel = self.table.selectionModel()
-        edits: dict = {}
-        if len(grid) == 1 and len(grid[0]) == 1:
-            # Одно значение → во все выделенные редактируемые ячейки (как Excel).
-            val = self._coerce(grid[0][0])
-            if val is None or sel is None:
-                return
-            for idx in sel.selectedIndexes():
-                if idx.column() in _EDITABLE_VENT_COLS:
-                    src = self.proxy.mapToSource(idx)
-                    edits[(src.row(), idx.column())] = val
-        else:
-            anchor = self.table.currentIndex()
-            if not anchor.isValid():
-                return
-            for i, line in enumerate(grid):
-                prow = anchor.row() + i
-                if prow >= self.proxy.rowCount():
-                    break
-                for j, cell in enumerate(line):
-                    pcol = anchor.column() + j
-                    if pcol not in _EDITABLE_VENT_COLS:
-                        continue
-                    val = self._coerce(cell)
-                    if val is None:
-                        continue
-                    src = self.proxy.mapToSource(self.proxy.index(prow, pcol))
-                    edits[(src.row(), pcol)] = val
-        n = self.model.set_cells(edits)
-        if n:
-            self.bridge.statusMessage.emit(
-                _t("panel.ventilation.paste.done").format(n=n), 3000)
+        self._edit.paste()
 
     def _fill_down(self) -> None:
-        """Значение верхней выделенной ячейки колонки → во все нижние (Ctrl+D)."""
-        sel = self.table.selectionModel()
-        if sel is None:
-            return
-        by_col: dict = {}
-        for idx in sel.selectedIndexes():
-            if idx.column() in _EDITABLE_VENT_COLS:
-                by_col.setdefault(idx.column(), []).append(idx)
-        edits: dict = {}
-        for col, idxs in by_col.items():
-            idxs.sort(key=lambda i: i.row())  # верхняя строка в порядке прокси
-            top_src = self.proxy.mapToSource(idxs[0])
-            val = getattr(self.project.spaces[top_src.row()],
-                          self.model._BULK_ATTR[col])
-            for idx in idxs[1:]:
-                src = self.proxy.mapToSource(idx)
-                edits[(src.row(), col)] = val
-        n = self.model.set_cells(edits)
-        if n:
-            self.bridge.statusMessage.emit(
-                _t("panel.ventilation.fill_down.done").format(n=n), 3000)
+        self._edit.fill_down()
 
     def _undo(self) -> None:
-        n = self.model.undo()
-        if n:
-            self.bridge.statusMessage.emit(
-                _t("panel.ventilation.undo.done").format(n=n), 2500)
+        self._edit.undo()
 
     def _redo(self) -> None:
-        n = self.model.redo()
-        if n:
-            self.bridge.statusMessage.emit(
-                _t("panel.ventilation.redo.done").format(n=n), 2500)
+        self._edit.redo()
 
     def _copy(self) -> None:
         from hvac.ui_qt.widgets.table_clipboard import copy_selection_to_clipboard
@@ -505,6 +438,13 @@ class VentilationPanel(QWidget):
         has_sel = bool(sel and sel.selectedIndexes())
         menu = QMenu(self)
         act_bulk = menu.addAction(_t("panel.ventilation.btn_bulk"))
+        # Подменю нормативных пресетов расхода.
+        preset_menu = menu.addMenu(_t("panel.ventilation.preset.menu"))
+        preset_menu.setEnabled(bool(rows))
+        preset_acts = {}
+        for label_key, col, mode, value in _AIRFLOW_PRESETS:
+            a = preset_menu.addAction(_t(label_key))
+            preset_acts[a] = (col, mode, value)
         act_reset = menu.addAction(_t("panel.ventilation.ctx.reset"))
         menu.addSeparator()
         act_copy = menu.addAction(_t("panel.ventilation.ctx.copy"))
@@ -524,6 +464,12 @@ class VentilationPanel(QWidget):
 
         chosen = menu.exec(self.table.viewport().mapToGlobal(pos))
         if chosen is None:
+            return
+        if chosen in preset_acts:
+            col, mode, value = preset_acts[chosen]
+            n = self.model.apply_bulk(rows, col, mode, value)
+            self.bridge.statusMessage.emit(
+                _t("panel.ventilation.preset.applied").format(n=n), 4000)
             return
         if chosen is act_bulk:
             self._bulk_edit()
