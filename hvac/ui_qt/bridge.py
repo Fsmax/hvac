@@ -32,6 +32,7 @@ class ProjectBridge(QObject):
     constructionsChanged = Signal()
     smokeSystemsChanged = Signal()
     smokeLoadsCalculated = Signal()
+    equipmentChanged = Signal()
 
     # Глобальные служебные сигналы UI (не от проекта)
     busyChanged = Signal(bool, str)      # (busy, status_text)
@@ -49,6 +50,7 @@ class ProjectBridge(QObject):
         "constructions_changed": "constructionsChanged",
         "smoke_systems_changed": "smokeSystemsChanged",
         "smoke_loads_calculated": "smokeLoadsCalculated",
+        "equipment_changed": "equipmentChanged",
     }
 
     def __init__(self, project: HVACProject, parent: QObject | None = None):

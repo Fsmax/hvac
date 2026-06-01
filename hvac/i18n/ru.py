@@ -230,7 +230,7 @@ RU: Dict[str, str] = {
     "panel.data.field.city":    "Город:",
     "panel.data.climate.t_heat_cap":  "t зима, °C",
     "panel.data.climate.t_cool_cap":  "t лето, °C",
-    "panel.data.climate.gsop_cap":    "ГСОП₁₈, °C·сут",
+    "panel.data.climate.gsop_cap":    "ГСОП, °C·сут",
     "panel.data.climate.solar_cap":   "Солн. рад., Вт/м²",
     "panel.data.climate.override":    "Переопределить вручную:",
     "panel.data.climate.t_heat_short":"t зима",
@@ -353,6 +353,24 @@ RU: Dict[str, str] = {
     "panel.room_eq.col.qty":       "Кол-во",
     "panel.room_eq.col.diffuser":  "Воздухораспред.",
     "panel.room_eq.col.diff_qty":  "Кол-во",
+    "panel.room_eq.hint":          "💡 Двойной клик по строке — назначить оборудование помещению.",
+    # --- Диалог назначения оборудования ---
+    "dlg.room_eq.title":           "Оборудование помещения: {room}",
+    "dlg.room_eq.loads":           ("Расчёт: Q зима {qh:.2f} кВт · Q лето {qc:.2f} кВт · "
+                                    "приток {sup:.0f} м³/ч · вытяжка {exh:.0f} м³/ч"),
+    "dlg.room_eq.sec.heating":     "Отопительный прибор",
+    "dlg.room_eq.sec.cooling":     "Охлаждение",
+    "dlg.room_eq.sec.supply":      "Приток (воздухораспределитель)",
+    "dlg.room_eq.sec.exhaust":     "Вытяжка",
+    "dlg.room_eq.f.type":          "Тип:",
+    "dlg.room_eq.f.model":         "Модель:",
+    "dlg.room_eq.f.power":         "Мощность 1 шт., Вт:",
+    "dlg.room_eq.f.flow":          "Расход 1 шт., м³/ч:",
+    "dlg.room_eq.f.qty":           "Кол-во, шт.:",
+    "dlg.room_eq.f.notes":         "Примечания:",
+    "dlg.room_eq.sum_power":       "Σ = {total:.0f} Вт",
+    "dlg.room_eq.sum_flow":        "Σ = {total:.0f} м³/ч",
+    "dlg.room_eq.coverage":        "  ·  {cov:.0f}% покрытия",
 
     # ========== Panel: Equipment ==========
     "panel.equipment.title":  "Оборудование (системы)",

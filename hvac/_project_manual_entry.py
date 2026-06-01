@@ -372,6 +372,20 @@ class ManualEntryMixin:
                 continue
         return n
 
+    # ---------- Оборудование помещения ----------
+    def set_room_equipment(self, space_id: str, **kwargs) -> bool:
+        """Назначает поля оборудования для помещения.
+        Создаёт RoomEquipment если ещё нет."""
+        sp = self._space_by_id.get(space_id)
+        if sp is None:
+            return False
+        eq = sp.get_or_create_equipment()
+        for k, v in kwargs.items():
+            if hasattr(eq, k):
+                setattr(eq, k, v)
+        self.emit("equipment_changed")
+        return True
+
 
 # ===== Импорт-хелперы =====
 _HEADER_SYNONYMS = {
@@ -415,17 +429,3 @@ def _cell_float(row, idx) -> float:
         return float(str(v).replace(",", "."))
     except (TypeError, ValueError):
         return 0.0
-
-    # ---------- Оборудование помещения ----------
-    def set_room_equipment(self, space_id: str, **kwargs) -> bool:
-        """Назначает поля оборудования для помещения.
-        Создаёт RoomEquipment если ещё нет."""
-        sp = self._space_by_id.get(space_id)
-        if sp is None:
-            return False
-        eq = sp.get_or_create_equipment()
-        for k, v in kwargs.items():
-            if hasattr(eq, k):
-                setattr(eq, k, v)
-        self.emit("equipment_changed")
-        return True

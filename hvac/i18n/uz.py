@@ -235,7 +235,7 @@ UZ: Dict[str, str] = {
     "panel.data.field.city":    "Shahar:",
     "panel.data.climate.t_heat_cap":  "t qish, °C",
     "panel.data.climate.t_cool_cap":  "t yoz, °C",
-    "panel.data.climate.gsop_cap":    "GSOP₁₈, °C·sut",
+    "panel.data.climate.gsop_cap":    "GSOP, °C·sut",
     "panel.data.climate.solar_cap":   "Quyosh rad., Vt/m²",
     "panel.data.climate.override":    "Qo‘lda o‘zgartirish:",
     "panel.data.climate.t_heat_short":"t qish",
@@ -359,6 +359,24 @@ UZ: Dict[str, str] = {
     "panel.room_eq.col.qty":       "Soni",
     "panel.room_eq.col.diffuser":  "Havo taqsim.",
     "panel.room_eq.col.diff_qty":  "Soni",
+    "panel.room_eq.hint":          "💡 Qatorni ikki marta bosing — xonaga jihoz tayinlash.",
+    # --- Jihoz tayinlash oynasi ---
+    "dlg.room_eq.title":           "Xona jihozlari: {room}",
+    "dlg.room_eq.loads":           ("Hisob: Q qish {qh:.2f} kVt · Q yoz {qc:.2f} kVt · "
+                                    "havo {sup:.0f} m³/s · so‘rish {exh:.0f} m³/s"),
+    "dlg.room_eq.sec.heating":     "Isitish jihozi",
+    "dlg.room_eq.sec.cooling":     "Sovitish",
+    "dlg.room_eq.sec.supply":      "Havo berish (taqsimlagich)",
+    "dlg.room_eq.sec.exhaust":     "So‘rish",
+    "dlg.room_eq.f.type":          "Turi:",
+    "dlg.room_eq.f.model":         "Model:",
+    "dlg.room_eq.f.power":         "1 dona quvvati, Vt:",
+    "dlg.room_eq.f.flow":          "1 dona sarfi, m³/s:",
+    "dlg.room_eq.f.qty":           "Soni, dona:",
+    "dlg.room_eq.f.notes":         "Izohlar:",
+    "dlg.room_eq.sum_power":       "Σ = {total:.0f} Vt",
+    "dlg.room_eq.sum_flow":        "Σ = {total:.0f} m³/s",
+    "dlg.room_eq.coverage":        "  ·  {cov:.0f}% qoplash",
 
     # ========== Panel: Equipment ==========
     "panel.equipment.title":   "Jihozlar (tizimlar)",
