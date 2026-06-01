@@ -283,6 +283,10 @@ class ConstructionsModel(EditableTableModelMixin, QAbstractTableModel):
                 self.COL_NOTE: c.note}[col]
 
     def _after_change(self, rows) -> None:
+        # Правка U в каталоге должна СРАЗУ доходить до элементов: el.u_value
+        # копируется из каталога только в apply_constructions(), иначе проверка
+        # конденсации / повторный подбор труб используют устаревший U.
+        self.project.apply_constructions()
         # Обновляем зависимые панели (расчёт использует U). Триггерит _reload,
         # но он сохраняет историю, т.к. состав каталога не меняется.
         self.project.emit("constructions_changed")
@@ -574,6 +578,7 @@ class ConstructionsPanel(QWidget):
             c.layers = dlg.get_layers()
             c.recompute_u_from_layers()
             self.model._reload()
+            self.project.apply_constructions()   # пересчитанный U → элементы
             self.bridge.dirtyChanged.emit(True)
             self.project.emit("constructions_changed")
 

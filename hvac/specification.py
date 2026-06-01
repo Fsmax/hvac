@@ -184,9 +184,9 @@ def _add_dhw(spec: Specification, project: "HVACProject") -> None:
         spec.items.append(SpecificationItem(
             designation="ГВС",
             name=sys.name,
-            technical_data=(f"V_сут = {getattr(sys, 'v_daily_m3', 0):.2f} м³/сут; "
+            technical_data=(f"V_сут = {getattr(sys, 'v_daily_total_m3', 0):.2f} м³/сут; "
                             f"Q_пик = {getattr(sys, 'q_peak_w', 0)/1000:.1f} кВт; "
-                            f"бак {getattr(sys, 'storage_tank_l', 0):.0f} л"),
+                            f"бак {getattr(sys, 'storage_recommended_m3', 0)*1000:.0f} л"),
             section="ГВС",
             note=getattr(sys, "note", ""),
         ))

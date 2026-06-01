@@ -111,10 +111,10 @@ class EquipmentPanel(QWidget):
         for name, info in sorted(loads.items()):
             rows.append([
                 name,
-                f"{info.get('q_heating_w', 0)/1000:.1f}",
-                f"{info.get('q_sensible_cooling_w', 0)/1000:.1f}",
-                f"{info.get('q_latent_cooling_w', 0)/1000:.1f}",
-                f"{info.get('flow_m3h', info.get('supply_m3h', 0)):.0f}",
+                f"{info.get('q_heater_w', 0)/1000:.1f}",
+                f"{info.get('q_cooler_sens_w', 0)/1000:.1f}",
+                f"{info.get('q_cooler_lat_w', 0)/1000:.1f}",
+                f"{info.get('supply_m3h', 0):.0f}",
             ])
         self._fill_rows(self.ahu_load_table, rows)
 
