@@ -12,8 +12,9 @@ from typing import Any, Dict
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
-    QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
-    QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox,
+    QPlainTextEdit, QPushButton, QSpinBox, QTableWidget, QTableWidgetItem,
+    QVBoxLayout, QWidget,
 )
 
 from hvac.i18n import t as _t
@@ -22,6 +23,7 @@ from hvac.project import HVACProject
 from hvac.room_equipment import (
     COOLING_TERMINAL_TYPES, EXHAUST_TERMINAL_TYPES, HEATING_TERMINAL_TYPES,
     SUPPLY_TERMINAL_TYPES, RoomEquipment,
+    serialize_room_equipment, deserialize_room_equipment,
 )
 from hvac.ui_qt.bridge import ProjectBridge
 
@@ -104,24 +106,26 @@ class _TerminalGroup(QGroupBox):
 class RoomEquipmentDialog(QDialog):
     """Назначение конечного оборудования одному помещению."""
 
-    def __init__(self, space: Space, parent: QWidget | None = None):
+    def __init__(self, space: Space, parent: QWidget | None = None,
+                 *, title: str | None = None, show_loads: bool = True):
         super().__init__(parent)
         self.space = space
         eq = space.room_equipment or RoomEquipment()
-        self.setWindowTitle(
-            _t("dlg.room_eq.title").format(room=f"{space.number} · {space.name}"))
+        self.setWindowTitle(title or _t("dlg.room_eq.title").format(
+            room=f"{space.number} · {space.name}"))
         self.setMinimumWidth(560)
 
         outer = QVBoxLayout(self)
 
-        loads = QLabel(_t("dlg.room_eq.loads").format(
-            qh=space.heat_loss_w / 1000.0,
-            qc=space.heat_gain_w / 1000.0,
-            sup=space.supply_m3h,
-            exh=space.exhaust_m3h,
-        ))
-        loads.setProperty("role", "muted")
-        outer.addWidget(loads)
+        if show_loads:
+            loads = QLabel(_t("dlg.room_eq.loads").format(
+                qh=space.heat_loss_w / 1000.0,
+                qc=space.heat_gain_w / 1000.0,
+                sup=space.supply_m3h,
+                exh=space.exhaust_m3h,
+            ))
+            loads.setProperty("role", "muted")
+            outer.addWidget(loads)
 
         row = QHBoxLayout()
         self.g_heat = _TerminalGroup(
@@ -182,14 +186,28 @@ class RoomEquipmentPanel(QWidget):
         super().__init__(parent)
         self.project = project
         self.bridge = bridge
+        self._clip: dict | None = None          # буфер: скопированное оборудование
+        self._undo: list[dict] = []             # стек снимков для отмены
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(20, 20, 20, 20)
         outer.setSpacing(12)
 
+        head = QHBoxLayout()
         self.title_lbl = QLabel(_t("panel.room_eq.title"))
         self.title_lbl.setProperty("role", "h1")
-        outer.addWidget(self.title_lbl)
+        head.addWidget(self.title_lbl)
+        head.addStretch(1)
+        self.apply_btn = QPushButton(_t("panel.room_eq.btn.apply_sel"))
+        self.apply_btn.setCursor(Qt.PointingHandCursor)
+        self.apply_btn.clicked.connect(self._apply_to_selected)
+        head.addWidget(self.apply_btn)
+        self.clear_btn = QPushButton(_t("panel.room_eq.btn.clear"))
+        self.clear_btn.setCursor(Qt.PointingHandCursor)
+        self.clear_btn.clicked.connect(self._clear_selected)
+        head.addWidget(self.clear_btn)
+        outer.addLayout(head)
+
         self.subtitle_lbl = QLabel(_t("panel.room_eq.subtitle"))
         self.subtitle_lbl.setProperty("role", "muted")
         outer.addWidget(self.subtitle_lbl)
@@ -207,12 +225,16 @@ class RoomEquipmentPanel(QWidget):
         self.table.setHorizontalHeaderLabels([_t(k) for k in _HEADER_KEYS])
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        # Множественное выделение строк (Ctrl/Shift) для групповых операций.
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
         self.table.verticalHeader().setDefaultSectionSize(26)
         self.table.horizontalHeader().setHighlightSections(False)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.cellDoubleClicked.connect(self._edit_row)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
         widths = [80, 200, 100, 200, 100, 80, 200, 80]
         for i, w in enumerate(widths):
             self.table.setColumnWidth(i, w)
@@ -227,20 +249,161 @@ class RoomEquipmentPanel(QWidget):
         self.title_lbl.setText(_t("panel.room_eq.title"))
         self.subtitle_lbl.setText(_t("panel.room_eq.subtitle"))
         self.hint_lbl.setText(_t("panel.room_eq.hint"))
+        self.apply_btn.setText(_t("panel.room_eq.btn.apply_sel"))
+        self.clear_btn.setText(_t("panel.room_eq.btn.clear"))
         self.search.setPlaceholderText(_t("btn.search.ph"))
         self.table.setHorizontalHeaderLabels([_t(k) for k in _HEADER_KEYS])
 
-    def _edit_row(self, row: int, _col: int) -> None:
+    # ---------- Выбор / снимки / отмена ----------
+    def _selected_rows(self) -> list[int]:
+        """Индексы выделенных строк (= индексы в project.spaces)."""
+        sel = self.table.selectionModel()
+        if sel is None:
+            return []
+        return sorted({idx.row() for idx in sel.selectedRows()})
+
+    def _ids_for(self, rows: list[int]) -> list[str]:
+        return [self.project.spaces[r].space_id for r in rows
+                if 0 <= r < len(self.project.spaces)]
+
+    def _warn_no_selection(self) -> None:
+        QMessageBox.information(self, _t("panel.room_eq.title"),
+                                _t("panel.room_eq.msg.no_selection"))
+
+    def _push_undo(self, space_ids: list[str]) -> None:
+        """Снимок текущего оборудования помещений перед изменением."""
+        snap: dict = {}
+        for sid in space_ids:
+            sp = self.project._space_by_id.get(sid)
+            eq = sp.room_equipment if sp else None
+            snap[sid] = serialize_room_equipment(eq) if eq else None
+        self._undo.append(snap)
+        del self._undo[:-50]                       # ограничиваем глубину
+
+    def _apply_undo(self) -> None:
+        if not self._undo:
+            return
+        snap = self._undo.pop()
+        for sid, data in snap.items():
+            sp = self.project._space_by_id.get(sid)
+            if sp is None:
+                continue
+            sp.room_equipment = deserialize_room_equipment(data) if data else None
+        self.project.emit("equipment_changed")
+        self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+
+    # ---------- Операции ----------
+    def _edit_row(self, row: int, _col: int = 0) -> None:
         if row < 0 or row >= len(self.project.spaces):
             return
         sp = self.project.spaces[row]
         dlg = RoomEquipmentDialog(sp, self)
         if dlg.exec() == QDialog.Accepted:
+            self._push_undo([sp.space_id])
             self.project.set_room_equipment(sp.space_id, **dlg.values())
             self.bridge.dirtyChanged.emit(True)
-            # set_room_equipment эмитит equipment_changed → _refresh через мост,
-            # но обновим сразу на случай, если мост ещё не подключён.
             self._refresh()
+
+    def _apply_to_selected(self) -> None:
+        rows = self._selected_rows()
+        if not rows:
+            self._warn_no_selection()
+            return
+        anchor = self.project.spaces[rows[0]]
+        dlg = RoomEquipmentDialog(
+            anchor, self, show_loads=False,
+            title=_t("panel.room_eq.dlg.apply_title").format(n=len(rows)))
+        if dlg.exec() != QDialog.Accepted:
+            return
+        ids = self._ids_for(rows)
+        self._push_undo(ids)
+        n = self.project.apply_room_equipment(ids, dlg.values())
+        self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+        self.bridge.statusMessage.emit(
+            _t("panel.room_eq.status.applied").format(n=n), 4000)
+
+    def _copy(self) -> None:
+        rows = self._selected_rows()
+        if not rows:
+            self._warn_no_selection()
+            return
+        eq = self.project.spaces[rows[0]].room_equipment
+        if eq is None:
+            self.bridge.statusMessage.emit(
+                _t("panel.room_eq.status.nothing_copy"), 3000)
+            return
+        self._clip = serialize_room_equipment(eq)
+        self.bridge.statusMessage.emit(
+            _t("panel.room_eq.status.copied").format(
+                room=self.project.spaces[rows[0]].number), 3000)
+
+    def _paste(self) -> None:
+        if self._clip is None:
+            return
+        rows = self._selected_rows()
+        if not rows:
+            self._warn_no_selection()
+            return
+        ids = self._ids_for(rows)
+        self._push_undo(ids)
+        n = self.project.apply_room_equipment(ids, dict(self._clip))
+        self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+        self.bridge.statusMessage.emit(
+            _t("panel.room_eq.status.pasted").format(n=n), 4000)
+
+    def _clear_selected(self) -> None:
+        rows = self._selected_rows()
+        if not rows:
+            self._warn_no_selection()
+            return
+        ids = self._ids_for(rows)
+        self._push_undo(ids)
+        n = self.project.clear_room_equipment(ids)
+        self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+        self.bridge.statusMessage.emit(
+            _t("panel.room_eq.status.cleared").format(n=n), 4000)
+
+    def _show_context_menu(self, pos) -> None:
+        if not self.project.spaces:
+            return
+        rows = self._selected_rows()
+        has_sel = bool(rows)
+        menu = QMenu(self)
+        act_edit = menu.addAction(_t("panel.room_eq.ctx.edit"))
+        act_apply = menu.addAction(_t("panel.room_eq.ctx.apply_sel"))
+        menu.addSeparator()
+        act_copy = menu.addAction(_t("panel.room_eq.ctx.copy"))
+        act_paste = menu.addAction(_t("panel.room_eq.ctx.paste"))
+        act_clear = menu.addAction(_t("panel.room_eq.ctx.clear"))
+        menu.addSeparator()
+        act_undo = menu.addAction(_t("panel.room_eq.ctx.undo"))
+
+        act_edit.setEnabled(len(rows) == 1)
+        act_apply.setEnabled(has_sel)
+        act_copy.setEnabled(len(rows) == 1)
+        act_paste.setEnabled(has_sel and self._clip is not None)
+        act_clear.setEnabled(has_sel)
+        act_undo.setEnabled(bool(self._undo))
+
+        chosen = menu.exec(self.table.viewport().mapToGlobal(pos))
+        if chosen is None:
+            return
+        if chosen is act_edit:
+            self._edit_row(rows[0])
+        elif chosen is act_apply:
+            self._apply_to_selected()
+        elif chosen is act_copy:
+            self._copy()
+        elif chosen is act_paste:
+            self._paste()
+        elif chosen is act_clear:
+            self._clear_selected()
+        elif chosen is act_undo:
+            self._apply_undo()
 
     def _refresh(self, *args: Any) -> None:
         self.table.setRowCount(len(self.project.spaces))

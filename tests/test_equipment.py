@@ -175,6 +175,46 @@ class TestRoomEquipment:
         finally:
             os.unlink(path)
 
+    def test_apply_to_multiple(self):
+        project = HVACProject()
+        a = _add_space(project, "1", "101", "L1", 20)
+        b = _add_space(project, "2", "102", "L1", 20)
+        c = _add_space(project, "3", "103", "L1", 20)
+        n = project.apply_room_equipment(
+            ["1", "2", "3"],
+            {"heating_terminal_type": "Радиатор стальной",
+             "heating_terminal_power_w": 1000, "heating_terminal_qty": 1})
+        assert n == 3
+        for sp in (a, b, c):
+            assert sp.room_equipment.heating_total_w == 1000
+
+    def test_apply_skips_unknown_ids(self):
+        project = HVACProject()
+        _add_space(project, "1", "101", "L1", 20)
+        n = project.apply_room_equipment(["1", "missing"],
+                                         {"heating_terminal_qty": 2})
+        assert n == 1
+
+    def test_clear_removes_equipment(self):
+        project = HVACProject()
+        sp = _add_space(project, "1", "101", "L1", 20)
+        project.set_room_equipment("1", heating_terminal_qty=2)
+        assert sp.room_equipment is not None
+        n = project.clear_room_equipment(["1"])
+        assert n == 1
+        assert sp.room_equipment is None
+        # повторная очистка пустого — 0
+        assert project.clear_room_equipment(["1"]) == 0
+
+    def test_bulk_emits_once(self):
+        project = HVACProject()
+        _add_space(project, "1", "101", "L1", 20)
+        _add_space(project, "2", "102", "L1", 20)
+        seen = []
+        project.subscribe("equipment_changed", lambda **k: seen.append(1))
+        project.apply_room_equipment(["1", "2"], {"heating_terminal_qty": 1})
+        assert len(seen) == 1
+
 
 class TestPersistence:
 
