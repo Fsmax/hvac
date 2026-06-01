@@ -66,6 +66,35 @@ def _load_value(domain: str, sp) -> float:
     return sp.supply_m3h
 
 
+class _NumTableItem(QTableWidgetItem):
+    """Ячейка таблицы, сортируемая по числу, а не по тексту («100» > «20»)."""
+
+    def __init__(self, text: str, value: float):
+        super().__init__(text)
+        self._value = value
+
+    def __lt__(self, other: Any) -> bool:
+        if isinstance(other, _NumTableItem):
+            return self._value < other._value
+        return super().__lt__(other)
+
+
+class _NumTreeItem(QTreeWidgetItem):
+    """Узел дерева: имя сортируется без учёта регистра, счётчик — численно."""
+
+    def __lt__(self, other: Any) -> bool:
+        tree = self.treeWidget()
+        col = tree.sortColumn() if tree is not None else 0
+        if col == 1:                       # колонка-счётчик помещений
+            def _iv(s: str) -> int:
+                try:
+                    return int(s)
+                except ValueError:
+                    return 0
+            return _iv(self.text(1)) < _iv(other.text(1))
+        return self.text(col).lower() < other.text(col).lower()
+
+
 class _ZoneTree(QTreeWidget):
     """Дерево систем/контуров, принимающее drop помещений из таблицы.
 
@@ -236,6 +265,8 @@ class ZonesPanel(QWidget):
         self.tree.header().setStretchLastSection(False)
         self.tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.tree.header().setSortIndicatorShown(True)
+        self.tree.header().setSortIndicator(0, Qt.AscendingOrder)
         self.tree.itemDoubleClicked.connect(lambda *_: self._rename_node())
         left_l.addWidget(self.tree, stretch=1)
         splitter.addWidget(left)
@@ -266,6 +297,10 @@ class ZonesPanel(QWidget):
         self.table.verticalHeader().setDefaultSectionSize(26)
         self.table.horizontalHeader().setHighlightSections(False)
         self.table.horizontalHeader().setStretchLastSection(True)
+        # Клик по заголовку сортирует. Привязка строки к space_id (а не к
+        # индексу project.spaces) делает сортировку безопасной для назначения.
+        self.table.setSortingEnabled(True)
+        self.table.horizontalHeader().setSortIndicator(0, Qt.AscendingOrder)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
         for i, w in enumerate([70, 220, 80, 110, 150, 150]):
@@ -315,8 +350,16 @@ class ZonesPanel(QWidget):
         return sorted({idx.row() for idx in sel.selectedRows()})
 
     def _ids_for(self, rows: list[int]) -> list[str]:
-        return [self.project.spaces[r].space_id for r in rows
-                if 0 <= r < len(self.project.spaces)]
+        # space_id хранится в Qt.UserRole первой ячейки строки — это
+        # переживает сортировку (индекс строки ≠ индекс project.spaces).
+        out: list[str] = []
+        for r in rows:
+            it = self.table.item(r, 0)
+            if it is not None:
+                sid = it.data(Qt.UserRole)
+                if sid:
+                    out.append(sid)
+        return out
 
     def _selected_ids(self) -> list[str]:
         return self._ids_for(self._selected_rows())
@@ -570,6 +613,7 @@ class ZonesPanel(QWidget):
         self.undo_btn.setEnabled(bool(self._undo))
 
     def _refresh_tree(self) -> None:
+        self.tree.setSortingEnabled(False)
         self.tree.clear()
         domain = self._domain
         systems = self.project.systems_of(domain)
@@ -586,37 +630,50 @@ class ZonesPanel(QWidget):
                 circ_count[cv] = circ_count.get(cv, 0) + 1
 
         for sname in sorted(systems.keys()):
-            sitem = QTreeWidgetItem([sname, str(sys_count.get(sname, 0))])
+            sitem = _NumTreeItem([sname, str(sys_count.get(sname, 0))])
             sitem.setData(0, Qt.UserRole, ("system", sname))
             self.tree.addTopLevelItem(sitem)
             for cname in self.project.circuits_of_system(domain, sname):
                 c = self.project.circuits_of(domain).get(cname)
                 ctype = getattr(c, "circuit_type", "") if c else ""
                 label = cname if not ctype else f"{cname}  ·  {_ctype_label(ctype)}"
-                citem = QTreeWidgetItem([label, str(circ_count.get(cname, 0))])
+                citem = _NumTreeItem([label, str(circ_count.get(cname, 0))])
                 citem.setData(0, Qt.UserRole, ("circuit", cname))
                 sitem.addChild(citem)
             sitem.setExpanded(True)
+        self.tree.setSortingEnabled(True)
 
     def _refresh_table(self) -> None:
         domain = self._domain
         sys_field, circ_field = self.project.zoning_space_fields(domain)
         is_flow = domain == "ventilation"
+        # Сортировку отключаем на время заполнения, иначе строки «уезжают»
+        # под нами; текущий выбранный столбец сортировки восстановится при
+        # повторном включении.
+        self.table.setSortingEnabled(False)
         self.table.setRowCount(len(self.project.spaces))
         for r, sp in enumerate(self.project.spaces):
             load = _load_value(domain, sp)
-            load_txt = f"{load:.0f}" if is_flow else f"{load:.2f}"
-            cells = [
-                sp.number, sp.name, f"{sp.area_m2:.0f}",
-                load_txt if load else "",
-                getattr(sp, sys_field, "") or "",
-                getattr(sp, circ_field, "") or "",
-            ]
-            for c, text in enumerate(cells):
-                item = QTableWidgetItem(str(text))
-                if c in (2, 3):
-                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                self.table.setItem(r, c, item)
+            load_txt = (f"{load:.0f}" if is_flow else f"{load:.2f}") if load else ""
+
+            num_item = QTableWidgetItem(sp.number)
+            num_item.setData(Qt.UserRole, sp.space_id)   # ключ строки
+            self.table.setItem(r, 0, num_item)
+            self.table.setItem(r, 1, QTableWidgetItem(sp.name))
+
+            area_item = _NumTableItem(f"{sp.area_m2:.0f}", sp.area_m2)
+            area_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.table.setItem(r, 2, area_item)
+
+            load_item = _NumTableItem(load_txt, load)
+            load_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.table.setItem(r, 3, load_item)
+
+            self.table.setItem(r, 4, QTableWidgetItem(
+                getattr(sp, sys_field, "") or ""))
+            self.table.setItem(r, 5, QTableWidgetItem(
+                getattr(sp, circ_field, "") or ""))
+        self.table.setSortingEnabled(True)
         self._filter(self.search.text())
 
     def _refresh_summary(self) -> None:
