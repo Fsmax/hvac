@@ -67,7 +67,7 @@ def write_extension_sheets(wb, project) -> None:
                 ("Объект", ep.project_name),
                 ("Город", ep.city),
                 ("Тип здания", ep.building_type),
-                ("ГСОП (база +18°C), °C·сут", ep.gsop_18),
+                ("ГСОП (t_в=+20°C, ≤8°C), °C·сут", ep.gsop_18),
                 ("Расчётная зимняя tн, °C", ep.t_out_heating),
                 ("Отапливаемая площадь, м²", round(ep.total_area_m2, 1)),
                 ("Объём, м³", round(ep.total_volume_m3, 0)),
