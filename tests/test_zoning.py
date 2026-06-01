@@ -118,6 +118,47 @@ class TestCircuitCrud:
         assert p.circuits_of_system("heating", "Котёл A") == ["Рад-1", "ТП-1"]
 
 
+class TestUpdateParams:
+
+    def test_update_system_params(self):
+        p = _project()
+        p.add_zone_system("heating", "Котёл A")
+        assert p.update_zone_system("heating", "Котёл A", t_supply=90.0,
+                                    efficiency=0.95, fuel="diesel",
+                                    design_capacity_kw=120.0)
+        s = p.heating_systems["Котёл A"]
+        assert (s.t_supply, s.efficiency, s.fuel) == (90.0, 0.95, "diesel")
+        assert s.design_capacity_kw == 120.0
+
+    def test_update_system_ignores_unknown_and_name(self):
+        p = _project()
+        p.add_zone_system("cooling", "Чиллер 1")
+        p.update_zone_system("cooling", "Чиллер 1", name="ZZZ", bogus=1, cop=4.2)
+        assert "Чиллер 1" in p.cooling_systems        # имя не сменилось
+        assert p.cooling_systems["Чиллер 1"].cop == 4.2
+
+    def test_update_missing_system_returns_false(self):
+        p = _project()
+        assert p.update_zone_system("heating", "нет", t_supply=50) is False
+
+    def test_update_circuit_params(self):
+        p = _project()
+        p.add_zone_circuit("heating", "ТП-1", "Котёл A", circuit_type="floor")
+        assert p.update_zone_circuit("heating", "ТП-1", t_supply=40.0,
+                                     pipe_material="pex")
+        c = p.heating_circuits["ТП-1"]
+        assert (c.t_supply, c.pipe_material) == (40.0, "pex")
+
+    def test_attach_ahu_to_circuit_via_update(self):
+        p = _project()
+        p.add_zone_system("ventilation", "ПВ-1")
+        p.update_zone_system("ventilation", "ПВ-1", heating_circuit="Рад-1",
+                             recovery_efficiency_winter=0.7, has_recovery=True)
+        v = p.ventilation_systems["ПВ-1"]
+        assert v.heating_circuit == "Рад-1"
+        assert v.has_recovery and v.recovery_efficiency_winter == 0.7
+
+
 # ------------------------------------------------------------ назначение
 class TestAssignment:
 

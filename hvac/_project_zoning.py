@@ -270,6 +270,39 @@ class ZoningMixin:
         self.emit("zones_changed")
         return True
 
+    # ---------- редактирование параметров (ручная настройка) ----------
+    def update_zone_system(self, domain: str, system_name: str,
+                           **kwargs) -> bool:
+        """Записывает параметры существующей системы (t°-график, КПД, COP,
+        КПД рекуператора, привязка AHU к контуру, ручной подбор мощности…).
+
+        Принимает только поля dataclass'а системы; `name` менять нельзя
+        (для этого rename_zone_system). Возвращает False, если системы нет.
+        """
+        sysobj = self.systems_of(domain).get(system_name)
+        if sysobj is None:
+            return False
+        fields = type(sysobj).__dataclass_fields__
+        for k, v in kwargs.items():
+            if k in fields and k != "name":
+                setattr(sysobj, k, v)
+        self.emit("zones_changed")
+        return True
+
+    def update_zone_circuit(self, domain: str, circuit_name: str,
+                            **kwargs) -> bool:
+        """Записывает параметры существующего контура (тип, t°-график, запас
+        насоса, материал труб…). `name`/родителя через rename_*. False — нет."""
+        cobj = self.circuits_of(domain).get(circuit_name)
+        if cobj is None:
+            return False
+        fields = type(cobj).__dataclass_fields__
+        for k, v in kwargs.items():
+            if k in fields and k != "name":
+                setattr(cobj, k, v)
+        self.emit("zones_changed")
+        return True
+
     # ---------- назначение помещений ----------
     def assign_rooms_to_system(self, domain: str, space_ids,
                                system_name: str) -> int:
