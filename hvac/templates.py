@@ -50,7 +50,7 @@ class BuildingTemplate:
     title: str                             # «Открытый офис»
     description: str = ""
     default_city: str = "Ташкент"
-    default_methodology: str = "СП 50.13330"
+    default_methodology: str = "КМК 2.04.05-91 + КМК 2.01.04-18"
     rooms: List[TemplateRoom] = None       # type: ignore[assignment]
 
     def __post_init__(self):

@@ -158,6 +158,15 @@ class SP50Engine(CalculationEngine):
     def name(self) -> str:
         return "СП 50.13330 + СП 60.13330"
 
+    # ---------- надбавки (точки расширения для других норм) ----------
+    def _corner_room_addition(self, space, ext_elems) -> float:
+        """Добавочная надбавка β на угловое помещение (≥2 наружных стен).
+
+        В СП 50.13330 эта надбавка СНиП 2.04.05-91 отменена → 0.0.
+        КМК 2.04.05-91 её сохраняет — переопределяется в KMKEngine.
+        """
+        return 0.0
+
     # ---------- теплопотери ----------
     def heat_loss(self, space, project) -> Dict[str, float]:
         p = project.params
@@ -170,6 +179,8 @@ class SP50Engine(CalculationEngine):
 
         elems = [e for e in project.elements_for(space.space_id) if e.is_exterior]
         has_real_glazing = _room_has_real_glazing(elems, project.constructions)
+        # Надбавка на угловое помещение (норма-зависимая: СП 50 = 0, КМК = 0.05)
+        corner_add = self._corner_room_addition(space, elems)
 
         # Поворот True North → Project North (если задан)
         tn_offset = getattr(p, "true_north_offset_deg", 0.0)
@@ -184,8 +195,9 @@ class SP50Engine(CalculationEngine):
             n_coef = 1.0
             beta = 0.0
             beta += p.beta_orientation.get(eff_orient, 0.05)
-            # Надбавка на угловое помещение (+0.05) из СНиП 2.04.05-91
-            # в действующем СП 50.13330 отменена — не применяем.
+            # Надбавка на угловое помещение (+0.05) из СНиП 2.04.05-91 / КМК
+            # 2.04.05-91; в СП 50.13330 отменена (corner_add=0 в SP50Engine).
+            beta += corner_add
             if space.height_m > 4.0:
                 beta += min((space.height_m - 4.0) * 0.02, 0.15)
 
