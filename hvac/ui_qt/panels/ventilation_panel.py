@@ -5,10 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QAbstractItemView, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QPushButton, QTableView, QVBoxLayout, QWidget,
+    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
+    QFormLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMenu,
+    QMessageBox, QPushButton, QTableView, QVBoxLayout, QWidget,
 )
 
 from hvac.i18n import t as _t
@@ -17,6 +18,7 @@ from hvac.project import HVACProject
 from hvac.ui_qt.bridge import ProjectBridge
 from hvac.ui_qt.theme import tokens
 from hvac.ui_qt.widgets.card import Card
+from hvac.ui_qt.widgets.table_clipboard import clipboard_grid, install_copy
 
 
 _VENT_HEADER_KEYS = [
@@ -27,6 +29,12 @@ _VENT_HEADER_KEYS = [
     "panel.ventilation.col.ach",    "panel.ventilation.col.imbal",
 ]
 
+# Колонки расходов воздуха, доступные для ручной правки прямо в таблице.
+# Любая правка ставит vent_user_modified=True, и calculate_ventilation()
+# больше не перетирает это помещение (см. HVACProject.calculate_ventilation).
+_COL_SUPPLY, _COL_EXHAUST, _COL_HOOD = 5, 6, 7
+_EDITABLE_VENT_COLS = (_COL_SUPPLY, _COL_EXHAUST, _COL_HOOD)
+
 
 class VentilationModel(QAbstractTableModel):
 
@@ -34,11 +42,19 @@ class VentilationModel(QAbstractTableModel):
         super().__init__()
         self.project = project
         self.bridge = bridge
+        # Стеки отмены/повтора табличных правок (снимки полей помещений).
+        self._undo_stack: list = []
+        self._redo_stack: list = []
+        self._undo_limit = 200
         bridge.dataLoaded.connect(self._reset)
         bridge.projectLoaded.connect(self._reset)
         bridge.ventilationDone.connect(self._reset)
 
     def _reset(self, *args: Any) -> None:
+        # Перезагрузка данных/пересчёт обнуляют историю — снимки ссылаются на
+        # прежние строки и больше не валидны.
+        self._undo_stack.clear()
+        self._redo_stack.clear()
         self.beginResetModel()
         self.endResetModel()
 
@@ -54,13 +70,23 @@ class VentilationModel(QAbstractTableModel):
         return None
 
     def flags(self, index):
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        if not index.isValid():
+            return Qt.NoItemFlags
+        base = Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        if index.column() in _EDITABLE_VENT_COLS:
+            base |= Qt.ItemIsEditable
+        return base
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
         sp: Space = self.project.spaces[index.row()]
         col = index.column()
+        # Редактор открывается с сырым числом (а не с форматированной "" для нуля).
+        if role == Qt.EditRole and col in _EDITABLE_VENT_COLS:
+            return {_COL_SUPPLY: sp.supply_m3h,
+                    _COL_EXHAUST: sp.exhaust_m3h,
+                    _COL_HOOD: sp.hood_m3h}[col]
         if role in (Qt.DisplayRole,):
             if col == 0: return sp.number
             if col == 1: return sp.name
@@ -76,13 +102,262 @@ class VentilationModel(QAbstractTableModel):
                 return f"{diff:+.0f}" if (sp.supply_m3h or sp.exhaust_m3h) else ""
         if role == Qt.TextAlignmentRole and col >= 4:
             return int(Qt.AlignRight | Qt.AlignVCenter)
-        if role == Qt.ForegroundRole and col == 9:
-            if not (sp.supply_m3h or sp.exhaust_m3h):
-                return None
-            diff = sp.supply_m3h - (sp.exhaust_m3h + sp.hood_m3h)
-            if abs(diff) > 50:
-                return QBrush(QColor(tokens()["warning"]))
+        if role == Qt.ForegroundRole:
+            # Вручную исправленные расходы выделяем акцентом.
+            if sp.vent_user_modified and col in _EDITABLE_VENT_COLS:
+                return QBrush(QColor(tokens()["accent"]))
+            if col == 9 and (sp.supply_m3h or sp.exhaust_m3h):
+                diff = sp.supply_m3h - (sp.exhaust_m3h + sp.hood_m3h)
+                if abs(diff) > 50:
+                    return QBrush(QColor(tokens()["warning"]))
+        if role == Qt.ToolTipRole and sp.vent_user_modified:
+            return _t("panel.ventilation.tooltip.manual")
         return None
+
+    def setData(self, index, value, role=Qt.EditRole):
+        if role != Qt.EditRole or not index.isValid():
+            return False
+        col = index.column()
+        if col not in _EDITABLE_VENT_COLS:
+            return False
+        try:
+            v = max(float(value), 0.0)
+        except (TypeError, ValueError):
+            return False
+        row = index.row()
+
+        def mutate(_rows):
+            self._set_flow(row, col, v)
+
+        self._commit([row], mutate)
+        return True
+
+    # ---------- Общая инфраструктура правок (+ undo/redo) ----------
+    _BULK_ATTR = {_COL_SUPPLY: "supply_m3h",
+                  _COL_EXHAUST: "exhaust_m3h",
+                  _COL_HOOD: "hood_m3h"}
+
+    # Поля, которые снимаются в снимок для отмены/повтора.
+    _SNAPSHOT_FIELDS = ("supply_m3h", "exhaust_m3h", "hood_m3h",
+                        "ach_calculated", "vent_user_modified")
+
+    def _recompute_ach(self, sp) -> None:
+        if sp.volume_m3 > 0:
+            sp.ach_calculated = max(sp.supply_m3h, sp.exhaust_m3h) / sp.volume_m3
+
+    def _set_flow(self, row: int, col: int, value: float) -> None:
+        """Пишет один расход и помечает помещение ручной правкой."""
+        sp = self.project.spaces[row]
+        setattr(sp, self._BULK_ATTR[col], max(value, 0.0))
+        sp.vent_user_modified = True
+        self._recompute_ach(sp)
+
+    def _snapshot(self, rows) -> dict:
+        out = {}
+        for r in rows:
+            sp = self.project.spaces[r]
+            out[r] = {f: getattr(sp, f) for f in self._SNAPSHOT_FIELDS}
+        return out
+
+    def _restore(self, snap: dict) -> None:
+        for r, fields in snap.items():
+            if 0 <= r < len(self.project.spaces):
+                sp = self.project.spaces[r]
+                for f, v in fields.items():
+                    setattr(sp, f, v)
+        self._emit_rows_changed(list(snap.keys()))
+        self.bridge.dirtyChanged.emit(True)
+
+    def _commit(self, rows, mutate) -> int:
+        """Снимает состояние до/после мутации, кладёт разницу в undo-стек,
+        перерисовывает изменённые строки. Возвращает число изменившихся
+        помещений."""
+        rows = [r for r in dict.fromkeys(rows)
+                if 0 <= r < len(self.project.spaces)]
+        if not rows:
+            return 0
+        before = self._snapshot(rows)
+        mutate(rows)
+        after = self._snapshot(rows)
+        changed = [r for r in rows if before[r] != after[r]]
+        if not changed:
+            return 0
+        self._undo_stack.append(({r: before[r] for r in changed},
+                                 {r: after[r] for r in changed}))
+        if len(self._undo_stack) > self._undo_limit:
+            self._undo_stack.pop(0)
+        self._redo_stack.clear()
+        self._emit_rows_changed(changed)
+        self.bridge.dirtyChanged.emit(True)
+        return len(changed)
+
+    def can_undo(self) -> bool:
+        return bool(self._undo_stack)
+
+    def can_redo(self) -> bool:
+        return bool(self._redo_stack)
+
+    def undo(self) -> int:
+        if not self._undo_stack:
+            return 0
+        before, after = self._undo_stack.pop()
+        self._redo_stack.append((before, after))
+        self._restore(before)
+        return len(before)
+
+    def redo(self) -> int:
+        if not self._redo_stack:
+            return 0
+        before, after = self._redo_stack.pop()
+        self._undo_stack.append((before, after))
+        self._restore(after)
+        return len(after)
+
+    def set_cells(self, edits: dict) -> int:
+        """Применяет правки {(source_row, col): value} как одну отменяемую
+        операцию (для вставки и заполнения вниз). Возвращает число
+        изменённых помещений."""
+        valid = {(r, c): v for (r, c), v in edits.items()
+                 if c in _EDITABLE_VENT_COLS
+                 and 0 <= r < len(self.project.spaces)}
+        if not valid:
+            return 0
+        rows = [r for (r, _c) in valid]
+
+        def mutate(_rows):
+            for (r, c), v in valid.items():
+                setattr(self.project.spaces[r], self._BULK_ATTR[c],
+                        max(v, 0.0))
+                self.project.spaces[r].vent_user_modified = True
+            for r in set(rows):
+                self._recompute_ach(self.project.spaces[r])
+
+        return self._commit(rows, mutate)
+
+    # ---------- Групповая правка ----------
+
+    def apply_bulk(self, source_rows, col: int, mode: str,
+                   value: float) -> int:
+        """Применяет одну правку ко всем выбранным помещениям.
+
+        col  — редактируемая колонка (_COL_SUPPLY/_EXHAUST/_HOOD);
+        mode — 'set'   задать абсолютное значение [м³/ч],
+               'scale' изменить текущее на value процентов,
+               'ach'   задать по кратности: value · volume_m3 [1/ч].
+        Каждое затронутое помещение помечается vent_user_modified=True.
+        Возвращает число изменённых помещений.
+        """
+        if col not in _EDITABLE_VENT_COLS:
+            return 0
+        attr = self._BULK_ATTR[col]
+
+        def mutate(rows):
+            for r in rows:
+                sp = self.project.spaces[r]
+                cur = getattr(sp, attr)
+                if mode == "set":
+                    new = max(value, 0.0)
+                elif mode == "scale":
+                    new = max(cur * (1.0 + value / 100.0), 0.0)
+                elif mode == "ach":
+                    new = max(value * sp.volume_m3, 0.0)
+                else:
+                    continue
+                setattr(sp, attr, new)
+                sp.vent_user_modified = True
+                self._recompute_ach(sp)
+
+        return self._commit(source_rows, mutate)
+
+    def reset_manual(self, source_rows) -> int:
+        """Сбрасывает ручную правку у выбранных помещений и пересчитывает их
+        штатным движком вентиляции. Отменяемо. Возвращает число сброшенных."""
+        from hvac.engine.ventilation import get_ventilation_engine
+        engine = get_ventilation_engine(None)
+
+        def mutate(rows):
+            for r in rows:
+                sp = self.project.spaces[r]
+                if not sp.vent_user_modified:
+                    continue
+                sp.vent_user_modified = False
+                br = engine.calculate(sp, self.project)
+                sp.ventilation_breakdown = br
+                sp.supply_m3h = br.get("supply_m3h", 0.0)
+                sp.exhaust_m3h = br.get("exhaust_m3h", 0.0)
+                sp.hood_m3h = br.get("hood_m3h", 0.0)
+                sp.ach_calculated = br.get("ach_calculated", 0.0)
+
+        return self._commit(source_rows, mutate)
+
+    def _emit_rows_changed(self, rows) -> None:
+        if not rows:
+            return
+        top = self.index(min(rows), 0)
+        bot = self.index(max(rows), self.columnCount() - 1)
+        self.dataChanged.emit(top, bot)
+
+
+class BulkVentDialog(QDialog):
+    """Диалог групповой правки расходов воздуха для выделенных помещений."""
+
+    # (ключ режима, ключ i18n, суффикс единиц, диапазон, дробных знаков)
+    _MODES = [
+        ("set",   "panel.ventilation.bulk.mode.set",   " м³/ч", (0.0, 100000.0), 0),
+        ("scale", "panel.ventilation.bulk.mode.scale", " %",    (-100.0, 1000.0), 0),
+        ("ach",   "panel.ventilation.bulk.mode.ach",   " 1/ч",  (0.0, 100.0),    1),
+    ]
+
+    def __init__(self, n_selected: int, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setWindowTitle(_t("panel.ventilation.bulk.title"))
+        self.setModal(True)
+
+        form = QFormLayout(self)
+
+        self.field_combo = QComboBox()
+        for col in _EDITABLE_VENT_COLS:
+            key = {_COL_SUPPLY: "panel.ventilation.col.supply",
+                   _COL_EXHAUST: "panel.ventilation.col.exhaust",
+                   _COL_HOOD: "panel.ventilation.col.hood"}[col]
+            self.field_combo.addItem(_t(key), col)
+        form.addRow(_t("panel.ventilation.bulk.field"), self.field_combo)
+
+        self.mode_combo = QComboBox()
+        for mode_key, label_key, _suf, _rng, _dec in self._MODES:
+            self.mode_combo.addItem(_t(label_key), mode_key)
+        form.addRow(_t("panel.ventilation.bulk.mode"), self.mode_combo)
+
+        self.value_spin = QDoubleSpinBox()
+        self.value_spin.setMaximumWidth(160)
+        form.addRow(_t("panel.ventilation.bulk.value"), self.value_spin)
+        self.mode_combo.currentIndexChanged.connect(self._sync_value_spin)
+        self._sync_value_spin()
+
+        hint = QLabel(_t("panel.ventilation.bulk.hint").format(n=n_selected))
+        hint.setProperty("role", "muted")
+        form.addRow(hint)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText(_t("btn.apply"))
+        buttons.button(QDialogButtonBox.Cancel).setText(_t("btn.cancel"))
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        form.addRow(buttons)
+
+    def _sync_value_spin(self) -> None:
+        _key, _lbl, suffix, (lo, hi), dec = self._MODES[
+            self.mode_combo.currentIndex()]
+        self.value_spin.setDecimals(dec)
+        self.value_spin.setRange(lo, hi)
+        self.value_spin.setSuffix(suffix)
+
+    def result_value(self) -> tuple[int, str, float]:
+        """Возвращает (col, mode, value)."""
+        col = self.field_combo.currentData()
+        mode = self.mode_combo.currentData()
+        return col, mode, self.value_spin.value()
 
 
 class VentilationPanel(QWidget):
@@ -101,6 +376,11 @@ class VentilationPanel(QWidget):
         self.title_lbl.setProperty("role", "h1")
         head.addWidget(self.title_lbl)
         head.addStretch(1)
+
+        self.bulk_btn = QPushButton(_t("panel.ventilation.btn_bulk"))
+        self.bulk_btn.setCursor(Qt.PointingHandCursor)
+        self.bulk_btn.clicked.connect(self._bulk_edit)
+        head.addWidget(self.bulk_btn)
 
         self.run_btn = QPushButton(_t("panel.ventilation.btn_run"))
         self.run_btn.setProperty("role", "primary")
@@ -144,14 +424,35 @@ class VentilationPanel(QWidget):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.horizontalHeader().setSectionResizeMode(
             QHeaderView.Interactive)
+        # Множественное выделение строк для групповой правки (Ctrl/Shift).
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
         widths = [80, 200, 110, 130, 70, 100, 100, 90, 80, 100]
         for i, w in enumerate(widths):
             self.table.setColumnWidth(i, w)
         outer.addWidget(self.table, stretch=1)
 
+        # Горячие клавиши «как в Excel»: копировать/вставить/заполнить вниз,
+        # отменить/повторить. Контекст — таблица, чтобы не конфликтовать
+        # с глобальными shortcut'ами главного окна.
+        install_copy(self.table)
+        for seq, slot in (
+            (QKeySequence.Paste, self._paste),
+            (QKeySequence("Ctrl+D"), self._fill_down),
+            (QKeySequence.Undo, self._undo),
+            (QKeySequence.Redo, self._redo),
+            (QKeySequence("Ctrl+Shift+Z"), self._redo),
+        ):
+            sc = QShortcut(seq, self.table)
+            sc.setContext(Qt.WidgetWithChildrenShortcut)
+            sc.activated.connect(slot)
+
         bridge.dataLoaded.connect(self._refresh_summary)
         bridge.projectLoaded.connect(self._refresh_summary)
         bridge.ventilationDone.connect(self._refresh_summary)
+        # Ручная правка ячейки меняет суммарные расходы — обновляем карточку.
+        self.model.dataChanged.connect(lambda *a: self._refresh_summary())
         self._refresh_summary()
 
     def _run(self) -> None:
@@ -170,6 +471,165 @@ class VentilationPanel(QWidget):
             parent = parent.parent()
         # Fallback: синхронно
         self.project.calculate_ventilation()
+
+    # ---------- Групповая правка ----------
+    def _selected_source_rows(self) -> list[int]:
+        """Строки модели-источника для выделенных в таблице помещений
+        (через прокси, без дублей)."""
+        sel = self.table.selectionModel()
+        if sel is None:
+            return []
+        rows = {self.proxy.mapToSource(idx).row()
+                for idx in sel.selectedRows()}
+        return sorted(rows)
+
+    def _bulk_edit(self) -> None:
+        rows = self._selected_source_rows()
+        if not rows:
+            QMessageBox.information(
+                self, _t("panel.ventilation.bulk.title"),
+                _t("panel.ventilation.bulk.no_selection"))
+            return
+        dlg = BulkVentDialog(len(rows), self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        col, mode, value = dlg.result_value()
+        n = self.model.apply_bulk(rows, col, mode, value)
+        self.bridge.statusMessage.emit(
+            _t("panel.ventilation.bulk.applied").format(n=n), 4000)
+
+    # ---------- Буфер обмена / заполнение / отмена ----------
+    @staticmethod
+    def _coerce(text: str):
+        """Строку буфера → неотрицательное число или None, если не число."""
+        s = (text or "").strip().replace(" ", "").replace(",", ".")
+        if not s:
+            return None
+        try:
+            return max(float(s), 0.0)
+        except ValueError:
+            return None
+
+    def _paste(self) -> None:
+        grid = clipboard_grid()
+        if not grid:
+            return
+        sel = self.table.selectionModel()
+        edits: dict = {}
+        if len(grid) == 1 and len(grid[0]) == 1:
+            # Одно значение → во все выделенные редактируемые ячейки (как Excel).
+            val = self._coerce(grid[0][0])
+            if val is None or sel is None:
+                return
+            for idx in sel.selectedIndexes():
+                if idx.column() in _EDITABLE_VENT_COLS:
+                    src = self.proxy.mapToSource(idx)
+                    edits[(src.row(), idx.column())] = val
+        else:
+            anchor = self.table.currentIndex()
+            if not anchor.isValid():
+                return
+            for i, line in enumerate(grid):
+                prow = anchor.row() + i
+                if prow >= self.proxy.rowCount():
+                    break
+                for j, cell in enumerate(line):
+                    pcol = anchor.column() + j
+                    if pcol not in _EDITABLE_VENT_COLS:
+                        continue
+                    val = self._coerce(cell)
+                    if val is None:
+                        continue
+                    src = self.proxy.mapToSource(self.proxy.index(prow, pcol))
+                    edits[(src.row(), pcol)] = val
+        n = self.model.set_cells(edits)
+        if n:
+            self.bridge.statusMessage.emit(
+                _t("panel.ventilation.paste.done").format(n=n), 3000)
+
+    def _fill_down(self) -> None:
+        """Значение верхней выделенной ячейки колонки → во все нижние (Ctrl+D)."""
+        sel = self.table.selectionModel()
+        if sel is None:
+            return
+        by_col: dict = {}
+        for idx in sel.selectedIndexes():
+            if idx.column() in _EDITABLE_VENT_COLS:
+                by_col.setdefault(idx.column(), []).append(idx)
+        edits: dict = {}
+        for col, idxs in by_col.items():
+            idxs.sort(key=lambda i: i.row())  # верхняя строка в порядке прокси
+            top_src = self.proxy.mapToSource(idxs[0])
+            val = getattr(self.project.spaces[top_src.row()],
+                          self.model._BULK_ATTR[col])
+            for idx in idxs[1:]:
+                src = self.proxy.mapToSource(idx)
+                edits[(src.row(), col)] = val
+        n = self.model.set_cells(edits)
+        if n:
+            self.bridge.statusMessage.emit(
+                _t("panel.ventilation.fill_down.done").format(n=n), 3000)
+
+    def _undo(self) -> None:
+        n = self.model.undo()
+        if n:
+            self.bridge.statusMessage.emit(
+                _t("panel.ventilation.undo.done").format(n=n), 2500)
+
+    def _redo(self) -> None:
+        n = self.model.redo()
+        if n:
+            self.bridge.statusMessage.emit(
+                _t("panel.ventilation.redo.done").format(n=n), 2500)
+
+    def _copy(self) -> None:
+        from hvac.ui_qt.widgets.table_clipboard import copy_selection_to_clipboard
+        copy_selection_to_clipboard(self.table)
+
+    def _show_context_menu(self, pos) -> None:
+        if not self.project.spaces:
+            return
+        rows = self._selected_source_rows()
+        sel = self.table.selectionModel()
+        has_sel = bool(sel and sel.selectedIndexes())
+        menu = QMenu(self)
+        act_bulk = menu.addAction(_t("panel.ventilation.btn_bulk"))
+        act_reset = menu.addAction(_t("panel.ventilation.ctx.reset"))
+        menu.addSeparator()
+        act_copy = menu.addAction(_t("panel.ventilation.ctx.copy"))
+        act_paste = menu.addAction(_t("panel.ventilation.ctx.paste"))
+        act_fill = menu.addAction(_t("panel.ventilation.ctx.fill_down"))
+        menu.addSeparator()
+        act_undo = menu.addAction(_t("panel.ventilation.ctx.undo"))
+        act_redo = menu.addAction(_t("panel.ventilation.ctx.redo"))
+
+        act_bulk.setEnabled(bool(rows))
+        act_reset.setEnabled(any(
+            self.project.spaces[r].vent_user_modified for r in rows))
+        act_copy.setEnabled(has_sel)
+        act_fill.setEnabled(has_sel)
+        act_undo.setEnabled(self.model.can_undo())
+        act_redo.setEnabled(self.model.can_redo())
+
+        chosen = menu.exec(self.table.viewport().mapToGlobal(pos))
+        if chosen is None:
+            return
+        if chosen is act_bulk:
+            self._bulk_edit()
+        elif chosen is act_reset:
+            n = self.model.reset_manual(rows)
+            self.bridge.statusMessage.emit(
+                _t("panel.ventilation.ctx.reset_done").format(n=n), 4000)
+        elif chosen is act_copy:
+            self._copy()
+        elif chosen is act_paste:
+            self._paste()
+        elif chosen is act_fill:
+            self._fill_down()
+        elif chosen is act_undo:
+            self._undo()
+        elif chosen is act_redo:
+            self._redo()
 
     def _refresh_summary(self, *args: Any) -> None:
         spaces = self.project.spaces
@@ -198,6 +658,7 @@ class VentilationPanel(QWidget):
     def retranslate_ui(self) -> None:
         self.title_lbl.setText(_t("panel.ventilation.title"))
         self.run_btn.setText(_t("panel.ventilation.btn_run"))
+        self.bulk_btn.setText(_t("panel.ventilation.btn_bulk"))
         self.summary_card.set_title(_t("panel.ventilation.summary_card.title"))
         self.summary_card.set_subtitle(
             _t("panel.ventilation.summary_card.subtitle"))

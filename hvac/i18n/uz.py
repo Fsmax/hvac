@@ -40,6 +40,7 @@ UZ: Dict[str, str] = {
     "sidebar.charts":        "Grafiklar",
     "sidebar.extensions":    "Kengaytmalar v3.7",
     "sidebar.engineering":   "Mukammal injiniring v4.1",
+    "sidebar.problems":      "Muammolar",
 
     # ========== Topbar ==========
     "topbar.recalc":         "Qayta hisoblash",
@@ -369,6 +370,45 @@ UZ: Dict[str, str] = {
     "panel.ventilation.col.hood":    "Soyabon, m³/soat",
     "panel.ventilation.col.ach":     "ACH, 1/soat",
     "panel.ventilation.col.imbal":   "Muvozanat",
+    "panel.ventilation.tooltip.manual": ("Sarf qo‘lda tuzatilgan — "
+                                          "qayta hisoblash bu xonani o‘zgartirmaydi"),
+    "panel.ventilation.btn_bulk":    "Guruhli tahrir…",
+    "panel.ventilation.bulk.title":  "Havo sarflarini guruhli tahrirlash",
+    "panel.ventilation.bulk.field":  "Parametr",
+    "panel.ventilation.bulk.mode":   "Amal",
+    "panel.ventilation.bulk.mode.set":   "Qiymat berish",
+    "panel.ventilation.bulk.mode.scale": "O‘zgartirish",
+    "panel.ventilation.bulk.mode.ach":   "Karralik bo‘yicha (ACH)",
+    "panel.ventilation.bulk.value":  "Qiymat",
+    "panel.ventilation.bulk.hint":   "{n} ta tanlangan xonaga qo‘llaniladi.",
+    "panel.ventilation.bulk.no_selection": ("Hech qanday xona tanlanmagan. "
+                                            "Qatorlarni (Ctrl/Shift) tanlab, qayta urinib ko‘ring."),
+    "panel.ventilation.bulk.applied": "Guruhli tahrir: {n} ta yangilandi",
+    "panel.ventilation.ctx.reset":   "Qo‘lda tahrirni bekor qilish (qayta hisoblash)",
+    "panel.ventilation.ctx.reset_done": "Bekor qilindi va qayta hisoblandi: {n}",
+    "panel.ventilation.ctx.copy":    "Nusxalash (Ctrl+C)",
+    "panel.ventilation.ctx.paste":   "Joylash (Ctrl+V)",
+    "panel.ventilation.ctx.fill_down": "Pastga to‘ldirish (Ctrl+D)",
+    "panel.ventilation.ctx.undo":    "Bekor qilish (Ctrl+Z)",
+    "panel.ventilation.ctx.redo":    "Qaytarish (Ctrl+Y)",
+    "panel.ventilation.paste.done":  "Joylangan qiymatlar: {n}",
+    "panel.ventilation.fill_down.done": "Pastga to‘ldirildi: {n}",
+    "panel.ventilation.undo.done":   "Bekor qilindi ({n})",
+    "panel.ventilation.redo.done":   "Qaytarildi ({n})",
+
+    # ========== Panel: Problems (loyiha tekshiruvlari) ==========
+    "panel.problems.title":          "Muammolar va tekshiruvlar",
+    "panel.problems.hint":           "Qatorni ikki marta bosing — xonaga o‘tish.",
+    "panel.problems.col.severity":   "Daraja",
+    "panel.problems.col.category":   "Toifa",
+    "panel.problems.col.space":      "Xona",
+    "panel.problems.col.message":    "Xabar",
+    "panel.problems.severity.error": "Xato",
+    "panel.problems.severity.warning": "Ogohlantirish",
+    "panel.problems.severity.info":  "Ma'lumot",
+    "panel.problems.summary":        "Xatolar: {e} · Ogohlantirishlar: {w} · Ma'lumot: {i}",
+    "panel.problems.empty":          "Muammolar topilmadi — loyiha joyida.",
+    "panel.problems.not_calculated": "Ma'lumotni yuklab, hisobni bajaring — tekshiruvlar ko‘rinadi.",
 
     # ========== Panel: Properties ==========
     "panel.props.empty":      "—",

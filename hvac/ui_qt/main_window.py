@@ -30,6 +30,7 @@ from hvac.ui_qt.panels.data_panel import DataPanel
 from hvac.ui_qt.panels.equipment_panel import EquipmentPanel
 from hvac.ui_qt.panels.engineering_panel import EngineeringPanel
 from hvac.ui_qt.panels.extensions_panel import ExtensionsPanel
+from hvac.ui_qt.panels.problems_panel import ProblemsPanel
 from hvac.ui_qt.panels.room_equipment_panel import RoomEquipmentPanel
 from hvac.ui_qt.panels.smoke_panel import SmokePanel
 from hvac.ui_qt.panels.spaces_panel import SpacesPanel
@@ -62,6 +63,7 @@ def _build_sidebar_items():
         SidebarItem("charts",         "📊", _t("sidebar.charts")),
         SidebarItem("extensions",     "⚡", _t("sidebar.extensions")),
         SidebarItem("engineering",    "🔬", _t("sidebar.engineering")),
+        SidebarItem("problems",       "⚠", _t("sidebar.problems")),
     ]
 
 
@@ -171,6 +173,9 @@ class MainWindow(QMainWindow):
                              RoomEquipmentPanel(self.project, self.bridge))
         self._register_panel("engineering",
                              EngineeringPanel(self.project, self.bridge))
+        self._register_panel("problems",
+                             ProblemsPanel(self.project, self.bridge,
+                                           navigate=self._navigate_to_space))
 
     def _register_panel(self, key: str, widget: QWidget) -> None:
         self._panels[key] = widget
@@ -463,6 +468,13 @@ class MainWindow(QMainWindow):
     def _navigate_to(self, key: str) -> None:
         self.sidebar.select(key)
         self._on_sidebar_selected(key)
+
+    def _navigate_to_space(self, space_id: str) -> None:
+        """Переход к помещению в разделе «Помещения» (из панели «Проблемы»)."""
+        self._navigate_to("spaces")
+        panel = self._panels.get("spaces")
+        if hasattr(panel, "select_space"):
+            panel.select_space(space_id)
 
     def _on_data_loaded(self) -> None:
         self._refresh_topbar()

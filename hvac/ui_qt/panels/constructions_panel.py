@@ -416,6 +416,9 @@ class ConstructionsPanel(QWidget):
         for i, w in enumerate(widths):
             self.table.setColumnWidth(i, w)
         self.table.doubleClicked.connect(self._on_double_click)
+        # Ctrl+C — копирование выделения в буфер (TSV, вставляется в Excel).
+        from hvac.ui_qt.widgets.table_clipboard import install_copy
+        install_copy(self.table)
 
         outer.addWidget(self.table, stretch=1)
 

@@ -37,6 +37,7 @@ RU: Dict[str, str] = {
     "sidebar.charts":        "Графики",
     "sidebar.extensions":    "Расширения v3.7",
     "sidebar.engineering":   "Подробная инженерия v4.1",
+    "sidebar.problems":      "Проблемы",
 
     # ========== Topbar ==========
     "topbar.recalc":         "Пересчитать",
@@ -362,6 +363,45 @@ RU: Dict[str, str] = {
     "panel.ventilation.col.hood":    "Зонт, м³/ч",
     "panel.ventilation.col.ach":     "ACH, 1/ч",
     "panel.ventilation.col.imbal":   "Дисбаланс",
+    "panel.ventilation.tooltip.manual": ("Расход исправлен вручную — "
+                                          "пересчёт не перетирает это помещение"),
+    "panel.ventilation.btn_bulk":    "Групповая правка…",
+    "panel.ventilation.bulk.title":  "Групповая правка расходов воздуха",
+    "panel.ventilation.bulk.field":  "Параметр",
+    "panel.ventilation.bulk.mode":   "Операция",
+    "panel.ventilation.bulk.mode.set":   "Задать значение",
+    "panel.ventilation.bulk.mode.scale": "Изменить на",
+    "panel.ventilation.bulk.mode.ach":   "По кратности (ACH)",
+    "panel.ventilation.bulk.value":  "Значение",
+    "panel.ventilation.bulk.hint":   "Будет применено к {n} выделенным помещениям.",
+    "panel.ventilation.bulk.no_selection": ("Не выделено ни одного помещения. "
+                                            "Выделите строки (Ctrl/Shift) и повторите."),
+    "panel.ventilation.bulk.applied": "Групповая правка: обновлено {n}",
+    "panel.ventilation.ctx.reset":   "Сбросить ручную правку (пересчитать)",
+    "panel.ventilation.ctx.reset_done": "Сброшено и пересчитано: {n}",
+    "panel.ventilation.ctx.copy":    "Копировать (Ctrl+C)",
+    "panel.ventilation.ctx.paste":   "Вставить (Ctrl+V)",
+    "panel.ventilation.ctx.fill_down": "Заполнить вниз (Ctrl+D)",
+    "panel.ventilation.ctx.undo":    "Отменить (Ctrl+Z)",
+    "panel.ventilation.ctx.redo":    "Повторить (Ctrl+Y)",
+    "panel.ventilation.paste.done":  "Вставлено значений: {n}",
+    "panel.ventilation.fill_down.done": "Заполнено вниз: {n}",
+    "panel.ventilation.undo.done":   "Отменено ({n})",
+    "panel.ventilation.redo.done":   "Повторено ({n})",
+
+    # ========== Panel: Problems (проверки проекта) ==========
+    "panel.problems.title":          "Проблемы и проверки",
+    "panel.problems.hint":           "Двойной клик по строке — перейти к помещению.",
+    "panel.problems.col.severity":   "Уровень",
+    "panel.problems.col.category":   "Категория",
+    "panel.problems.col.space":      "Помещение",
+    "panel.problems.col.message":    "Сообщение",
+    "panel.problems.severity.error": "Ошибка",
+    "panel.problems.severity.warning": "Предупр.",
+    "panel.problems.severity.info":  "Инфо",
+    "panel.problems.summary":        "Ошибок: {e} · Предупреждений: {w} · Инфо: {i}",
+    "panel.problems.empty":          "Проблем не найдено — проект в порядке.",
+    "panel.problems.not_calculated": "Загрузите данные и выполните расчёт, чтобы увидеть проверки.",
 
     # ========== Panel: Properties (правая панель Spaces) ==========
     "panel.props.empty":      "—",

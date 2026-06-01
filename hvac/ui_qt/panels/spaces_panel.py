@@ -436,6 +436,9 @@ class SpacesPanel(QWidget):
         self.table.horizontalHeader().setStretchLastSection(True)
         for i, col in enumerate(SpacesTableModel.COLUMNS):
             self.table.setColumnWidth(i, col.width)
+        # Ctrl+C — копирование выделения в буфер (TSV, вставляется в Excel).
+        from hvac.ui_qt.widgets.table_clipboard import install_copy
+        install_copy(self.table)
 
         # Делегаты для редактируемых колонок
         type_col = next(i for i, c in enumerate(SpacesTableModel.COLUMNS)
@@ -522,6 +525,28 @@ class SpacesPanel(QWidget):
             text = _t("panel.spaces.count_filtered").format(
                 visible=visible, total=total)
         self.count_lbl.setText(text)
+
+    def select_space(self, space_id: str) -> None:
+        """Выделяет помещение по space_id и прокручивает к нему. Если строка
+        скрыта фильтром — сбрасывает фильтры, чтобы помещение стало видимым.
+        Используется навигацией из панели «Проблемы»."""
+        row = next((i for i, s in enumerate(self.project.spaces)
+                    if s.space_id == space_id), -1)
+        if row < 0:
+            return
+        src = self.model.index(row, 0)
+        pidx = self.proxy.mapFromSource(src)
+        if not pidx.isValid():
+            # Сбрасываем фильтры (сигналы combo/search обновят прокси).
+            self.search.clear()
+            for combo in (self.level_filter, self.type_filter,
+                          self.zone_filter):
+                combo.setCurrentIndex(0)
+            pidx = self.proxy.mapFromSource(src)
+        if pidx.isValid():
+            self.table.setCurrentIndex(pidx)
+            self.table.scrollTo(pidx, QAbstractItemView.PositionAtCenter)
+            self.table.setFocus()
 
     def _on_row_changed(self, current: QModelIndex, _previous: QModelIndex) -> None:
         if not current.isValid():
