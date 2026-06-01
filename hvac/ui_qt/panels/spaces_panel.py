@@ -502,7 +502,7 @@ class SpacesPanel(QWidget):
 
         # Splitter: таблица | свойства
         splitter = QSplitter(Qt.Horizontal)
-        splitter.setHandleWidth(1)
+        splitter.setHandleWidth(6)  # хватаемая ручка (была 1px — не ухватить)
 
         # --- Таблица ---
         self.table = QTableView()
@@ -547,8 +547,9 @@ class SpacesPanel(QWidget):
         splitter.addWidget(self.table)
 
         # --- Properties + Boundaries (вертикальный сплит) ---
+        # Высоту блока «Ограждения» меняют, перетаскивая эту ручку.
         right_split = QSplitter(Qt.Vertical)
-        right_split.setHandleWidth(1)
+        right_split.setHandleWidth(6)  # хватаемая ручка (была 1px — не ухватить)
 
         self.props = PropertiesPanel(self.project, self.bridge)
         right_split.addWidget(self.props)

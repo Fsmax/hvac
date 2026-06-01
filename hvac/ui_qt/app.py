@@ -57,6 +57,12 @@ def run_gui() -> int:
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
     app = QApplication(sys.argv)
+    # Fusion — единый стиль для всех платформ: он полностью уважает QSS и
+    # палитру темы. На нативном стиле Windows текст нередактируемых QComboBox
+    # (особенно как cell-виджетов в таблицах) рисуется системным цветом и
+    # становится нечитаемым в тёмной/светлой теме. Fusion это устраняет и
+    # делает вид одинаковым везде.
+    app.setStyle("Fusion")
     app.setApplicationName("HVAC Calculator")
     app.setApplicationDisplayName("HVAC Calculator")
     app.setOrganizationName("HVAC")

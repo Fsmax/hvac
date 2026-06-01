@@ -13,8 +13,7 @@ from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
     QFormLayout, QHBoxLayout, QHeaderView, QLabel, QMessageBox,
-    QPushButton, QStyleFactory, QTableWidget, QTableWidgetItem, QVBoxLayout,
-    QWidget,
+    QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from hvac.data_loader import is_excluded_category
@@ -126,11 +125,6 @@ class BoundariesPanel(QWidget):
         self.project = project
         self.bridge = bridge
         self._space: Optional[Space] = None
-        # На нативном стиле Windows текст QComboBox-ячеек внутри QTableWidget
-        # рисуется системным (тёмным) цветом, игнорируя QSS-палитру → не виден
-        # в тёмной теме. Fusion-стиль уважает QSS/палитру и тему-агностичен.
-        # Держим ссылку: setStyle() не забирает владение.
-        self._combo_style = QStyleFactory.create("Fusion")
 
         root = QVBoxLayout(self)
         root.setContentsMargins(8, 8, 8, 8)
@@ -151,6 +145,7 @@ class BoundariesPanel(QWidget):
         self.table = QTableWidget(0, len(_HEADER_KEYS))
         self.table.setHorizontalHeaderLabels([_t(k) for k in _HEADER_KEYS])
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(30)  # не поджимать комбобоксы
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.DoubleClicked
                                     | QAbstractItemView.SelectedClicked)
@@ -173,7 +168,10 @@ class BoundariesPanel(QWidget):
         # копируются как текст элемента; пустые — как "".
         from hvac.ui_qt.widgets.table_clipboard import install_copy
         install_copy(self.table)
-        root.addWidget(self.table, stretch=1)
+        # Таблица не растягивается — её высота подгоняется под число строк
+        # (см. _fit_height). Лишнее место уходит в stretch под кнопками.
+        self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        root.addWidget(self.table)
         self.table.itemChanged.connect(self._on_item_changed)
 
         # Кнопки
@@ -195,6 +193,8 @@ class BoundariesPanel(QWidget):
         self._del_btn.clicked.connect(self._delete_selected)
         bar.addWidget(self._del_btn)
         root.addLayout(bar)
+        # Пустое место уходит вниз — таблица с кнопками компактно сверху.
+        root.addStretch(1)
 
         self._suppress_signal = False
         on_language_change(lambda _lang: self.retranslate_ui())
@@ -243,6 +243,20 @@ class BoundariesPanel(QWidget):
         self.summary_lbl.setText(_t("panel.boundaries.summary").format(
             n=len(elements), area=area_ext))
         self._suppress_signal = False
+        self._fit_height()
+
+    # Сколько строк показывать без прокрутки (дальше — внутренний скролл).
+    _MAX_VISIBLE_ROWS = 12
+
+    def _fit_height(self) -> None:
+        """Подгоняет высоту таблицы под число строк: мало элементов —
+        низкая таблица, много — выше (до _MAX_VISIBLE_ROWS, затем прокрутка)."""
+        rows = self.table.rowCount()
+        header_h = max(self.table.horizontalHeader().sizeHint().height(), 26)
+        row_h = self.table.verticalHeader().defaultSectionSize()
+        n = min(max(rows, 1), self._MAX_VISIBLE_ROWS)
+        self.table.setFixedHeight(
+            header_h + n * row_h + 2 * self.table.frameWidth() + 2)
 
     def _append_row(self, el: BoundaryElement) -> None:
         row = self.table.rowCount()
@@ -260,8 +274,6 @@ class BoundariesPanel(QWidget):
 
         # Колонка 1 — конструкция (выпадающий из каталога)
         combo = QComboBox()
-        if self._combo_style is not None:
-            combo.setStyle(self._combo_style)
         combo.setEditable(False)
         matching = [c for c in self.project.constructions.values()
                     if c.category == cat]
@@ -286,8 +298,6 @@ class BoundariesPanel(QWidget):
 
         # Колонка 3 — ориентация
         orient_combo = QComboBox()
-        if self._combo_style is not None:
-            orient_combo.setStyle(self._combo_style)
         orient_combo.addItems(_ORIENTATIONS)
         if el.orientation:
             orient_combo.setCurrentText(el.orientation)
@@ -303,8 +313,6 @@ class BoundariesPanel(QWidget):
 
         # Колонка 5 — наружное
         ext_combo = QComboBox()
-        if self._combo_style is not None:
-            ext_combo.setStyle(self._combo_style)
         yes_lbl = _t("panel.boundaries.ext_yes")
         no_lbl = _t("panel.boundaries.ext_no")
         ext_combo.addItems([yes_lbl, no_lbl])

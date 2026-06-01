@@ -259,8 +259,8 @@ QCheckBox::indicator:checked, QRadioButton::indicator:checked { background: {{ac
 QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: {{accent}}; }
 
 QSplitter::handle { background-color: {{border}}; }
-QSplitter::handle:horizontal { width: 1px; }
-QSplitter::handle:vertical { height: 1px; }
+QSplitter::handle:horizontal { width: 6px; }
+QSplitter::handle:vertical { height: 6px; }
 QSplitter::handle:hover { background-color: {{accent}}; }
 
 QToolTip {
