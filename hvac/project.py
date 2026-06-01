@@ -34,6 +34,7 @@ from hvac._project_manual_entry import ManualEntryMixin
 from hvac._project_smoke import SmokeSystemsMixin
 from hvac._project_extensions import V37ExtensionsMixin
 from hvac._project_validation import ValidationMixin
+from hvac._project_zoning import ZoningMixin
 
 # Re-export для обратной совместимости (UI и io_excel импортируют отсюда)
 from hvac.sizing_helpers import (  # noqa: F401
@@ -69,6 +70,7 @@ class HVACProject(
     SmokeSystemsMixin,
     V37ExtensionsMixin,
     ValidationMixin,
+    ZoningMixin,
 ):
     """Главный объект проекта."""
 
