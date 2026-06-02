@@ -32,6 +32,8 @@ SAVED_SPACE_FIELDS = [
     "system_heating", "system_cooling", "system_ventilation",
     # Контуры внутри систем
     "circuit_heating", "circuit_cooling", "duct_zone",
+    # Воздушное отопление / охлаждение
+    "air_heating", "air_cooling",
     # Аварийные системы
     "smoke_system", "pressurization_system", "smoke_zone_index",
 ]
@@ -48,6 +50,7 @@ FULL_SPACE_FIELDS = [
     "vent_user_modified",
     "system_heating", "system_cooling", "system_ventilation",
     "circuit_heating", "circuit_cooling", "duct_zone",
+    "air_heating", "air_cooling",
     "smoke_system", "pressurization_system", "smoke_zone_index",
     "heat_loss_w", "heat_gain_w",
     "heat_gain_sensible_w", "heat_gain_latent_w",
@@ -182,6 +185,7 @@ def save_project(project: HVACProject, path: str,
             if sp.user_modified or sp.vent_user_modified
             or sp.system_heating or sp.system_cooling or sp.system_ventilation
             or sp.circuit_heating or sp.circuit_cooling or sp.duct_zone
+            or sp.air_heating or sp.air_cooling
             or sp.smoke_system or sp.pressurization_system
         }
 

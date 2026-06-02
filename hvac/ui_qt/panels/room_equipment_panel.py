@@ -33,6 +33,8 @@ _HEADER_KEYS = [
     "panel.room_eq.col.q_heat", "panel.room_eq.col.terminal",
     "panel.room_eq.col.power",  "panel.room_eq.col.qty",
     "panel.room_eq.col.diffuser", "panel.room_eq.col.diff_qty",
+    "panel.room_eq.col.heat_circ", "panel.room_eq.col.cool_circ",
+    "panel.room_eq.col.vent_sys",
 ]
 
 
@@ -106,10 +108,14 @@ class _TerminalGroup(QGroupBox):
 class RoomEquipmentDialog(QDialog):
     """Назначение конечного оборудования одному помещению."""
 
+    _NONE = "—"   # «не подключено» (не cyrillic)
+
     def __init__(self, space: Space, parent: QWidget | None = None,
-                 *, title: str | None = None, show_loads: bool = True):
+                 *, title: str | None = None, show_loads: bool = True,
+                 project=None):
         super().__init__(parent)
         self.space = space
+        self.project = project
         eq = space.room_equipment or RoomEquipment()
         self.setWindowTitle(title or _t("dlg.room_eq.title").format(
             room=f"{space.number} · {space.name}"))
@@ -157,6 +163,24 @@ class RoomEquipmentDialog(QDialog):
         row2.addWidget(self.g_exh)
         outer.addLayout(row2)
 
+        # ----- Подключение к системам (связь с «Зонами и системами») -----
+        # Отопительный прибор → контур отопления (→ котёл), охладитель →
+        # контур холода (→ чиллер), диффузор → приточка (AHU).
+        self.heat_circ_combo = self.cool_circ_combo = self.vent_combo = None
+        if project is not None:
+            conn = QGroupBox(_t("dlg.room_eq.sec.connect"))
+            cform = QFormLayout(conn)
+            self.heat_circ_combo = self._conn_combo(
+                project.circuits_of("heating").keys(), space.circuit_heating)
+            cform.addRow(_t("dlg.room_eq.f.heat_circ"), self.heat_circ_combo)
+            self.cool_circ_combo = self._conn_combo(
+                project.circuits_of("cooling").keys(), space.circuit_cooling)
+            cform.addRow(_t("dlg.room_eq.f.cool_circ"), self.cool_circ_combo)
+            self.vent_combo = self._conn_combo(
+                project.systems_of("ventilation").keys(), space.system_ventilation)
+            cform.addRow(_t("dlg.room_eq.f.vent_sys"), self.vent_combo)
+            outer.addWidget(conn)
+
         notes_form = QFormLayout()
         self.notes_edit = QPlainTextEdit(eq.notes or "")
         self.notes_edit.setFixedHeight(56)
@@ -171,6 +195,13 @@ class RoomEquipmentDialog(QDialog):
         buttons.rejected.connect(self.reject)
         outer.addWidget(buttons)
 
+    def _conn_combo(self, names, current: str) -> QComboBox:
+        box = QComboBox()
+        box.addItem(self._NONE)
+        box.addItems(sorted(names))
+        box.setCurrentText(current or self._NONE)
+        return box
+
     def values(self) -> Dict[str, Any]:
         """Все поля оборудования как kwargs для project.set_room_equipment."""
         out: Dict[str, Any] = {}
@@ -178,6 +209,21 @@ class RoomEquipmentDialog(QDialog):
             out.update(g.values())
         out["notes"] = self.notes_edit.toPlainText().strip()
         return out
+
+    def connection(self) -> Dict[str, str]:
+        """Выбранные привязки к контурам/AHU (пусто, если без project)."""
+        if self.heat_circ_combo is None:
+            return {}
+
+        def _v(box: QComboBox) -> str:
+            t = box.currentText().strip()
+            return "" if t == self._NONE else t
+
+        return {
+            "circuit_heating": _v(self.heat_circ_combo),
+            "circuit_cooling": _v(self.cool_circ_combo),
+            "system_ventilation": _v(self.vent_combo),
+        }
 
 
 class RoomEquipmentPanel(QWidget):
@@ -235,7 +281,7 @@ class RoomEquipmentPanel(QWidget):
         self.table.cellDoubleClicked.connect(self._edit_row)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
-        widths = [80, 200, 100, 200, 100, 80, 200, 80]
+        widths = [80, 200, 100, 200, 100, 80, 200, 80, 120, 120, 120]
         for i, w in enumerate(widths):
             self.table.setColumnWidth(i, w)
         outer.addWidget(self.table, stretch=1)
@@ -271,37 +317,62 @@ class RoomEquipmentPanel(QWidget):
                                 _t("panel.room_eq.msg.no_selection"))
 
     def _push_undo(self, space_ids: list[str]) -> None:
-        """Снимок текущего оборудования помещений перед изменением."""
-        snap: dict = {}
+        """Снимок оборудования И привязок к контурам перед изменением."""
+        eq_snap: dict = {}
         for sid in space_ids:
             sp = self.project._space_by_id.get(sid)
             eq = sp.room_equipment if sp else None
-            snap[sid] = serialize_room_equipment(eq) if eq else None
-        self._undo.append(snap)
+            eq_snap[sid] = serialize_room_equipment(eq) if eq else None
+        self._undo.append({
+            "eq": eq_snap,
+            "zoning": self.project.snapshot_zoning(space_ids),
+        })
         del self._undo[:-50]                       # ограничиваем глубину
 
     def _apply_undo(self) -> None:
         if not self._undo:
             return
         snap = self._undo.pop()
-        for sid, data in snap.items():
+        for sid, data in snap["eq"].items():
             sp = self.project._space_by_id.get(sid)
             if sp is None:
                 continue
             sp.room_equipment = deserialize_room_equipment(data) if data else None
+        self.project.restore_zoning(snap["zoning"])
         self.project.emit("equipment_changed")
         self.bridge.dirtyChanged.emit(True)
         self._refresh()
+
+    def _apply_connection(self, ids: list[str], conn: dict) -> None:
+        """Записывает привязки помещений к контурам/AHU (через зонирование)."""
+        if not conn:
+            return
+        ch = conn.get("circuit_heating", "")
+        if ch:
+            self.project.assign_rooms_to_circuit("heating", ids, ch)
+        else:
+            self.project.clear_rooms_assignment("heating", ids, "circuit")
+        cc = conn.get("circuit_cooling", "")
+        if cc:
+            self.project.assign_rooms_to_circuit("cooling", ids, cc)
+        else:
+            self.project.clear_rooms_assignment("cooling", ids, "circuit")
+        sv = conn.get("system_ventilation", "")
+        if sv:
+            self.project.assign_rooms_to_system("ventilation", ids, sv)
+        else:
+            self.project.clear_rooms_assignment("ventilation", ids, "system")
 
     # ---------- Операции ----------
     def _edit_row(self, row: int, _col: int = 0) -> None:
         if row < 0 or row >= len(self.project.spaces):
             return
         sp = self.project.spaces[row]
-        dlg = RoomEquipmentDialog(sp, self)
+        dlg = RoomEquipmentDialog(sp, self, project=self.project)
         if dlg.exec() == QDialog.Accepted:
             self._push_undo([sp.space_id])
             self.project.set_room_equipment(sp.space_id, **dlg.values())
+            self._apply_connection([sp.space_id], dlg.connection())
             self.bridge.dirtyChanged.emit(True)
             self._refresh()
 
@@ -312,13 +383,14 @@ class RoomEquipmentPanel(QWidget):
             return
         anchor = self.project.spaces[rows[0]]
         dlg = RoomEquipmentDialog(
-            anchor, self, show_loads=False,
+            anchor, self, show_loads=False, project=self.project,
             title=_t("panel.room_eq.dlg.apply_title").format(n=len(rows)))
         if dlg.exec() != QDialog.Accepted:
             return
         ids = self._ids_for(rows)
         self._push_undo(ids)
         n = self.project.apply_room_equipment(ids, dlg.values())
+        self._apply_connection(ids, dlg.connection())
         self.bridge.dirtyChanged.emit(True)
         self._refresh()
         self.bridge.statusMessage.emit(
@@ -419,6 +491,9 @@ class RoomEquipmentPanel(QWidget):
                 f"{eq.heating_terminal_qty:.0f}" if eq and eq.heating_terminal_qty else "",
                 (diff_type or "") if eq else "",
                 f"{diff_qty:.0f}" if eq and diff_qty else "",
+                sp.circuit_heating or "",
+                sp.circuit_cooling or "",
+                sp.system_ventilation or "",
             ]
             for c, text in enumerate(cells):
                 item = QTableWidgetItem(str(text))

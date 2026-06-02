@@ -33,6 +33,7 @@ UZ: Dict[str, str] = {
     "sidebar.constructions": "Konstruksiyalar",
     "sidebar.calculation":   "Yuklamalar hisobi",
     "sidebar.ventilation":   "Ventilyatsiya",
+    "sidebar.systems":       "Tizimlar va jihozlar",
     "sidebar.zones":         "Zonalar va tizimlar",
     "sidebar.equipment":     "Jihozlar (tizimlar)",
     "sidebar.room_equipment":"Xonalardagi jihozlar",
@@ -359,6 +360,9 @@ UZ: Dict[str, str] = {
     "panel.room_eq.col.qty":       "Soni",
     "panel.room_eq.col.diffuser":  "Havo taqsim.",
     "panel.room_eq.col.diff_qty":  "Soni",
+    "panel.room_eq.col.heat_circ": "Isitish konturi",
+    "panel.room_eq.col.cool_circ": "Sovutish konturi",
+    "panel.room_eq.col.vent_sys":  "AHU",
     "panel.room_eq.hint":          "💡 Ikki marta bosing — tayinlash; Ctrl/Shift — bir nechta tanlab guruh amallari (o‘ng tugma).",
     # --- Guruh amallari ---
     "panel.room_eq.btn.apply_sel": "Tanlanganlarga qo‘llash…",
@@ -390,6 +394,10 @@ UZ: Dict[str, str] = {
     "dlg.room_eq.f.flow":          "1 dona sarfi, m³/s:",
     "dlg.room_eq.f.qty":           "Soni, dona:",
     "dlg.room_eq.f.notes":         "Izohlar:",
+    "dlg.room_eq.sec.connect":     "Tizimlarga ulanish",
+    "dlg.room_eq.f.heat_circ":     "Isitish konturi",
+    "dlg.room_eq.f.cool_circ":     "Sovutish konturi",
+    "dlg.room_eq.f.vent_sys":      "Havo tayyorlash qurilmasi (AHU)",
     "dlg.room_eq.sum_power":       "Σ = {total:.0f} Vt",
     "dlg.room_eq.sum_flow":        "Σ = {total:.0f} m³/s",
     "dlg.room_eq.coverage":        "  ·  {cov:.0f}% qoplash",
@@ -562,6 +570,8 @@ UZ: Dict[str, str] = {
     "panel.props.flag.roof":     "tom ostida",
     "panel.props.flag.floor":    "tuproqqa tegishli pol",
     "panel.props.flag.unheated": "isitilmaydigan ust pol",
+    "panel.props.flag.air_heat": "havoli isitish",
+    "panel.props.flag.air_cool": "havoli sovutish",
     "panel.props.results.title": "Hisob natijalari",
     "panel.props.results.not_yet": ("<i>Hisob hali bajarilmagan. "
                                       "F5 yoki «Qayta hisoblash» bosing.</i>"),
@@ -703,6 +713,69 @@ UZ: Dict[str, str] = {
     "panel.zones.status.undone":         "Bekor qilindi: {n}",
     "panel.zones.summary.line":          ("Tizimlar: {systems}  ·  belgilangan "
                                            "{assigned} / {rooms}"),
+
+    # ----- «Tizimlar va jihozlar» yagona ish stoli -----
+    "panel.sysworkspace.title":      "Tizimlar va jihozlar",
+    "panel.sysworkspace.hint":       ("Chapda — manbalar va konturlar, o‘ngda — "
+                                       "xonalar. Xonalarni belgilang (tugma / "
+                                       "tugunga tortib), parametrlarni (tugunga "
+                                       "ikki marta) va jihozlarni (qatorga ikki "
+                                       "marta) bering. «Tanlashni hisoblash» — "
+                                       "AHU yuklamasi, quvurlar, nasoslar."),
+    "panel.sysworkspace.tree.name":  "Manba / kontur",
+    "panel.sysworkspace.tree.kw":    "kVt",
+    "panel.sysworkspace.rcol.device":"Jihoz",
+    "panel.sysworkspace.btn.device": "Jihoz…",
+    "panel.sysworkspace.filter_node":"Faqat tanlangan tugun",
+    "panel.sysworkspace.summary.none":"Chapdan manba yoki konturni tanlang",
+    "panel.sysworkspace.sum.source": "{name}  ·  kerak {req} kVt  ·  tanlandi {pick}",
+    "panel.sysworkspace.sum.circuit":("{name}  ·  yuklama {load} kVt  ·  DN {dn}  ·  "
+                                       "Δp {dp} kPa  ·  nasos {pump}"),
+    "panel.sysworkspace.sum.ahu":    ("{name}  ·  sarf {flow} m³/soat  ·  ventilyator {fan}  ·  "
+                                       "kalorifer {qh} kVt  ·  sovutgich {qc} kVt"),
+    # Havoli isitish / sovutish
+    "panel.sysworkspace.rcol.air":   "Havo",
+    "panel.sysworkspace.air.mark_heat": "I",
+    "panel.sysworkspace.air.mark_cool": "S",
+    "panel.sysworkspace.air.menu":   "Havoli isitish / sovutish",
+    "panel.sysworkspace.air.heat_on":"Isitishni yoqish",
+    "panel.sysworkspace.air.cool_on":"Sovutishni yoqish",
+    "panel.sysworkspace.air.both_on":"Isitish va sovutishni yoqish",
+    "panel.sysworkspace.air.off":    "Havoli rejimni o‘chirish",
+    "panel.sysworkspace.air.status": "Havoli rejim: {n} xona o‘zgartirildi",
+    # O‘ng panel ichki bo‘limlari + jihoz turini tanlash
+    "panel.sysworkspace.tab.rooms":  "Xonalar",
+    "panel.sysworkspace.tab.calc":   "Hisob",
+    "panel.sysworkspace.dlg.kind_title": "Yangi jihoz",
+    "panel.sysworkspace.dlg.kind":   "Jihoz turi:",
+    # Jihozning batafsil hisobi
+    "panel.detail.none":     "Batafsil hisob uchun chapdan jihoz yoki manbani tanlang",
+    "panel.detail.params":   "Parametrlar (tahrir → jonli qayta hisob)",
+    "panel.detail.f.t_supply_w": "Qishki uzatish t, °C",
+    "panel.detail.f.t_supply_s": "Yozgi uzatish t, °C",
+    "panel.detail.f.eta_w":  "Rekup. FIK qish",
+    "panel.detail.f.eta_s":  "Rekup. FIK yoz",
+    "panel.detail.f.fan_pressure": "Ventilyator bosimi, Pa (0 — avto)",
+    "panel.detail.f.fan_eff": "Ventilyator FIK",
+    "panel.detail.kind.ahu":          "Tortib beruvchi qurilma (AHU)",
+    "panel.detail.kind.supply_fan":   "Tortib beruvchi ventilyator",
+    "panel.detail.kind.exhaust_fan":  "So‘rib oluvchi ventilyator",
+    "panel.detail.kind.local_exhaust":"Mahalliy so‘rg‘ich / zont",
+    "panel.detail.flows":    "Xonalar: {n} · tortish {sup} m³/soat · so‘rish {exh} m³/soat",
+    "panel.detail.heater":   "Kalorifer (qish)",
+    "panel.detail.cooler":   "Sovutgich (yoz)",
+    "panel.detail.coil_air": "Havo: {q} kVt · {tin}→{tout} °C (Δt {dt})",
+    "panel.detail.coil_water": "Suv: {ts}/{tr} °C · Δt {dtw} · G {g} kg/soat ({gm} m³/soat) · DN {dn} · v {v} m/s",
+    "panel.detail.cooler_extra": "oshkor {qs} / yashirin {ql} kVt · kondensat {cond} kg/soat",
+    "panel.detail.fan_supply":  "Ventilyator (tortish)",
+    "panel.detail.fan_exhaust": "Ventilyator (so‘rish)",
+    "panel.detail.fan_line": "{flow} m³/soat · {dp} Pa ({src}) · {kw} kVt · SFP {sfp} Vt/(m³/s)",
+    "panel.detail.src.manual":  "qo‘lda",
+    "panel.detail.src.network": "tarmoqdan",
+    "panel.detail.src.default": "tipik",
+    "panel.detail.source_head": "Kerak {req} kVt · tanlov {unit} kVt ×{n} · yuklama {q} kVt",
+    "panel.detail.source_circ": "Kontur {name}: {q} kVt · {rooms} xona · DN {dn} · nasos {pump}",
+    "panel.detail.circuit_head": "Yuklama {q} kVt ({rooms} xona + AHU {qa} kVt) · DN {dn} · Δp {dp} kPa · nasos {pump}",
 
     # ========== Panel: Constructions ==========
     "panel.constructions.title":          "Konstruksiyalar",
