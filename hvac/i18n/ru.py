@@ -32,7 +32,7 @@ RU: Dict[str, str] = {
     "sidebar.ventilation":   "Вентиляция",
     "sidebar.systems":       "Системы и оборудование",
     "sidebar.zones":         "Зоны и системы",
-    "sidebar.equipment":     "Оборудование (системы)",
+    "sidebar.equipment":     "Оборудование",
     "sidebar.room_equipment":"Оборудование в помещениях",
     "sidebar.smoke":         "Дымоудаление",
     "sidebar.charts":        "Графики",
@@ -494,6 +494,7 @@ RU: Dict[str, str] = {
     "panel.ventilation.col.exhaust": "Вытяжка, м³/ч",
     "panel.ventilation.col.hood":    "Зонт, м³/ч",
     "panel.ventilation.col.ach":     "ACH, 1/ч",
+    "panel.ventilation.col.air":     "Возд.",
     "panel.ventilation.col.imbal":   "Дисбаланс",
     "panel.ventilation.tooltip.manual": ("Расход исправлен вручную — "
                                           "пересчёт не перетирает это помещение"),
@@ -765,6 +766,33 @@ RU: Dict[str, str] = {
     "panel.detail.source_head": "Требуется {req} кВт · подбор {unit} кВт ×{n} · нагрузка {q} кВт",
     "panel.detail.source_circ": "Контур {name}: {q} кВт · {rooms} помещ. · DN {dn} · насос {pump}",
     "panel.detail.circuit_head": "Нагрузка {q} кВт ({rooms} помещ. + AHU {qa} кВт) · DN {dn} · Δp {dp} кПа · насос {pump}",
+    # Источник тепла/холода (карточка «Оборудование»)
+    "panel.detail.kind.boiler":  "Источник тепла",
+    "panel.detail.kind.chiller": "Источник холода",
+    "panel.detail.f.t_sup":      "t подачи, °C",
+    "panel.detail.f.t_ret":      "t обратки, °C",
+    "panel.detail.f.eff":        "КПД источника",
+    "panel.detail.f.cop":        "COP / EER",
+    "panel.detail.f.capacity":   "Ед. мощность, кВт (0 — авто)",
+    "panel.detail.f.units":      "Кол-во агрегатов",
+    "panel.detail.src.required": "Требуется {req} кВт (нагрузка {q} кВт × запас {m})",
+    "panel.detail.src.picked_auto":   "Подбор (авто): {unit} кВт × {n}",
+    "panel.detail.src.picked_manual": "Подбор (ручной): {unit} кВт × {n} · {model}",
+    "panel.detail.src.ahu":      "в т.ч. калориферы/охладители AHU: {q} кВт",
+    "panel.detail.src.direct":   "Помещений напрямую: {n} ({q} кВт)",
+    # ===== Panel: Equipment (раздел «Оборудование») =====
+    "panel.equipws.title":   "Оборудование",
+    "panel.equipws.hint":    ("Слева — всё оборудование по категориям. Выберите "
+                               "установку: справа полная информация и правка "
+                               "параметров с живым пересчётом."),
+    "panel.equipws.cat.heat":"Источники тепла",
+    "panel.equipws.cat.cool":"Источники холода",
+    "panel.equipws.cat.vent":"Вентиляция",
+    "panel.equipws.btn.add": "Добавить",
+    "panel.equipws.col.name":"Оборудование",
+    "panel.equipws.col.power":"Подбор",
+    "panel.equipws.add.boiler":  "Котёл / источник тепла",
+    "panel.equipws.add.chiller": "Чиллер / источник холода",
 
     # ========== Panel: Constructions ==========
     "panel.constructions.title":          "Конструкции",

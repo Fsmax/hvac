@@ -28,6 +28,7 @@ from hvac.ui_qt.panels.charts_panel import ChartsPanel
 from hvac.ui_qt.panels.comparison_panel import ComparisonPanel
 from hvac.ui_qt.panels.constructions_panel import ConstructionsPanel
 from hvac.ui_qt.panels.data_panel import DataPanel
+from hvac.ui_qt.panels.equipment_workspace import EquipmentWorkspacePanel
 from hvac.ui_qt.panels.engineering_panel import EngineeringPanel
 from hvac.ui_qt.panels.extensions_panel import ExtensionsPanel
 from hvac.ui_qt.panels.problems_panel import ProblemsPanel
@@ -56,6 +57,7 @@ def _build_sidebar_items():
         SidebarItem("calculation",    "🌡",  _t("sidebar.calculation")),
         SidebarItem("ventilation",    "💨", _t("sidebar.ventilation")),
         SidebarItem("systems",        "⚙",  _t("sidebar.systems")),
+        SidebarItem("equipment",      "🛠", _t("sidebar.equipment")),
         SidebarItem("smoke",          "🔥", _t("sidebar.smoke")),
         SidebarItem("charts",         "📊", _t("sidebar.charts")),
         SidebarItem("extensions",     "⚡", _t("sidebar.extensions")),
@@ -162,6 +164,8 @@ class MainWindow(QMainWindow):
                              VentilationPanel(self.project, self.bridge))
         self._register_panel("systems",
                              SystemsWorkspacePanel(self.project, self.bridge))
+        self._register_panel("equipment",
+                             EquipmentWorkspacePanel(self.project, self.bridge))
         self._register_panel("smoke",
                              SmokePanel(self.project, self.bridge))
         self._register_panel("extensions",

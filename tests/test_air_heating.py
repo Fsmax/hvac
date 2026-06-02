@@ -197,6 +197,19 @@ class TestApplyAirHeating:
         apply_air_heating(p)
         assert sp.supply_m3h == 50.0
 
+    def test_unboost_when_flag_removed(self):
+        # включили воздушное отопление → расход поднят; выключили → вернулся
+        p = _project_with_ahu(t_supply_air_heating=40.0)
+        sp = _add_space(p, "1", "R-1", system_ventilation="П1",
+                        heat_loss_w=5000, t_in_heat=20.0, air_heating=True)
+        sp.ventilation_breakdown = {"supply_m3h": 50.0}
+        sp.supply_m3h = 50.0
+        apply_air_heating(p)
+        assert sp.supply_m3h > 50.0
+        sp.air_heating = False
+        apply_air_heating(p)
+        assert sp.supply_m3h == pytest.approx(50.0)
+
     def test_ahu_heater_power_rises_with_air_heating(self):
         # Та же установка/расход, но с воздушным отоплением подача поднимается
         # выше нейтральной (16°C) ровно настолько, чтобы покрыть нагрузку
