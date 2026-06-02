@@ -326,6 +326,12 @@ UZ: Dict[str, str] = {
     "panel.spaces.bulk.title":          "Xonalarni guruhli tahrirlash",
     "panel.spaces.bulk.field":          "Maydon",
     "panel.spaces.bulk.value":          "Qiymat",
+    "panel.spaces.bulk.t_heat":         "t qish",
+    "panel.spaces.bulk.t_cool":         "t yoz",
+    "panel.spaces.bulk.occup":          "Odamlar, kishi",
+    "panel.spaces.bulk.light":          "Yoritish, Vt/m²",
+    "panel.spaces.bulk.equip":          "Jihozlar, Vt/m²",
+    "panel.spaces.bulk.inf":            "Infiltratsiya, 1/soat",
     "panel.spaces.bulk.hint":           "{n} ta tanlangan xonaga qo‘llaniladi.",
     "panel.spaces.bulk.no_selection":   ("Hech qanday xona tanlanmagan. "
                                           "Qatorlarni (Ctrl/Shift) tanlab, qayta urinib ko‘ring."),
