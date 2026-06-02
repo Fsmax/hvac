@@ -28,16 +28,14 @@ from hvac.ui_qt.panels.charts_panel import ChartsPanel
 from hvac.ui_qt.panels.comparison_panel import ComparisonPanel
 from hvac.ui_qt.panels.constructions_panel import ConstructionsPanel
 from hvac.ui_qt.panels.data_panel import DataPanel
-from hvac.ui_qt.panels.equipment_panel import EquipmentPanel
 from hvac.ui_qt.panels.engineering_panel import EngineeringPanel
 from hvac.ui_qt.panels.extensions_panel import ExtensionsPanel
 from hvac.ui_qt.panels.problems_panel import ProblemsPanel
-from hvac.ui_qt.panels.room_equipment_panel import RoomEquipmentPanel
 from hvac.ui_qt.panels.smoke_panel import SmokePanel
 from hvac.ui_qt.panels.spaces_panel import SpacesPanel
+from hvac.ui_qt.panels.systems_workspace import SystemsWorkspacePanel
 from hvac.ui_qt.panels.ventilation_panel import VentilationPanel
 from hvac.ui_qt.panels.welcome import WelcomePanel
-from hvac.ui_qt.panels.zones_panel import ZonesPanel
 from hvac.ui_qt.theme import Theme, apply_theme, current_theme
 from hvac.ui_qt.widgets.checklist import ChecklistPanel
 from hvac.ui_qt.widgets.palette import CommandPalette
@@ -57,9 +55,7 @@ def _build_sidebar_items():
         SidebarItem("constructions",  "🧱", _t("sidebar.constructions")),
         SidebarItem("calculation",    "🌡",  _t("sidebar.calculation")),
         SidebarItem("ventilation",    "💨", _t("sidebar.ventilation")),
-        SidebarItem("zones",          "🗺",  _t("sidebar.zones")),
-        SidebarItem("equipment",      "⚙",  _t("sidebar.equipment")),
-        SidebarItem("room_equipment", "🔧", _t("sidebar.room_equipment")),
+        SidebarItem("systems",        "⚙",  _t("sidebar.systems")),
         SidebarItem("smoke",          "🔥", _t("sidebar.smoke")),
         SidebarItem("charts",         "📊", _t("sidebar.charts")),
         SidebarItem("extensions",     "⚡", _t("sidebar.extensions")),
@@ -164,16 +160,12 @@ class MainWindow(QMainWindow):
                              ConstructionsPanel(self.project, self.bridge))
         self._register_panel("ventilation",
                              VentilationPanel(self.project, self.bridge))
-        self._register_panel("zones",
-                             ZonesPanel(self.project, self.bridge))
-        self._register_panel("equipment",
-                             EquipmentPanel(self.project, self.bridge))
+        self._register_panel("systems",
+                             SystemsWorkspacePanel(self.project, self.bridge))
         self._register_panel("smoke",
                              SmokePanel(self.project, self.bridge))
         self._register_panel("extensions",
                              ExtensionsPanel(self.project, self.bridge))
-        self._register_panel("room_equipment",
-                             RoomEquipmentPanel(self.project, self.bridge))
         self._register_panel("engineering",
                              EngineeringPanel(self.project, self.bridge))
         self._register_panel("comparison",

@@ -56,7 +56,7 @@ STEPS: List[_Step] = [
         ),
     ),
     _Step(
-        "zones", "checklist.step_zones", "zones",
+        "zones", "checklist.step_zones", "systems",
         lambda p: any(s.system_heating for s in p.spaces),
         lambda p: (
             _t("checklist.zones_hint").format(

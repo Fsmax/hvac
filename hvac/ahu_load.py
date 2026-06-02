@@ -104,6 +104,17 @@ def calculate_ahu_load(ahu: "VentilationSystem",
     L_supply = sum(getattr(sp, "supply_m3h", 0.0) for sp in spaces)
     L_exhaust = sum(getattr(sp, "exhaust_m3h", 0.0) for sp in spaces)
 
+    # Воздушное отопление/охлаждение: если установка обслуживает помещения с
+    # флагом air_heating/air_cooling, температура подачи рассчитывается как
+    # минимально необходимая для перекрытия их нагрузки при подобранном расходе
+    # (огранич. t_supply_air_heating/cooling). Иначе — нейтральная вентиляц.
+    # Плотности считаем заранее и переиспользуем в формулах мощности ниже.
+    from hvac.air_heating import effective_ahu_supply_temps
+    rho_w = air_density(params.t_out_heating)
+    rho_s = air_density(params.t_out_cooling)
+    t_supply_winter, t_supply_summer = effective_ahu_supply_temps(
+        ahu, spaces, rho_w, rho_s)
+
     load = AHULoad(
         system_name=ahu.name,
         n_spaces=len(spaces),
@@ -111,8 +122,8 @@ def calculate_ahu_load(ahu: "VentilationSystem",
         exhaust_m3_h=L_exhaust,
         t_outdoor_winter=params.t_out_heating,
         t_outdoor_summer=params.t_out_cooling,
-        t_supply_winter=ahu.t_supply_winter,
-        t_supply_summer=ahu.t_supply_summer,
+        t_supply_winter=t_supply_winter,
+        t_supply_summer=t_supply_summer,
         t_indoor_avg_winter=_avg_indoor_temperature(spaces, "heat"),
         t_indoor_avg_summer=_avg_indoor_temperature(spaces, "cool"),
         has_recovery=ahu.has_recovery,
@@ -133,9 +144,8 @@ def calculate_ahu_load(ahu: "VentilationSystem",
                + eta_w * (load.t_indoor_avg_winter - params.t_out_heating))
     load.t_after_recovery_winter = t_after
 
-    dt_h = ahu.t_supply_winter - t_after
-    rho_w = air_density(params.t_out_heating)
-    if dt_h > 0:
+    dt_h = t_supply_winter - t_after
+    if dt_h > 0 and getattr(ahu, "has_heater", True):
         load.q_heater_w = 0.28 * L_supply * rho_w * C_AIR_KJ_KG_K * dt_h
 
     # ===== Охладитель (летом) =====
@@ -144,9 +154,9 @@ def calculate_ahu_load(ahu: "VentilationSystem",
                  + eta_s * (load.t_indoor_avg_summer - params.t_out_cooling))
     load.t_after_recovery_summer = t_after_s
 
-    dt_c = t_after_s - ahu.t_supply_summer
-    rho_s = air_density(params.t_out_cooling)
-    if dt_c > 0:
+    has_cooler = getattr(ahu, "has_cooler", True)
+    dt_c = t_after_s - t_supply_summer
+    if dt_c > 0 and has_cooler:
         load.q_cooler_sens_w = 0.28 * L_supply * rho_s * C_AIR_KJ_KG_K * dt_c
 
     # Скрытая нагрузка (осушение): по разнице влагосодержаний на ВХОДЕ в
@@ -157,7 +167,7 @@ def calculate_ahu_load(ahu: "VentilationSystem",
                         - eta_s * (params.w_out_summer_g_kg
                                    - params.w_in_summer_g_kg))
     dw = w_after_recovery - ahu.w_supply_summer
-    if dw > 0:
+    if dw > 0 and has_cooler:
         load.q_cooler_lat_w = 0.83 * L_supply * dw
 
     load.q_cooler_total_w = load.q_cooler_sens_w + load.q_cooler_lat_w

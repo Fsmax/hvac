@@ -47,6 +47,50 @@ COOLING_CIRCUIT_DEFAULTS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Виды вентиляционного оборудования (VentilationSystem.kind)
+# ---------------------------------------------------------------------------
+# "ahu"           — приточная установка (рекуператор, калорифер, охладитель, вентилятор)
+# "supply_fan"    — приточный вентилятор без AHU (вентилятор + опц. калорифер)
+# "exhaust_fan"   — вытяжной вентилятор (только вентилятор, без калориферов)
+# "local_exhaust" — местный отсос / кухонный зонт (вытяжка по hood/exhaust)
+VENTILATION_KINDS = ["ahu", "supply_fan", "exhaust_fan", "local_exhaust"]
+
+# Сторона воздушного потока для подбора вентилятора и расхода.
+VENT_KIND_SIDE = {
+    "ahu": "supply", "supply_fan": "supply",
+    "exhaust_fan": "exhaust", "local_exhaust": "exhaust",
+}
+
+# Типовое расчётное статическое давление вентилятора по виду, Па
+# (если fan_pressure_pa не задано и нет аэродинамического расчёта сети).
+DEFAULT_FAN_PRESSURE_PA = {
+    "ahu": 700.0, "supply_fan": 400.0,
+    "exhaust_fan": 350.0, "local_exhaust": 250.0,
+}
+
+
+def make_ventilation_defaults(kind: str) -> dict:
+    """Разумные дефолты полей VentilationSystem для нового оборудования вида kind.
+
+    Вентиляторы (вытяжной/приточный/местный) — без рекуперации и без
+    «лишних» теплообменников; AHU — полный набор.
+    """
+    if kind == "ahu":
+        return dict(kind="ahu", system_type="supply_exhaust",
+                    has_heater=True, has_cooler=True)
+    if kind == "supply_fan":
+        return dict(kind="supply_fan", system_type="supply",
+                    has_recovery=False, has_heater=False, has_cooler=False)
+    if kind == "exhaust_fan":
+        return dict(kind="exhaust_fan", system_type="exhaust",
+                    has_recovery=False, has_heater=False, has_cooler=False)
+    if kind == "local_exhaust":
+        return dict(kind="local_exhaust", system_type="exhaust",
+                    has_recovery=False, has_heater=False, has_cooler=False)
+    return dict(kind=kind)
+
+
 @dataclass
 class HeatingCircuit:
     """Контур отопления внутри HeatingSystem (ИТП / котельной).
@@ -129,8 +173,15 @@ class DuctZone:
 
 @dataclass
 class VentilationSystem:
-    """Приточная / вытяжная / приточно-вытяжная установка (AHU)."""
+    """Приточная / вытяжная установка или вентилятор.
+
+    `kind` (см. VENTILATION_KINDS) задаёт вид оборудования: полноценная AHU
+    с теплообменниками или просто вентилятор (вытяжной / приточный / местный
+    отсос). От него зависит, считаются ли калорифер/охладитель и с какой
+    стороны (приток/вытяжка) берётся расход для подбора вентилятора.
+    """
     name: str                              # "П1", "ПВ-A", "В1"
+    kind: str = "ahu"                      # см. VENTILATION_KINDS
     system_type: str = "supply_exhaust"    # "supply" / "exhaust" / "supply_exhaust"
 
     # Рекуперация тепла
@@ -142,8 +193,28 @@ class VentilationSystem:
     t_supply_winter: float = 16.0          # обычно 16-18°C
     t_supply_summer: float = 18.0          # обычно 16-18°C
 
+    # ===== Воздушное отопление / охлаждение =====
+    # Предельные температуры подачи в режиме воздушного отопления/охлаждения.
+    # Применяются к помещениям этой установки с флагом air_heating/air_cooling
+    # (см. hvac/air_heating.py). Зимой подача поднимается до t_supply_air_heating
+    # (огранич. ≤45°C по СП 60, чтобы избежать пересушивания и стратификации),
+    # летом опускается до t_supply_air_cooling (≥14-16°C — против сквозняка).
+    t_supply_air_heating: float = 40.0     # макс. подача при возд. отоплении, °C
+    t_supply_air_cooling: float = 16.0     # мин. подача при возд. охлаждении, °C
+
     # Влагосодержание подачи летом (для контроля осушения)
     w_supply_summer: float = 9.3           # г/кг, при 24°C/50% RH
+
+    # Наличие теплообменников (для вентиляторов без AHU — False).
+    has_heater: bool = True                # калорифер на притоке
+    has_cooler: bool = True                # охладитель на притоке
+
+    # ===== Вентилятор =====
+    # Расчётное статическое давление, Па (0 — взять дефолт по kind или из
+    # аэродинамического расчёта сети duct_networks_detailed) и полный КПД
+    # (вентилятор × двигатель × привод). Из них считается мощность мотора и SFP.
+    fan_pressure_pa: float = 0.0
+    fan_efficiency: float = 0.65
 
     # Привязка калорифера/охладителя AHU к контурам ИТП.
     # Используется, чтобы добавить нагрузку AHU в гидравлический расчёт

@@ -54,6 +54,7 @@ if TYPE_CHECKING:
     from hvac.underfloor import UnderfloorLoop
     from hvac.fancoil_catalog import FancoilPick
     from hvac.vrf import VRFSystem
+    from hvac.air_heating import AirRoomLoad
 
 
 # Поля Space, которые сохраняются как user override
@@ -62,6 +63,7 @@ _OVERRIDABLE_FIELDS = [
     "lighting_w_m2", "equipment_w_m2", "ach_inf",
     "is_corner", "has_floor_to_ground", "has_roof", "is_top_floor",
     "floor_over_unheated_n",
+    "air_heating", "air_cooling",
 ]
 
 
@@ -521,7 +523,18 @@ class HVACProject(
             sp.exhaust_m3h = br.get("exhaust_m3h", 0.0)
             sp.hood_m3h = br.get("hood_m3h", 0.0)
             sp.ach_calculated = br.get("ach_calculated", 0.0)
+        # Воздушное отопление/охлаждение: поднимаем расход помеченных помещений
+        # до перекрывающего теплопотери/теплопоступления (max с вентиляцией).
+        from hvac.air_heating import apply_air_heating
+        apply_air_heating(self)
         self.emit("ventilation_done", skipped=skipped)
+
+    def compute_air_heating(self) -> Dict[str, "AirRoomLoad"]:
+        """Подбор расхода приточки по нагрузке для помещений с воздушным
+        отоплением/охлаждением. Возвращает {space_id: AirRoomLoad} (не мутирует;
+        фактическую надбавку расхода ставит calculate_ventilation)."""
+        from hvac.air_heating import compute_air_heating
+        return compute_air_heating(self)
 
     # ---------- Зоны / системы ----------
     def auto_assign_zones(self, mode: str = "by_prefix",

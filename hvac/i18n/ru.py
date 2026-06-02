@@ -30,6 +30,7 @@ RU: Dict[str, str] = {
     "sidebar.constructions": "Конструкции",
     "sidebar.calculation":   "Расчёт нагрузок",
     "sidebar.ventilation":   "Вентиляция",
+    "sidebar.systems":       "Системы и оборудование",
     "sidebar.zones":         "Зоны и системы",
     "sidebar.equipment":     "Оборудование (системы)",
     "sidebar.room_equipment":"Оборудование в помещениях",
@@ -353,6 +354,9 @@ RU: Dict[str, str] = {
     "panel.room_eq.col.qty":       "Кол-во",
     "panel.room_eq.col.diffuser":  "Воздухораспред.",
     "panel.room_eq.col.diff_qty":  "Кол-во",
+    "panel.room_eq.col.heat_circ": "Контур отопл.",
+    "panel.room_eq.col.cool_circ": "Контур холода",
+    "panel.room_eq.col.vent_sys":  "Приточка (AHU)",
     "panel.room_eq.hint":          "💡 Двойной клик — назначить; Ctrl/Shift — выделить несколько для групповых операций (ПКМ).",
     # --- Групповые операции ---
     "panel.room_eq.btn.apply_sel": "Применить к выделенным…",
@@ -384,6 +388,10 @@ RU: Dict[str, str] = {
     "dlg.room_eq.f.flow":          "Расход 1 шт., м³/ч:",
     "dlg.room_eq.f.qty":           "Кол-во, шт.:",
     "dlg.room_eq.f.notes":         "Примечания:",
+    "dlg.room_eq.sec.connect":     "Подключение к системам",
+    "dlg.room_eq.f.heat_circ":     "Контур отопления",
+    "dlg.room_eq.f.cool_circ":     "Контур холода",
+    "dlg.room_eq.f.vent_sys":      "Приточная установка (AHU)",
     "dlg.room_eq.sum_power":       "Σ = {total:.0f} Вт",
     "dlg.room_eq.sum_flow":        "Σ = {total:.0f} м³/ч",
     "dlg.room_eq.coverage":        "  ·  {cov:.0f}% покрытия",
@@ -555,6 +563,8 @@ RU: Dict[str, str] = {
     "panel.props.flag.roof":     "под крышей",
     "panel.props.flag.floor":    "пол по грунту",
     "panel.props.flag.unheated": "пол над неотапл.",
+    "panel.props.flag.air_heat": "возд. отопление",
+    "panel.props.flag.air_cool": "возд. охлаждение",
     "panel.props.results.title": "Результаты расчёта",
     "panel.props.results.not_yet": ("<i>Расчёт ещё не выполнен. "
                                       "Нажмите F5 или «Пересчитать».</i>"),
@@ -692,6 +702,69 @@ RU: Dict[str, str] = {
     "panel.zones.status.undone":         "Отменено: {n}",
     "panel.zones.summary.line":          ("Систем: {systems}  ·  назначено "
                                            "{assigned} из {rooms}"),
+
+    # ----- Единый рабочий стол «Системы и оборудование» -----
+    "panel.sysworkspace.title":      "Системы и оборудование",
+    "panel.sysworkspace.hint":       ("Слева — источники и контуры, справа — "
+                                       "помещения. Назначайте помещения "
+                                       "(кнопки / drag на узел), задавайте "
+                                       "параметры (2× клик по узлу) и приборы "
+                                       "(2× клик по строке). «Посчитать подбор» — "
+                                       "нагрузка AHU, трубы, насосы."),
+    "panel.sysworkspace.tree.name":  "Источник / контур",
+    "panel.sysworkspace.tree.kw":    "кВт",
+    "panel.sysworkspace.rcol.device":"Прибор",
+    "panel.sysworkspace.btn.device": "Прибор…",
+    "panel.sysworkspace.filter_node":"Только выбранный узел",
+    "panel.sysworkspace.summary.none":"Выберите источник или контур слева",
+    "panel.sysworkspace.sum.source": "{name}  ·  требуется {req} кВт  ·  подобрано {pick}",
+    "panel.sysworkspace.sum.circuit":("{name}  ·  нагрузка {load} кВт  ·  DN {dn}  ·  "
+                                       "Δp {dp} кПа  ·  насос {pump}"),
+    "panel.sysworkspace.sum.ahu":    ("{name}  ·  расход {flow} м³/ч  ·  вентилятор {fan}  ·  "
+                                       "калорифер {qh} кВт  ·  охладитель {qc} кВт"),
+    # Воздушное отопление / охлаждение
+    "panel.sysworkspace.rcol.air":   "Возд.",
+    "panel.sysworkspace.air.mark_heat": "О",
+    "panel.sysworkspace.air.mark_cool": "Х",
+    "panel.sysworkspace.air.menu":   "Воздушное отопление / охлаждение",
+    "panel.sysworkspace.air.heat_on":"Включить отопление",
+    "panel.sysworkspace.air.cool_on":"Включить охлаждение",
+    "panel.sysworkspace.air.both_on":"Включить отопление и охлаждение",
+    "panel.sysworkspace.air.off":    "Выключить воздушный режим",
+    "panel.sysworkspace.air.status": "Воздушный режим: изменено {n} помещ.",
+    # Вкладки правой панели + выбор вида оборудования
+    "panel.sysworkspace.tab.rooms":  "Помещения",
+    "panel.sysworkspace.tab.calc":   "Расчёт",
+    "panel.sysworkspace.dlg.kind_title": "Новое оборудование",
+    "panel.sysworkspace.dlg.kind":   "Вид оборудования:",
+    # Детальный расчёт оборудования
+    "panel.detail.none":     "Выберите оборудование или источник слева для детального расчёта",
+    "panel.detail.params":   "Параметры (правка → живой пересчёт)",
+    "panel.detail.f.t_supply_w": "t подачи зима, °C",
+    "panel.detail.f.t_supply_s": "t подачи лето, °C",
+    "panel.detail.f.eta_w":  "КПД рекуп. зима",
+    "panel.detail.f.eta_s":  "КПД рекуп. лето",
+    "panel.detail.f.fan_pressure": "Давление вент., Па (0 — авто)",
+    "panel.detail.f.fan_eff": "КПД вентилятора",
+    "panel.detail.kind.ahu":          "Приточная установка",
+    "panel.detail.kind.supply_fan":   "Приточный вентилятор",
+    "panel.detail.kind.exhaust_fan":  "Вытяжной вентилятор",
+    "panel.detail.kind.local_exhaust":"Местный отсос / зонт",
+    "panel.detail.flows":    "Помещений: {n} · приток {sup} м³/ч · вытяжка {exh} м³/ч",
+    "panel.detail.heater":   "Калорифер (зима)",
+    "panel.detail.cooler":   "Охладитель (лето)",
+    "panel.detail.coil_air": "Воздух: {q} кВт · {tin}→{tout} °C (Δt {dt})",
+    "panel.detail.coil_water": "Вода: {ts}/{tr} °C · Δt {dtw} · G {g} кг/ч ({gm} м³/ч) · DN {dn} · v {v} м/с",
+    "panel.detail.cooler_extra": "явн. {qs} / скр. {ql} кВт · конденсат {cond} кг/ч",
+    "panel.detail.fan_supply":  "Вентилятор (приток)",
+    "panel.detail.fan_exhaust": "Вентилятор (вытяжка)",
+    "panel.detail.fan_line": "{flow} м³/ч · {dp} Па ({src}) · {kw} кВт · SFP {sfp} Вт/(м³/с)",
+    "panel.detail.src.manual":  "ручное",
+    "panel.detail.src.network": "из сети",
+    "panel.detail.src.default": "типовое",
+    "panel.detail.source_head": "Требуется {req} кВт · подбор {unit} кВт ×{n} · нагрузка {q} кВт",
+    "panel.detail.source_circ": "Контур {name}: {q} кВт · {rooms} помещ. · DN {dn} · насос {pump}",
+    "panel.detail.circuit_head": "Нагрузка {q} кВт ({rooms} помещ. + AHU {qa} кВт) · DN {dn} · Δp {dp} кПа · насос {pump}",
 
     # ========== Panel: Constructions ==========
     "panel.constructions.title":          "Конструкции",
