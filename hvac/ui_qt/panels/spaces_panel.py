@@ -97,6 +97,7 @@ class SpacesTableModel(EditableTableModelMixin, QAbstractTableModel):
     # (apply_room_type_defaults меняет температуры, людей, освещение и т.д.)
     # + системы + флаг ручной правки.
     _SNAP_FIELDS = (
+        "number", "name", "level", "area_m2", "volume_m3", "height_m",
         "room_type", "t_in_heat", "t_in_cool", "occupancy_people",
         "lighting_w_m2", "equipment_w_m2", "ach_inf",
         "is_corner", "has_floor_to_ground", "has_roof", "is_top_floor",
@@ -106,16 +107,16 @@ class SpacesTableModel(EditableTableModelMixin, QAbstractTableModel):
     )
 
     COLUMNS: List[Column] = [
-        Column("panel.spaces.col.number",   "number",         80,
+        Column("panel.spaces.col.number",   "number",         80, editable=True,
                align=int(Qt.AlignLeft | Qt.AlignVCenter)),
-        Column("panel.spaces.col.name",     "name",          220,
+        Column("panel.spaces.col.name",     "name",          220, editable=True,
                align=int(Qt.AlignLeft | Qt.AlignVCenter)),
-        Column("panel.spaces.col.level",    "level",         110),
+        Column("panel.spaces.col.level",    "level",         110, editable=True),
         Column("panel.spaces.col.type",     "room_type",     150, editable=True),
-        Column("panel.spaces.col.area",     "area_m2",        80,
+        Column("panel.spaces.col.area",     "area_m2",        80, editable=True,
                fmt=lambda v: _fmt_num(v, 1),
                align=int(Qt.AlignRight | Qt.AlignVCenter)),
-        Column("panel.spaces.col.volume",   "volume_m3",      90,
+        Column("panel.spaces.col.volume",   "volume_m3",      90, editable=True,
                fmt=lambda v: _fmt_num(v, 1),
                align=int(Qt.AlignRight | Qt.AlignVCenter)),
         Column("panel.spaces.col.t_heat",   "t_in_heat",      70, editable=True,
@@ -238,6 +239,31 @@ class SpacesTableModel(EditableTableModelMixin, QAbstractTableModel):
                 sp.t_in_heat = float(raw)
             elif col_def.key == "system_heating":
                 sp.system_heating = str(raw)
+            elif col_def.key in ("number", "name", "level"):
+                # Текстовые поля — идентификация/расположение помещения.
+                # Номер не должен становиться пустым (он используется в
+                # поиске и заголовках), остальное допускаем любым текстом.
+                text = str(raw).strip()
+                if col_def.key == "number" and not text:
+                    return False
+                setattr(sp, col_def.key, text)
+            elif col_def.key == "area_m2":
+                val = float(raw)
+                if val < 0:
+                    return False
+                sp.area_m2 = val
+                # Держим геометрию согласованной: при фиксированной высоте
+                # объём = площадь × высота.
+                if sp.height_m > 0:
+                    sp.volume_m3 = val * sp.height_m
+            elif col_def.key == "volume_m3":
+                val = float(raw)
+                if val < 0:
+                    return False
+                sp.volume_m3 = val
+                # При фиксированной площади пересчитываем высоту.
+                if sp.area_m2 > 0:
+                    sp.height_m = val / sp.area_m2
             else:
                 setattr(sp, col_def.key, raw)
             sp.user_modified = True
@@ -345,6 +371,40 @@ class ComboDelegate(QStyledItemDelegate):
 
     def setModelData(self, editor: QComboBox, model, index):
         model.setData(index, editor.currentText(), Qt.EditRole)
+
+
+class NumberDelegate(QStyledItemDelegate):
+    """Числовой редактор ячейки с заданным диапазоном/точностью.
+
+    Нужен, потому что стандартный редактор Qt для float — QDoubleSpinBox с
+    диапазоном 0…99.99, который «обрезал» бы площади/объёмы.
+    """
+
+    def __init__(self, minimum: float, maximum: float, decimals: int,
+                 suffix: str = "", parent: QWidget | None = None):
+        super().__init__(parent)
+        self._min = minimum
+        self._max = maximum
+        self._dec = decimals
+        self._suffix = suffix
+
+    def createEditor(self, parent, option, index):
+        spin = QDoubleSpinBox(parent)
+        spin.setRange(self._min, self._max)
+        spin.setDecimals(self._dec)
+        if self._suffix:
+            spin.setSuffix(self._suffix)
+        return spin
+
+    def setEditorData(self, editor: QDoubleSpinBox, index: QModelIndex):
+        try:
+            editor.setValue(float(index.model().data(index, Qt.EditRole) or 0.0))
+        except (TypeError, ValueError):
+            editor.setValue(0.0)
+
+    def setModelData(self, editor: QDoubleSpinBox, model, index):
+        editor.interpretText()
+        model.setData(index, editor.value(), Qt.EditRole)
 
 
 # ===========================================================================
@@ -543,6 +603,24 @@ class SpacesPanel(QWidget):
                         if c.key == "system_heating")
         self.table.setItemDelegateForColumn(
             zone_col, ComboDelegate(self._existing_zones, self.table))
+
+        # Этаж — выпадающий список известных этажей (можно ввести новый).
+        level_col = next(i for i, c in enumerate(SpacesTableModel.COLUMNS)
+                         if c.key == "level")
+        self.table.setItemDelegateForColumn(
+            level_col, ComboDelegate(self._known_levels, self.table))
+
+        # Числовые ячейки: площадь / объём / зимняя tв. Свой делегат — иначе
+        # стандартный QDoubleSpinBox Qt обрезал бы значения на 99.99.
+        for key, lo, hi, dec, suf in (
+            ("area_m2",   0.0, 1_000_000.0, 2, " м²"),
+            ("volume_m3", 0.0, 10_000_000.0, 2, " м³"),
+            ("t_in_heat", -50.0, 50.0, 1, " °C"),
+        ):
+            ci = next(i for i, c in enumerate(SpacesTableModel.COLUMNS)
+                      if c.key == key)
+            self.table.setItemDelegateForColumn(
+                ci, NumberDelegate(lo, hi, dec, suf, self.table))
 
         splitter.addWidget(self.table)
 
