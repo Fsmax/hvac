@@ -1007,6 +1007,7 @@ RU: Dict[str, str] = {
     "dlg.smoke.title_new":       "Новая система СДУ/СПВ",
     "dlg.smoke.title_edit":      "Параметры: {name}",
     "dlg.smoke.gb_id":           "Идентификация",
+    "dlg.smoke.err.no_name":     "Введите имя системы — без имени систему нельзя создать.",
     "dlg.smoke.name":            "Имя:",
     "dlg.smoke.type":            "Тип:",
     "dlg.smoke.purpose":         "Назначение:",

@@ -16,9 +16,9 @@ from typing import Any, Dict
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QHBoxLayout, QHeaderView, QInputDialog,
-    QLabel, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget,
+    QAbstractItemView, QComboBox, QDialog, QHBoxLayout, QHeaderView,
+    QInputDialog, QLabel, QMessageBox, QPushButton, QSizePolicy, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from hvac.catalogs.smoke_norms import SMOKE_NORMS, get_smoke_norm
@@ -159,6 +159,12 @@ class SmokePanel(QWidget):
             self.table.setColumnWidth(i, w)
         self.table.doubleClicked.connect(lambda *_: self._edit_selected())
         self._table_card.body().addWidget(self.table)
+        # Card по умолчанию имеет вертикальную политику Maximum (чтобы не
+        # растягиваться в сетке). Здесь карточка с таблицей должна заполнять
+        # всё свободное место — иначе лишняя высота «утекает» в заголовок h1
+        # и над «Параметрами» появляется огромный пустой блок.
+        self._table_card.setSizePolicy(
+            QSizePolicy.Preferred, QSizePolicy.Expanding)
         outer.addWidget(self._table_card, stretch=1)
 
         # ---------- Сигналы ----------
@@ -322,7 +328,7 @@ class SmokePanel(QWidget):
         dlg = SmokeSystemDialog(self, system=tpl,
                                 norm_code=self._current_norm_code(),
                                 is_new=True)
-        if dlg.exec() != dlg.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         sm = dlg.system
         try:
@@ -351,6 +357,10 @@ class SmokePanel(QWidget):
         except ValueError as e:
             QMessageBox.warning(self, _t("panel.smoke.title.err"), str(e))
             return
+        # Обновляем таблицу напрямую, не полагаясь только на сигнал
+        # smokeSystemsChanged: иначе добавленная система может «не
+        # отобразиться» сразу после создания.
+        self._refresh()
         self.bridge.dirtyChanged.emit(True)
         self.bridge.statusMessage.emit(
             _t("panel.smoke.status.created").format(name=new_sm.name), 4000)
@@ -365,7 +375,7 @@ class SmokePanel(QWidget):
         dlg = SmokeSystemDialog(self, system=sm,
                                 norm_code=self._current_norm_code(),
                                 is_new=False)
-        if dlg.exec() != dlg.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         updated = dlg.system
         # Имя не менялось (поле заблокировано). Копируем все поля обратно.
@@ -374,6 +384,7 @@ class SmokePanel(QWidget):
                 continue
             setattr(sm, fld, getattr(updated, fld))
         self.project.emit("smoke_systems_changed")
+        self._refresh()
         self.bridge.dirtyChanged.emit(True)
         self.bridge.statusMessage.emit(
             _t("panel.smoke.status.saved").format(name=name), 3000)
@@ -406,6 +417,7 @@ class SmokePanel(QWidget):
         clone.note = (src.note + _t("panel.smoke.copy_suffix")).strip()
         self.project.smoke_systems[new_name] = clone
         self.project.emit("smoke_systems_changed")
+        self._refresh()
         self.bridge.dirtyChanged.emit(True)
 
     def _delete_selected(self) -> None:
@@ -420,6 +432,7 @@ class SmokePanel(QWidget):
         if ans != QMessageBox.Yes:
             return
         n = self.project.delete_smoke_system(name)
+        self._refresh()
         self.bridge.statusMessage.emit(
             _t("panel.smoke.status.deleted").format(name=name, n=n), 4000)
         self.bridge.dirtyChanged.emit(True)

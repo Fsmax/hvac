@@ -15,7 +15,7 @@ from typing import Optional
 
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFormLayout,
-    QGroupBox, QLabel, QLineEdit, QStackedWidget, QVBoxLayout,
+    QGroupBox, QLabel, QLineEdit, QMessageBox, QStackedWidget, QVBoxLayout,
     QWidget,
 )
 
@@ -396,6 +396,11 @@ class SmokeSystemDialog(QDialog):
     def _on_ok(self) -> None:
         name = self.name_edit.text().strip()
         if not name:
+            # Иначе OK молча ничего не делает и пользователю кажется, что
+            # «добавить не работает». Подсказываем и возвращаем фокус в поле.
+            QMessageBox.warning(self, _t("dlg.smoke.title_new"),
+                                _t("dlg.smoke.err.no_name"))
+            self.name_edit.setFocus()
             return
         sm = self.system
         sm.name = name

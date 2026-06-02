@@ -57,9 +57,61 @@ def _col(key):
 def test_spaces_editable_columns(qapp):
     p = _spaces_project()
     panel = _spaces_panel(p)
-    assert panel.model._EDITABLE_COLS == {_col("room_type"),
+    assert panel.model._EDITABLE_COLS == {_col("number"),
+                                          _col("name"),
+                                          _col("level"),
+                                          _col("area_m2"),
+                                          _col("volume_m3"),
+                                          _col("room_type"),
                                           _col("t_in_heat"),
                                           _col("system_heating")}
+
+
+def test_spaces_text_fields_editable(qapp):
+    """Регрессия: имя/этаж/номер помещения правятся прямо в таблице,
+    правка отменяется, пустой номер отклоняется."""
+    p = _spaces_project()
+    panel = _spaces_panel(p)
+    m = panel.model
+    sp = p.spaces[0]
+    old_number, old_name = sp.number, sp.name
+
+    # Имя правится и отменяется (одиночная правка → один undo).
+    assert m.setData(m.index(0, _col("name")), "ПЕРЕИМЕНОВАНО", Qt.EditRole)
+    assert sp.name == "ПЕРЕИМЕНОВАНО"
+    m.undo()
+    assert sp.name == old_name
+
+    # Этаж правится.
+    assert m.setData(m.index(0, _col("level")), "L42", Qt.EditRole)
+    assert sp.level == "L42"
+
+    # Пустой номер недопустим.
+    assert not m.setData(m.index(0, _col("number")), "   ", Qt.EditRole)
+    assert sp.number == old_number
+
+
+def test_spaces_area_volume_keep_geometry_consistent(qapp):
+    """Площадь/объём правятся в таблице и держат геометрию согласованной:
+    объём = площадь × высота. Отрицательные значения отклоняются."""
+    p = _spaces_project()
+    panel = _spaces_panel(p)
+    m = panel.model
+    sp = p.spaces[0]
+    sp.area_m2, sp.height_m, sp.volume_m3 = 20.0, 3.0, 60.0
+
+    # Правка площади — объём следует за ней (высота фиксирована).
+    assert m.setData(m.index(0, _col("area_m2")), 25.0, Qt.EditRole)
+    assert sp.area_m2 == 25.0
+    assert sp.volume_m3 == 75.0
+
+    # Правка объёма — пересчитывается высота (площадь фиксирована).
+    assert m.setData(m.index(0, _col("volume_m3")), 100.0, Qt.EditRole)
+    assert sp.volume_m3 == 100.0
+    assert sp.height_m == 4.0
+
+    # Отрицательная площадь недопустима.
+    assert not m.setData(m.index(0, _col("area_m2")), -1.0, Qt.EditRole)
 
 
 def test_spaces_room_type_edit_undo_restores_derived(qapp):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor
-from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QMessageBox, QPushButton, QTableWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QComboBox, QDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton, QTableWidget, QVBoxLayout, QWidget
 from hvac.i18n import t as _t
 from hvac.ui_qt.panels.engineering_panel._common import _setup_table, _set_row
 
@@ -208,7 +208,7 @@ class _DuctTab(QWidget):
         dlg = DuctEdgeDialog(self, edge=None,
                               known_edge_ids=list(net.edges.keys()),
                               is_new=True)
-        if dlg.exec() != dlg.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         try:
             net.add_edge(dlg.edge)
@@ -249,7 +249,7 @@ class _DuctTab(QWidget):
             known_edge_ids=[k for k in net.edges.keys() if k != eid],
             is_new=False,
         )
-        if dlg.exec() != dlg.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         # Копируем поля обратно
         for fld in ("parent_id", "flow_m3_h", "length_m", "shape",
