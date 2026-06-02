@@ -189,8 +189,8 @@ class TestHeatGain:
         # Меняем на окно с SHGC=0.6
         project.constructions[project.elements[0].construction_key].shgc = 0.6
         result = engine.heat_gain(sp, project)
-        # SHGC · F · I · ориентация_фактор(N=0.20) = 0.6 · 12 · 600 · 0.20 = 864 Вт
-        assert pytest.approx(result["Солнечная радиация"], rel=0.01) == 864
+        # SHGC · F · I · пик(N=0.20) · CLF(0.75) = 0.6 · 12 · 600 · 0.20 · 0.75 = 648 Вт
+        assert pytest.approx(result["Солнечная радиация"], rel=0.01) == 648
 
 
 class TestProjectIntegration:
