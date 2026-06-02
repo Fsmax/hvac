@@ -1018,6 +1018,7 @@ UZ: Dict[str, str] = {
     "dlg.smoke.title_new":       "Yangi SDU/SPV tizimi",
     "dlg.smoke.title_edit":      "Parametrlar: {name}",
     "dlg.smoke.gb_id":           "Identifikatsiya",
+    "dlg.smoke.err.no_name":     "Tizim nomini kiriting — nomsiz tizim yaratib bo‘lmaydi.",
     "dlg.smoke.name":            "Nomi:",
     "dlg.smoke.type":            "Tur:",
     "dlg.smoke.purpose":         "Vazifasi:",

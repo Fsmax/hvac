@@ -13,7 +13,7 @@ from typing import Dict
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
-    QApplication, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
+    QApplication, QDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
     QStackedWidget, QStatusBar, QVBoxLayout, QWidget,
 )
 
@@ -652,7 +652,7 @@ class MainWindow(QMainWindow):
         from hvac.templates import apply_template
         dlg = TemplateDialog(self, default_city=self.project.params.city
                               or "Ташкент")
-        if dlg.exec() != dlg.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         if dlg.template is None:
             return
