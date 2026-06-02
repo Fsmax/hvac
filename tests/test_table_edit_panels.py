@@ -194,6 +194,31 @@ def test_spaces_bulk_dialog_result(qapp):
     assert val in ("Офис", "Склад")
 
 
+def test_spaces_bulk_dialog_expanded_fields(qapp):
+    """Список полей групповой правки расширен сверх type/t/zone:
+    этаж и физпараметры тоже доступны."""
+    from hvac.ui_qt.panels.spaces_panel import SpacesBulkDialog
+    dlg = SpacesBulkDialog(3, ["Офис"], ["Зона A"], ["L01", "L02"])
+    keys = {dlg.field_combo.itemData(i)
+            for i in range(dlg.field_combo.count())}
+    assert {"room_type", "level", "system_heating", "t_in_heat", "t_in_cool",
+            "occupancy_people", "lighting_w_m2", "equipment_w_m2",
+            "ach_inf"} <= keys
+
+
+def test_spaces_bulk_set_non_column_field_undoable(qapp):
+    """bulk_set_field правит поле без своей колонки (t лето) и отменяется."""
+    p = _spaces_project(4)
+    panel = _spaces_panel(p)
+    for s in p.spaces:
+        s.t_in_cool = 30.0
+    n = panel.model.bulk_set_field([0, 1, 2, 3], "t_in_cool", 26.0)
+    assert n == 4
+    assert all(abs(s.t_in_cool - 26.0) < 1e-9 for s in p.spaces)
+    panel.model.undo()
+    assert all(abs(s.t_in_cool - 30.0) < 1e-9 for s in p.spaces)
+
+
 def test_spaces_fill_down(qapp):
     p = _spaces_project(3)
     panel = _spaces_panel(p)

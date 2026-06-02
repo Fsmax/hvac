@@ -226,50 +226,77 @@ class SpacesTableModel(EditableTableModelMixin, QAbstractTableModel):
         for f, v in snap.items():
             setattr(sp, f, v)
 
+    # Числовые поля помещения, которые можно править массово (групповая
+    # правка), даже если у них нет своей колонки в таблице.
+    _NUMERIC_FIELDS = frozenset({
+        "t_in_heat", "t_in_cool", "occupancy_people",
+        "lighting_w_m2", "equipment_w_m2", "ach_inf",
+    })
+
+    def _write_field(self, sp, key: str, raw) -> bool:
+        """Единая точка записи поля помещения с приведением типа и побочными
+        эффектами. Используется и инлайн-правкой, и групповой. Возвращает
+        False при недопустимом значении (вызывающий откатывает правку)."""
+        if key == "room_type":
+            sp.room_type = str(raw)
+            apply_room_type_defaults(sp)
+        elif key == "system_heating":
+            sp.system_heating = str(raw)
+        elif key in ("number", "name", "level"):
+            # Текстовые поля — идентификация/расположение помещения.
+            # Номер не должен становиться пустым (он используется в поиске
+            # и заголовках), остальное допускаем любым текстом.
+            text = str(raw).strip()
+            if key == "number" and not text:
+                return False
+            setattr(sp, key, text)
+        elif key == "area_m2":
+            val = float(raw)
+            if val < 0:
+                return False
+            sp.area_m2 = val
+            # Держим геометрию согласованной: при фиксированной высоте
+            # объём = площадь × высота.
+            if sp.height_m > 0:
+                sp.volume_m3 = val * sp.height_m
+        elif key == "volume_m3":
+            val = float(raw)
+            if val < 0:
+                return False
+            sp.volume_m3 = val
+            # При фиксированной площади пересчитываем высоту.
+            if sp.area_m2 > 0:
+                sp.height_m = val / sp.area_m2
+        elif key in self._NUMERIC_FIELDS:
+            val = float(raw)
+            if val < 0:
+                return False
+            setattr(sp, key, val)
+        else:
+            setattr(sp, key, raw)
+        sp.user_modified = True
+        return True
+
     def _apply_cell(self, row: int, col: int, raw) -> bool:
-        sp = self.project.spaces[row]
         col_def = self.COLUMNS[col]
         if not col_def.editable:
             return False
         try:
-            if col_def.key == "room_type":
-                sp.room_type = str(raw)
-                apply_room_type_defaults(sp)
-            elif col_def.key == "t_in_heat":
-                sp.t_in_heat = float(raw)
-            elif col_def.key == "system_heating":
-                sp.system_heating = str(raw)
-            elif col_def.key in ("number", "name", "level"):
-                # Текстовые поля — идентификация/расположение помещения.
-                # Номер не должен становиться пустым (он используется в
-                # поиске и заголовках), остальное допускаем любым текстом.
-                text = str(raw).strip()
-                if col_def.key == "number" and not text:
-                    return False
-                setattr(sp, col_def.key, text)
-            elif col_def.key == "area_m2":
-                val = float(raw)
-                if val < 0:
-                    return False
-                sp.area_m2 = val
-                # Держим геометрию согласованной: при фиксированной высоте
-                # объём = площадь × высота.
-                if sp.height_m > 0:
-                    sp.volume_m3 = val * sp.height_m
-            elif col_def.key == "volume_m3":
-                val = float(raw)
-                if val < 0:
-                    return False
-                sp.volume_m3 = val
-                # При фиксированной площади пересчитываем высоту.
-                if sp.area_m2 > 0:
-                    sp.height_m = val / sp.area_m2
-            else:
-                setattr(sp, col_def.key, raw)
-            sp.user_modified = True
+            return self._write_field(self.project.spaces[row], col_def.key, raw)
         except (TypeError, ValueError):
             return False
-        return True
+
+    def bulk_set_field(self, rows: List[int], field_key: str, value) -> int:
+        """Массовая правка одного поля у выбранных помещений (отменяемая).
+        Поле может быть как колонкой таблицы, так и любым числовым/текстовым
+        полем помещения (t лето, люди, освещение и т.д.)."""
+        def mutate(rs):
+            for r in rs:
+                try:
+                    self._write_field(self.project.spaces[r], field_key, value)
+                except (TypeError, ValueError):
+                    pass
+        return self._commit(rows, mutate)
 
     def _cell_edit_value(self, row: int, col: int):
         return getattr(self.project.spaces[row], self.COLUMNS[col].key)
@@ -413,9 +440,26 @@ class NumberDelegate(QStyledItemDelegate):
 
 
 class SpacesBulkDialog(QDialog):
-    """Групповая правка выделенных помещений: тип / зимняя tв / система."""
+    """Групповая правка выделенных помещений.
 
-    def __init__(self, n_selected: int, room_types, zones,
+    Поле выбирается из списка; редактор под него подбирается по «виду»:
+    выпадающий список (тип/этаж/зона) или числовой спин (температуры,
+    люди, освещение, оборудование, инфильтрация)."""
+
+    # (ключ поля, i18n-ключ подписи, вид редактора)
+    _FIELD_SPECS = (
+        ("room_type",        "panel.spaces.col.type",    "combo_type"),
+        ("level",            "panel.spaces.col.level",   "combo_level"),
+        ("system_heating",   "panel.spaces.col.zone",    "combo_zone"),
+        ("t_in_heat",        "panel.spaces.bulk.t_heat", "spin_t"),
+        ("t_in_cool",        "panel.spaces.bulk.t_cool", "spin_t"),
+        ("occupancy_people", "panel.spaces.bulk.occup",  "spin_people"),
+        ("lighting_w_m2",    "panel.spaces.bulk.light",  "spin_wm2"),
+        ("equipment_w_m2",   "panel.spaces.bulk.equip",  "spin_wm2"),
+        ("ach_inf",          "panel.spaces.bulk.inf",    "spin_ach"),
+    )
+
+    def __init__(self, n_selected: int, room_types, zones, levels=(),
                  parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle(_t("panel.spaces.bulk.title"))
@@ -423,28 +467,15 @@ class SpacesBulkDialog(QDialog):
         form = QFormLayout(self)
 
         self.field_combo = QComboBox()
-        self._fields = [
-            ("room_type", _t("panel.spaces.col.type")),
-            ("t_in_heat", _t("panel.spaces.col.t_heat")),
-            ("system_heating", _t("panel.spaces.col.zone")),
-        ]
-        for key, label in self._fields:
-            self.field_combo.addItem(label, key)
-        form.addRow(_t("panel.spaces.bulk.field"), self.field_combo)
-
         self.stack = QStackedWidget()
-        self.type_combo = QComboBox()
-        self.type_combo.addItems(list(room_types))
-        self.t_spin = QDoubleSpinBox()
-        self.t_spin.setRange(-50.0, 50.0)
-        self.t_spin.setDecimals(1)
-        self.t_spin.setValue(20.0)
-        self.t_spin.setSuffix(" °C")
-        self.zone_combo = QComboBox()
-        self.zone_combo.setEditable(True)
-        self.zone_combo.addItems(list(zones))
-        for w in (self.type_combo, self.t_spin, self.zone_combo):
+        # Параллельно _FIELD_SPECS: (вид, виджет) для чтения значения.
+        self._editors: List[tuple] = []
+        for key, label_key, kind in self._FIELD_SPECS:
+            self.field_combo.addItem(_t(label_key), key)
+            w = self._make_editor(kind, room_types, zones, levels)
+            self._editors.append((kind, w))
             self.stack.addWidget(w)
+        form.addRow(_t("panel.spaces.bulk.field"), self.field_combo)
         form.addRow(_t("panel.spaces.bulk.value"), self.stack)
         self.field_combo.currentIndexChanged.connect(self.stack.setCurrentIndex)
 
@@ -459,14 +490,34 @@ class SpacesBulkDialog(QDialog):
         box.rejected.connect(self.reject)
         form.addRow(box)
 
+    @staticmethod
+    def _make_editor(kind: str, room_types, zones, levels) -> QWidget:
+        if kind in ("combo_type", "combo_level", "combo_zone"):
+            c = QComboBox()
+            c.setEditable(True)
+            c.addItems(list({"combo_type": room_types, "combo_level": levels,
+                             "combo_zone": zones}[kind]))
+            return c
+        s = QDoubleSpinBox()
+        if kind == "spin_t":
+            s.setRange(-50.0, 50.0); s.setDecimals(1); s.setSuffix(" °C")
+            s.setValue(20.0)
+        elif kind == "spin_people":
+            s.setRange(0.0, 1000.0); s.setDecimals(1)
+        elif kind == "spin_wm2":
+            s.setRange(0.0, 500.0); s.setDecimals(1); s.setSuffix(" Вт/м²")
+        elif kind == "spin_ach":
+            s.setRange(0.0, 10.0); s.setDecimals(2); s.setSuffix(" 1/ч")
+        return s
+
     def result_value(self):
         """Возвращает (field_key, value)."""
+        idx = self.field_combo.currentIndex()
         key = self.field_combo.currentData()
-        if key == "room_type":
-            return key, self.type_combo.currentText()
-        if key == "t_in_heat":
-            return key, self.t_spin.value()
-        return key, self.zone_combo.currentText()
+        kind, w = self._editors[idx]
+        if kind.startswith("combo"):
+            return key, w.currentText()
+        return key, w.value()
 
 
 # ===========================================================================
@@ -739,13 +790,12 @@ class SpacesPanel(QWidget):
                                     _t("panel.spaces.bulk.no_selection"))
             return
         dlg = SpacesBulkDialog(len(rows), get_all_room_types(),
-                               self._existing_zones(), self)
+                               self._existing_zones(), self._known_levels(),
+                               self)
         if dlg.exec() != QDialog.Accepted:
             return
         field_key, value = dlg.result_value()
-        col = next(i for i, c in enumerate(SpacesTableModel.COLUMNS)
-                   if c.key == field_key)
-        n = self.model.set_cells({(r, col): value for r in rows})
+        n = self.model.bulk_set_field(rows, field_key, value)
         self.bridge.statusMessage.emit(
             _t("panel.spaces.bulk.applied").format(n=n), 4000)
 

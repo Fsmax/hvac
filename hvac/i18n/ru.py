@@ -321,6 +321,12 @@ RU: Dict[str, str] = {
     "panel.spaces.bulk.title":          "Групповая правка помещений",
     "panel.spaces.bulk.field":          "Поле",
     "panel.spaces.bulk.value":          "Значение",
+    "panel.spaces.bulk.t_heat":         "t зима",
+    "panel.spaces.bulk.t_cool":         "t лето",
+    "panel.spaces.bulk.occup":          "Люди, чел.",
+    "panel.spaces.bulk.light":          "Освещение, Вт/м²",
+    "panel.spaces.bulk.equip":          "Оборудование, Вт/м²",
+    "panel.spaces.bulk.inf":            "Инфильтрация, 1/ч",
     "panel.spaces.bulk.hint":           "Будет применено к {n} выделенным помещениям.",
     "panel.spaces.bulk.no_selection":   ("Не выделено ни одного помещения. "
                                           "Выделите строки (Ctrl/Shift) и повторите."),
