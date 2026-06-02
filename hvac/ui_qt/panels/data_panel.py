@@ -234,6 +234,55 @@ class DataPanel(QWidget):
         override.addWidget(self.t_cool_spin)
         override.addStretch(1)
         card.body().addLayout(override)
+
+        # Глобальный поворот True North — крутит ВСЕ ориентации фасадов
+        # сразу (для солнечного расчёта). Заменяет ручную правку «стороны»
+        # по каждому ограждению.
+        self.true_north_spin = QDoubleSpinBox()
+        self.true_north_spin.setRange(-180.0, 180.0)
+        self.true_north_spin.setSingleStep(5.0)
+        self.true_north_spin.setDecimals(0)
+        self.true_north_spin.setSuffix(" °")
+        self.true_north_spin.valueChanged.connect(self._apply_true_north)
+
+        tn_row = QHBoxLayout()
+        self._lbl_true_north = QLabel()
+        self._tr_label(self._lbl_true_north, "panel.data.climate.true_north")
+        tn_row.addWidget(self._lbl_true_north)
+        tn_row.addWidget(self.true_north_spin)
+        tn_row.addStretch(1)
+        self._lbl_true_north_hint = QLabel()
+        self._lbl_true_north_hint.setProperty("role", "hint")
+        self._lbl_true_north_hint.setWordWrap(True)
+        self._tr_label(self._lbl_true_north_hint, "panel.data.climate.true_north_hint")
+        card.body().addSpacing(8)
+        card.body().addLayout(tn_row)
+        card.body().addWidget(self._lbl_true_north_hint)
+
+        # Затенение от солнца (жалюзи / маркизы / козырьки) — глобальный
+        # множитель к теплопоступлениям через остекление. Меньше — меньше
+        # летняя нагрузка.
+        self._shading_specs = (
+            ("panel.data.climate.shade_none",  1.0),
+            ("panel.data.climate.shade_inner", 0.7),
+            ("panel.data.climate.shade_outer", 0.5),
+            ("panel.data.climate.shade_deep",  0.3),
+        )
+        self.shading_combo = QComboBox()
+        for label_key, factor in self._shading_specs:
+            self.shading_combo.addItem(_t(label_key), factor)
+        self.shading_combo.currentIndexChanged.connect(self._apply_shading)
+        # Перевод пунктов при смене языка (порядок фиксирован, фактор в data).
+        self._tr(lambda: [self.shading_combo.setItemText(i, _t(lk))
+                          for i, (lk, _f) in enumerate(self._shading_specs)])
+
+        sh_row = QHBoxLayout()
+        self._lbl_shading = QLabel()
+        self._tr_label(self._lbl_shading, "panel.data.climate.shading")
+        sh_row.addWidget(self._lbl_shading)
+        sh_row.addWidget(self.shading_combo, stretch=1)
+        card.body().addSpacing(8)
+        card.body().addLayout(sh_row)
         return card
 
     def _build_sources_card(self) -> Card:
@@ -360,10 +409,23 @@ class DataPanel(QWidget):
 
         # Spinboxes — без сигналов чтобы не зациклить
         for spin, val in ((self.t_heat_spin, p.t_out_heating),
-                          (self.t_cool_spin, p.t_out_cooling)):
+                          (self.t_cool_spin, p.t_out_cooling),
+                          (self.true_north_spin,
+                           getattr(p, "true_north_offset_deg", 0.0) or 0.0)):
             spin.blockSignals(True)
             spin.setValue(float(val))
             spin.blockSignals(False)
+
+        # Затенение — выбираем пресет по фактору; нестандартное значение
+        # (старый JSON) показываем ближайшим пресетом, не трогая параметр.
+        factor = getattr(p, "solar_shading_factor", 1.0) or 1.0
+        idx = self.shading_combo.findData(factor)
+        if idx < 0:
+            idx = min(range(self.shading_combo.count()),
+                      key=lambda i: abs(self.shading_combo.itemData(i) - factor))
+        self.shading_combo.blockSignals(True)
+        self.shading_combo.setCurrentIndex(idx)
+        self.shading_combo.blockSignals(False)
 
         # Источники
         self._spaces_path = self.project.spaces_csv_path or ""
@@ -440,6 +502,25 @@ class DataPanel(QWidget):
         self.project.params.t_out_cooling = float(value)
         self.lbl_t_cool.setText(f"{value:+.1f}")
         self.bridge.dirtyChanged.emit(True)
+
+    def _apply_true_north(self, value: float) -> None:
+        # Глобальный поворот: применяется ко всем ориентациям фасадов при
+        # расчёте солнца. Сами el.orientation не трогаем — это calc-time
+        # преобразование (см. engine/sp50 effective_orientation_sector).
+        self.project.params.true_north_offset_deg = float(value)
+        self.bridge.dirtyChanged.emit(True)
+        self.bridge.statusMessage.emit(
+            _t("panel.data.status.true_north").format(deg=value), 3000)
+
+    def _apply_shading(self, _idx: int) -> None:
+        factor = self.shading_combo.currentData()
+        if factor is None:
+            return
+        self.project.params.solar_shading_factor = float(factor)
+        self.bridge.dirtyChanged.emit(True)
+        self.bridge.statusMessage.emit(
+            _t("panel.data.status.shading").format(
+                pct=round((1.0 - float(factor)) * 100)), 3000)
 
     def _pick_spaces(self) -> None:
         start = str(Path(self._spaces_path).parent) if self._spaces_path else ""
