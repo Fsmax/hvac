@@ -104,6 +104,152 @@ class SpaceDialog(QDialog):
         )
 
 
+@dataclass
+class SpaceEditResult:
+    number: str
+    name: str
+    level: str
+    room_type: str
+    area_m2: float
+    height_m: float
+    volume_m3: float
+    t_in_heat: float
+    t_in_cool: float
+
+
+class SpaceEditDialog(QDialog):
+    """Полное окно изменения одного помещения: идентификация, геометрия и
+    расчётные температуры в одном месте.
+
+    Площадь / высота / объём держатся согласованными (объём = площадь ×
+    высота): правка площади или высоты пересчитывает объём, правка объёма —
+    высоту. Защита от рекурсии сигналов — флаг self._syncing.
+    """
+
+    def __init__(self,
+                 parent: Optional[QWidget] = None,
+                 initial: Optional[SpaceEditResult] = None,
+                 known_levels: Optional[List[str]] = None):
+        super().__init__(parent)
+        self.setWindowTitle(_t("dlg.space.title_edit"))
+        self.setMinimumWidth(440)
+        self._syncing = False
+
+        form = QFormLayout(self)
+
+        self.number_edit = QLineEdit()
+        self.number_edit.setPlaceholderText(_t("dlg.space.number_ph"))
+        form.addRow(_t("dlg.space.number"), self.number_edit)
+
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText(_t("dlg.space.name_ph"))
+        form.addRow(_t("dlg.space.name"), self.name_edit)
+
+        self.level_combo = QComboBox()
+        self.level_combo.setEditable(True)
+        for lvl in (known_levels or []):
+            self.level_combo.addItem(lvl)
+        form.addRow(_t("dlg.space.level"), self.level_combo)
+
+        self.type_combo = QComboBox()
+        self.type_combo.setEditable(True)
+        self.type_combo.addItems(get_all_room_types())
+        form.addRow(_t("dlg.space.type"), self.type_combo)
+
+        self.area_spin = QDoubleSpinBox()
+        self.area_spin.setRange(0.1, 1_000_000.0)
+        self.area_spin.setDecimals(2)
+        self.area_spin.setSuffix(" м²")
+        form.addRow(_t("dlg.space.area"), self.area_spin)
+
+        self.height_spin = QDoubleSpinBox()
+        self.height_spin.setRange(0.1, 100.0)
+        self.height_spin.setDecimals(2)
+        self.height_spin.setSuffix(" м")
+        form.addRow(_t("dlg.space.height"), self.height_spin)
+
+        self.volume_spin = QDoubleSpinBox()
+        self.volume_spin.setRange(0.1, 10_000_000.0)
+        self.volume_spin.setDecimals(2)
+        self.volume_spin.setSuffix(" м³")
+        form.addRow(_t("dlg.space.volume"), self.volume_spin)
+
+        geom_hint = QLabel(_t("dlg.space.geom_hint"))
+        geom_hint.setProperty("role", "muted")
+        geom_hint.setWordWrap(True)
+        form.addRow("", geom_hint)
+
+        self.t_heat_spin = QDoubleSpinBox()
+        self.t_heat_spin.setRange(-50.0, 50.0)
+        self.t_heat_spin.setDecimals(1)
+        self.t_heat_spin.setSuffix(" °C")
+        form.addRow(_t("dlg.space.t_heat"), self.t_heat_spin)
+
+        self.t_cool_spin = QDoubleSpinBox()
+        self.t_cool_spin.setRange(-50.0, 50.0)
+        self.t_cool_spin.setDecimals(1)
+        self.t_cool_spin.setSuffix(" °C")
+        form.addRow(_t("dlg.space.t_cool"), self.t_cool_spin)
+
+        # Префилл до подключения сигналов, чтобы сохранить исходный объём,
+        # даже если он не равен площадь × высота (импорт из Revit и т.п.).
+        if initial:
+            self.number_edit.setText(initial.number)
+            self.name_edit.setText(initial.name)
+            self.level_combo.setCurrentText(initial.level)
+            self.type_combo.setCurrentText(initial.room_type)
+            self.area_spin.setValue(max(0.1, initial.area_m2))
+            self.height_spin.setValue(max(0.1, initial.height_m or 3.0))
+            self.volume_spin.setValue(max(0.1, initial.volume_m3))
+            self.t_heat_spin.setValue(initial.t_in_heat)
+            self.t_cool_spin.setValue(initial.t_in_cool)
+
+        self.area_spin.valueChanged.connect(self._recompute_volume)
+        self.height_spin.valueChanged.connect(self._recompute_volume)
+        self.volume_spin.valueChanged.connect(self._recompute_height)
+
+        box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        box.accepted.connect(self.accept)
+        box.rejected.connect(self.reject)
+        form.addRow(box)
+
+    def _recompute_volume(self) -> None:
+        if self._syncing:
+            return
+        self._syncing = True
+        try:
+            self.volume_spin.setValue(
+                self.area_spin.value() * self.height_spin.value())
+        finally:
+            self._syncing = False
+
+    def _recompute_height(self) -> None:
+        if self._syncing:
+            return
+        area = self.area_spin.value()
+        if area <= 0:
+            return
+        self._syncing = True
+        try:
+            self.height_spin.setValue(self.volume_spin.value() / area)
+        finally:
+            self._syncing = False
+
+    def result_value(self) -> SpaceEditResult:
+        return SpaceEditResult(
+            number=self.number_edit.text().strip(),
+            name=self.name_edit.text().strip(),
+            level=self.level_combo.currentText().strip(),
+            room_type=(self.type_combo.currentText().strip()
+                       or _t("dlg.space.default_type")),
+            area_m2=float(self.area_spin.value()),
+            height_m=float(self.height_spin.value()),
+            volume_m3=float(self.volume_spin.value()),
+            t_in_heat=float(self.t_heat_spin.value()),
+            t_in_cool=float(self.t_cool_spin.value()),
+        )
+
+
 # ===========================================================================
 # Массовый шаблон жилого дома
 # ===========================================================================

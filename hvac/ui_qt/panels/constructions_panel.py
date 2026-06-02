@@ -34,6 +34,9 @@ from hvac.i18n import on_language_change, t as _t
 from hvac.models import Construction
 from hvac.project import HVACProject
 from hvac.ui_qt.bridge import ProjectBridge
+from hvac.ui_qt.widgets.construction_dialog import (
+    ConstructionDialog, ConstructionFormResult,
+)
 from hvac.ui_qt.widgets.layers_editor import LayersEditor
 from hvac.ui_qt.widgets.table_edit import (
     EditableTableModelMixin, TableEditBinder,
@@ -413,6 +416,9 @@ class ConstructionsPanel(QWidget):
 
         self._buttons: List[tuple[QPushButton, str]] = []
         for key, slot in [
+            ("panel.constructions.btn_add",     self._add_construction),
+            ("panel.constructions.btn_edit",    self._edit_construction),
+            ("panel.constructions.btn_delete",  self._delete_construction),
             ("panel.constructions.btn_preset",  self._apply_preset),
             ("panel.constructions.btn_bulk_u",  self._bulk_edit_u),
             ("panel.constructions.btn_layers",  self._edit_layers),
@@ -559,6 +565,93 @@ class ConstructionsPanel(QWidget):
         col = idx.column()
         if col == ConstructionsModel.COL_R:
             self._edit_layers()
+        elif col in (ConstructionsModel.COL_CATEGORY,
+                     ConstructionsModel.COL_FAMILY,
+                     ConstructionsModel.COL_TYPE,
+                     ConstructionsModel.COL_TH):
+            # Эти колонки не правятся в ячейке — открываем окно изменения.
+            self._edit_construction()
+
+    def _add_construction(self) -> None:
+        rows = self._selected_source_rows()
+        default_cat = (self.model.construction_at(rows[0]).category
+                       if rows else "Стены")
+        dlg = ConstructionDialog(
+            self, initial=ConstructionFormResult(
+                category=default_cat, family="", type_name="",
+                thickness_mm=0.0, u_value=0.0, shgc=0.0, note=""),
+            is_new=True)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        v = dlg.result_value()
+        try:
+            c = self.project.create_construction(
+                category=v.category, family=v.family, type_name=v.type_name,
+                thickness_mm=v.thickness_mm, u_value=v.u_value,
+                shgc=v.shgc, note=v.note)
+        except ValueError as e:
+            QMessageBox.warning(
+                self, _t("panel.constructions.title.add"), str(e))
+            return
+        self.bridge.dirtyChanged.emit(True)
+        self.bridge.statusMessage.emit(
+            _t("panel.constructions.status.created").format(key=c.key), 4000)
+
+    def _edit_construction(self) -> None:
+        rows = self._selected_source_rows()
+        if len(rows) != 1:
+            QMessageBox.information(
+                self, _t("panel.constructions.title.edit"),
+                _t("panel.constructions.msg.edit_pick"))
+            return
+        c = self.model.construction_at(rows[0])
+        old_key = c.key
+        dlg = ConstructionDialog(
+            self, initial=ConstructionFormResult(
+                category=c.category, family=c.family, type_name=c.type_name,
+                thickness_mm=c.thickness_mm, u_value=c.u_value,
+                shgc=c.shgc, note=c.note),
+            is_new=False)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        v = dlg.result_value()
+        try:
+            self.project.update_construction(
+                old_key, category=v.category, family=v.family,
+                type_name=v.type_name, thickness_mm=v.thickness_mm,
+                u_value=v.u_value, shgc=v.shgc, note=v.note)
+        except ValueError as e:
+            QMessageBox.warning(
+                self, _t("panel.constructions.title.edit"), str(e))
+            return
+        self.project.apply_constructions()   # U → элементы
+        self.bridge.dirtyChanged.emit(True)
+        self.bridge.statusMessage.emit(
+            _t("panel.constructions.status.updated").format(key=v.category),
+            4000)
+
+    def _delete_construction(self) -> None:
+        rows = self._selected_source_rows()
+        if len(rows) != 1:
+            QMessageBox.information(
+                self, _t("panel.constructions.title.delete"),
+                _t("panel.constructions.msg.delete_pick"))
+            return
+        c = self.model.construction_at(rows[0])
+        usage = self.project.construction_usage().get(c.key, {})
+        n_used = usage.get("n_elements", 0)
+        ans = QMessageBox.question(
+            self, _t("panel.constructions.title.delete"),
+            _t("panel.constructions.msg.delete_ask").format(
+                key=c.key, n=n_used),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if ans != QMessageBox.Yes:
+            return
+        n = self.project.delete_construction(c.key)
+        self.bridge.dirtyChanged.emit(True)
+        self.bridge.statusMessage.emit(
+            _t("panel.constructions.status.deleted").format(key=c.key, n=n),
+            4000)
 
     def _edit_layers(self) -> None:
         rows = self._selected_source_rows()

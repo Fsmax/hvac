@@ -114,6 +114,51 @@ def test_spaces_area_volume_keep_geometry_consistent(qapp):
     assert not m.setData(m.index(0, _col("area_m2")), -1.0, Qt.EditRole)
 
 
+def test_space_edit_dialog_applies_and_keeps_geometry(qapp, monkeypatch):
+    """Окно «Изменить…» правит помещение целиком и держит геометрию
+    согласованной; пустой номер отклоняется (исходный сохраняется)."""
+    from PySide6.QtWidgets import QMessageBox
+    from hvac.ui_qt.panels import spaces_panel as spx
+
+    # Модальные предупреждения не должны блокировать headless-тест.
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: None))
+    monkeypatch.setattr(QMessageBox, "information",
+                        staticmethod(lambda *a, **k: None))
+
+    p = _spaces_project()
+    panel = _spaces_panel(p)
+    panel.table.setCurrentIndex(panel.proxy.index(0, 0))
+    sp = panel._selected_space()
+    sp.area_m2, sp.height_m, sp.volume_m3, sp.t_in_heat = 20.0, 3.0, 60.0, 24.0
+
+    def _accept(self):
+        self.name_edit.setText("ПЕРЕИМЕНОВАНО")
+        self.level_combo.setCurrentText("L07")
+        self.area_spin.setValue(30.0)        # высота фиксирована -> объём 90
+        self.t_heat_spin.setValue(21.0)
+        self.accept()
+        return self.result()
+
+    monkeypatch.setattr(spx.SpaceEditDialog, "exec", _accept)
+    panel._on_edit()
+    assert sp.name == "ПЕРЕИМЕНОВАНО"
+    assert sp.level == "L07"
+    assert sp.area_m2 == 30.0
+    assert sp.height_m == 3.0
+    assert sp.volume_m3 == 90.0
+    assert sp.t_in_heat == 21.0
+    assert sp.user_modified is True
+
+    # Пустой номер -> правка отклоняется, номер не меняется.
+    old_number = sp.number
+    monkeypatch.setattr(
+        spx.SpaceEditDialog, "exec",
+        lambda self: (self.number_edit.setText("   "),
+                      self.accept(), self.result())[-1])
+    panel._on_edit()
+    assert sp.number == old_number
+
+
 def test_spaces_room_type_edit_undo_restores_derived(qapp):
     p = _spaces_project()
     panel = _spaces_panel(p)

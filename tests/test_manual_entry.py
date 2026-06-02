@@ -94,6 +94,71 @@ class TestSpaceCRUD:
         assert not (original_ids & copy_ids)
 
 
+# ===== Construction CRUD =====
+class TestConstructionCRUD:
+    def test_create_construction_adds_to_catalog(self):
+        p = _fresh_project()
+        n0 = len(p.constructions)
+        c = p.create_construction(category="Стены", family="Кирпич",
+                                  type_name="К1", thickness_mm=250,
+                                  u_value=0.3)
+        assert c.key in p.constructions
+        assert len(p.constructions) == n0 + 1
+        assert c.u_value == 0.3
+
+    def test_create_construction_duplicate_raises(self):
+        p = _fresh_project()
+        p.create_construction(category="Стены", family="Кирпич",
+                              type_name="К1", thickness_mm=250)
+        with pytest.raises(ValueError):
+            p.create_construction(category="Стены", family="Кирпич",
+                                  type_name="К1", thickness_mm=250)
+
+    def test_create_construction_requires_family_or_type(self):
+        p = _fresh_project()
+        with pytest.raises(ValueError):
+            p.create_construction(category="Стены")
+
+    def test_update_construction_rekeys_and_migrates_elements(self):
+        p = _fresh_project()
+        sp = p.add_space("101", "Жилая", "1", 20.0)
+        el = p.add_element(sp.space_id, "external_wall", "Стены",
+                           "Базовая", "Стена", area_m2=15, thickness_mm=200)
+        old_key = el.construction_key
+        assert old_key in p.constructions
+        c = p.constructions[old_key]
+        # Меняем толщину — ключ пересобирается, элемент должен переехать.
+        p.update_construction(old_key, category=c.category, family=c.family,
+                              type_name=c.type_name, thickness_mm=300,
+                              u_value=0.25, shgc=c.shgc, note="ред")
+        assert old_key not in p.constructions
+        assert el.construction_key == c.key
+        assert c.key in p.constructions
+        assert p.constructions[c.key].u_value == 0.25
+
+    def test_update_construction_key_collision_raises(self):
+        p = _fresh_project()
+        a = p.create_construction(category="Стены", family="A",
+                                  type_name="T", thickness_mm=100)
+        p.create_construction(category="Стены", family="B",
+                              type_name="T", thickness_mm=100)
+        # Переименование A в B даст уже занятый ключ.
+        with pytest.raises(ValueError):
+            p.update_construction(a.key, category="Стены", family="B",
+                                  type_name="T", thickness_mm=100,
+                                  u_value=a.u_value, shgc=a.shgc)
+
+    def test_delete_construction_returns_affected_elements(self):
+        p = _fresh_project()
+        sp = p.add_space("101", "Жилая", "1", 20.0)
+        el = p.add_element(sp.space_id, "external_wall", "Стены",
+                           "Базовая", "Стена", area_m2=15, thickness_mm=200)
+        key = el.construction_key
+        n = p.delete_construction(key)
+        assert key not in p.constructions
+        assert n == 1
+
+
 # ===== Шаблон =====
 class TestBuildingTemplate:
     def test_creates_n_floors_x_m_apts_x_k_rooms(self):
