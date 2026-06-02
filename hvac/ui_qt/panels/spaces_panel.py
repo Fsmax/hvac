@@ -31,7 +31,7 @@ from hvac.ui_qt.panels.boundaries_panel import BoundariesPanel
 from hvac.ui_qt.panels.properties_panel import PropertiesPanel
 from hvac.ui_qt.theme import tokens
 from hvac.ui_qt.widgets.space_dialog import (
-    BuildingTemplateDialog, SpaceDialog,
+    BuildingTemplateDialog, SpaceDialog, SpaceEditDialog, SpaceEditResult,
 )
 from hvac.ui_qt.widgets.table_edit import (
     EditableTableModelMixin, TableEditBinder,
@@ -542,6 +542,10 @@ class SpacesPanel(QWidget):
         self.b_add.clicked.connect(self._on_add)
         toolbar.addWidget(self.b_add)
 
+        self.b_edit = QPushButton(_t("btn.edit_space"))
+        self.b_edit.clicked.connect(self._on_edit)
+        toolbar.addWidget(self.b_edit)
+
         self.b_del = QPushButton(_t("btn.delete"))
         self.b_del.clicked.connect(self._on_delete)
         toolbar.addWidget(self.b_del)
@@ -835,6 +839,52 @@ class SpacesPanel(QWidget):
                 self.table.setCurrentIndex(self.proxy.mapFromSource(src_idx))
                 break
 
+    def _on_edit(self) -> None:
+        sp = self._selected_space()
+        if sp is None:
+            QMessageBox.information(self, _t("dlg.space.title_edit"),
+                                    _t("panel.spaces.bulk.no_selection"))
+            return
+        height = sp.height_m
+        if height <= 0 and sp.area_m2 > 0 and sp.volume_m3 > 0:
+            height = sp.volume_m3 / sp.area_m2
+        initial = SpaceEditResult(
+            number=sp.number, name=sp.name, level=sp.level,
+            room_type=sp.room_type, area_m2=sp.area_m2, height_m=height,
+            volume_m3=sp.volume_m3, t_in_heat=float(sp.t_in_heat),
+            t_in_cool=float(sp.t_in_cool))
+        dlg = SpaceEditDialog(self, initial=initial,
+                              known_levels=self._known_levels())
+        if dlg.exec() != QDialog.Accepted:
+            return
+        v = dlg.result_value()
+        if not v.number:
+            QMessageBox.warning(self, _t("panel.spaces.dlg.no_number.title"),
+                                _t("panel.spaces.dlg.no_number.body"))
+            return
+        sp.number = v.number
+        sp.name = v.name
+        sp.level = v.level
+        sp.room_type = v.room_type
+        sp.area_m2 = v.area_m2
+        sp.height_m = v.height_m
+        sp.volume_m3 = v.volume_m3
+        sp.t_in_heat = v.t_in_heat
+        sp.t_in_cool = v.t_in_cool
+        sp.user_modified = True
+        self.bridge.dirtyChanged.emit(True)
+        # Точечно перерисовываем строку (не сбрасывая историю inline-правок),
+        # обновляем фильтры (этаж/№ могли измениться) и панель свойств.
+        try:
+            row = self.project.spaces.index(sp)
+            top = self.model.index(row, 0)
+            bot = self.model.index(row, self.model.columnCount() - 1)
+            self.model.dataChanged.emit(top, bot)
+        except ValueError:
+            self.model._full_reset()
+        self._refresh_filter_options()
+        self.props.show_space(sp)
+
     def _on_delete(self) -> None:
         sp = self._selected_space()
         if sp is None:
@@ -920,6 +970,7 @@ class SpacesPanel(QWidget):
         self._type_filter_lbl.setText(_t("panel.spaces.filter.type"))
         self._zone_filter_lbl.setText(_t("panel.spaces.filter.zone"))
         self.b_add.setText(_t("btn.add_space"))
+        self.b_edit.setText(_t("btn.edit_space"))
         self.b_del.setText(_t("btn.delete"))
         self.b_dup.setText(_t("btn.duplicate"))
         self.b_import.setText(_t("btn.import"))

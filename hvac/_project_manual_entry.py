@@ -9,7 +9,9 @@ from __future__ import annotations
 from typing import List, Optional
 
 from hvac.models import Space, BoundaryElement, Construction
-from hvac.catalogs.constructions import construction_key, normalize_category
+from hvac.catalogs.constructions import (
+    DEFAULT_U_BY_CATEGORY, construction_key, normalize_category,
+)
 from hvac.catalogs.room_types import apply_room_type_defaults
 
 
@@ -202,6 +204,90 @@ class ManualEntryMixin:
                 self.emit("elements_changed")
                 return True
         return False
+
+    # ---------- Конструкции (каталог) ----------
+    def create_construction(self, category: str, family: str = "",
+                            type_name: str = "", thickness_mm: float = 0.0,
+                            u_value: float = 0.0, shgc: float = 0.0,
+                            note: str = "") -> Construction:
+        """Создаёт новую конструкцию в каталоге вручную.
+
+        Ключ формируется из категории/семейства/типа/толщины. Если такой
+        ключ уже есть — поднимает ValueError. Категория обязательна, плюс
+        нужно хотя бы семейство или тип (иначе ключ вырожденный).
+        """
+        category = (category or "").strip()
+        family = (family or "").strip()
+        type_name = (type_name or "").strip()
+        if not category:
+            raise ValueError("Категория обязательна")
+        if not family and not type_name:
+            raise ValueError("Укажите семейство или тип конструкции")
+        cat = normalize_category(category, family, type_name)
+        key = construction_key(cat, family, type_name, thickness_mm)
+        if key in self.constructions:
+            raise ValueError(f"Конструкция '{key}' уже существует")
+        c = Construction(
+            key=key, category=cat, family=family, type_name=type_name,
+            thickness_mm=thickness_mm,
+            u_value=u_value or DEFAULT_U_BY_CATEGORY.get(cat, 0.5),
+            shgc=shgc, note=note or "Создано вручную",
+        )
+        self.constructions[key] = c
+        self.emit("constructions_changed")
+        return c
+
+    def update_construction(self, old_key: str, *, category: str, family: str,
+                            type_name: str, thickness_mm: float,
+                            u_value: float, shgc: float,
+                            note: str = "") -> Construction:
+        """Изменяет конструкцию. При смене идентификации (категория/семейство/
+        тип/толщина) пересобирает ключ и переносит ссылки у элементов.
+
+        Поднимает ValueError, если ключ занят другой конструкцией.
+        """
+        c = self.constructions.get(old_key)
+        if c is None:
+            raise ValueError(f"Конструкция '{old_key}' не найдена")
+        category = (category or "").strip()
+        family = (family or "").strip()
+        type_name = (type_name or "").strip()
+        if not category:
+            raise ValueError("Категория обязательна")
+        if not family and not type_name:
+            raise ValueError("Укажите семейство или тип конструкции")
+        cat = normalize_category(category, family, type_name)
+        new_key = construction_key(cat, family, type_name, thickness_mm)
+        if new_key != old_key and new_key in self.constructions:
+            raise ValueError(f"Конструкция '{new_key}' уже существует")
+
+        c.category = cat
+        c.family = family
+        c.type_name = type_name
+        c.thickness_mm = thickness_mm
+        c.u_value = u_value
+        c.shgc = shgc
+        c.note = note
+        if new_key != old_key:
+            c.key = new_key
+            del self.constructions[old_key]
+            self.constructions[new_key] = c
+            # Переносим ссылки элементов на новый ключ.
+            for el in self.elements:
+                if el.construction_key == old_key:
+                    el.construction_key = new_key
+        self.emit("constructions_changed")
+        return c
+
+    def delete_construction(self, key: str) -> int:
+        """Удаляет конструкцию из каталога. Возвращает число элементов,
+        которые на неё ссылались (становятся «осиротевшими» до пересчёта)."""
+        if key not in self.constructions:
+            return 0
+        n = sum(1 for el in self.elements if el.construction_key == key)
+        del self.constructions[key]
+        self.emit("constructions_changed")
+        return n
 
     def get_room_elements(self, space_id: str) -> list:
         """Возвращает все граничные элементы помещения."""
