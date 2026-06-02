@@ -241,7 +241,7 @@ def test_copy_selection_to_tsv(qapp):
     panel.table.selectAll()
     tsv = selection_to_tsv(panel.table)
     assert len(tsv.splitlines()) == 3
-    assert tsv.splitlines()[0].count("\t") == 9  # 10 колонок
+    assert tsv.splitlines()[0].count("\t") == 10  # 11 колонок (+ «Возд.»)
 
 
 def test_paste_block_into_flows(qapp):

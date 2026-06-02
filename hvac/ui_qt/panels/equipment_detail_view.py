@@ -1,21 +1,23 @@
 # -*- coding: utf-8 -*-
-"""EquipmentDetailView — детальный расчёт выбранного оборудования/источника.
+"""EquipmentDetailView — полная карточка оборудования/источника (просмотр+правка).
 
-Встраивается в правую панель «Системы» как вкладка «Расчёт». Показывает:
-- для вентиляции (AHU / вытяжной / приточный / местный отсос) — редактируемые
-  параметры (температуры подачи, КПД рекуператора, давление и КПД вентилятора)
-  с ЖИВЫМ пересчётом калорифера/охладителя (воздух + вода) и вентилятора;
-- для источников тепла/холода и контуров — детальную сводку нагрузки/подбора.
+Используется панелью «Оборудование»: выбрал установку слева — справа полная
+информация и редактируемые параметры с ЖИВЫМ пересчётом.
 
-Физику считают ядра `hvac.equipment_detail` и `hvac.equipment_sizing`; здесь
-только редактирование параметров и отрисовка.
+- Вентиляция (AHU / вытяжной / приточный / местный отсос): температуры подачи,
+  КПД рекуператора, давление и КПД вентилятора → калорифер/охладитель (воздух +
+  вода) и вентилятор.
+- Источник тепла/холода (котёл / чиллер): график, КПД/COP, ручной подбор
+  мощности → требуемая мощность, подобранные агрегаты, контуры, помещения.
+
+Физику считают ядра `hvac.equipment_detail` и `hvac.equipment_sizing`.
 """
 from __future__ import annotations
 
 from typing import Optional
 
 from PySide6.QtWidgets import (
-    QFormLayout, QGroupBox, QLabel, QTextBrowser, QVBoxLayout, QWidget,
+    QFormLayout, QGroupBox, QLabel, QSpinBox, QTextBrowser, QVBoxLayout, QWidget,
 )
 
 from hvac.equipment import VENT_KIND_SIDE
@@ -36,6 +38,8 @@ class EquipmentDetailView(QWidget):
         self._on_changed = on_changed       # колбэк: обновить дерево/сводку
         self._loading = False
         self._vname: Optional[str] = None   # имя редактируемой вентсистемы
+        self._sname: Optional[str] = None   # имя источника тепла/холода
+        self._sdomain: Optional[str] = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -46,16 +50,16 @@ class EquipmentDetailView(QWidget):
         self.header.setWordWrap(True)
         outer.addWidget(self.header)
 
-        # ---- редактируемые параметры вентиляции ----
+        # ---- параметры вентиляции ----
         self.params_box = QGroupBox(_t("panel.detail.params"))
-        form = QFormLayout(self.params_box)
+        vform = QFormLayout(self.params_box)
         self.t_in_w = _spin(20.0, 5, 60, 1)
         self.t_in_s = _spin(16.0, 5, 40, 1)
         self.eta_w = _spin(0.0, 0.0, 0.95, 0.05, 2)
         self.eta_s = _spin(0.0, 0.0, 0.95, 0.05, 2)
         self.fan_dp = _spin(0.0, 0, 5000, 50, 0)
         self.fan_eff = _spin(0.65, 0.3, 0.9, 0.05, 2)
-        self._rows = [
+        self._vrows = [
             ("panel.detail.f.t_supply_w", self.t_in_w),
             ("panel.detail.f.t_supply_s", self.t_in_s),
             ("panel.detail.f.eta_w", self.eta_w),
@@ -63,13 +67,33 @@ class EquipmentDetailView(QWidget):
             ("panel.detail.f.fan_pressure", self.fan_dp),
             ("panel.detail.f.fan_eff", self.fan_eff),
         ]
-        self._row_labels = {}
-        for key, w in self._rows:
+        self._vlabels = {}
+        for key, w in self._vrows:
             lbl = QLabel(_t(key))
-            self._row_labels[key] = lbl
-            form.addRow(lbl, w)
+            self._vlabels[key] = lbl
+            vform.addRow(lbl, w)
             w.valueChanged.connect(self._on_param_changed)
         outer.addWidget(self.params_box)
+
+        # ---- параметры источника тепла/холода ----
+        self.src_box = QGroupBox(_t("panel.detail.params"))
+        sform = QFormLayout(self.src_box)
+        self.s_t_sup = _spin(0.0, 0, 150, 1)
+        self.s_t_ret = _spin(0.0, 0, 150, 1)
+        self.s_effcop = _spin(0.0, 0.0, 8.0, 0.1, 2)
+        self.s_cap = _spin(0.0, 0, 100000, 10, 0)
+        self.s_units = QSpinBox()
+        self.s_units.setRange(0, 50)
+        self._effcop_lbl = QLabel(_t("panel.detail.f.eff"))
+        sform.addRow(QLabel(_t("panel.detail.f.t_sup")), self.s_t_sup)
+        sform.addRow(QLabel(_t("panel.detail.f.t_ret")), self.s_t_ret)
+        sform.addRow(self._effcop_lbl, self.s_effcop)
+        sform.addRow(QLabel(_t("panel.detail.f.capacity")), self.s_cap)
+        sform.addRow(QLabel(_t("panel.detail.f.units")), self.s_units)
+        for w in (self.s_t_sup, self.s_t_ret, self.s_effcop, self.s_cap):
+            w.valueChanged.connect(self._on_src_changed)
+        self.s_units.valueChanged.connect(self._on_src_changed)
+        outer.addWidget(self.src_box)
 
         self.body = QTextBrowser()
         self.body.setOpenExternalLinks(False)
@@ -79,14 +103,15 @@ class EquipmentDetailView(QWidget):
 
     # -------------------------------------------------- состояние «ничего»
     def clear(self) -> None:
-        self._vname = None
+        self._vname = self._sname = self._sdomain = None
         self.header.setText(_t("panel.detail.none"))
         self.params_box.setVisible(False)
+        self.src_box.setVisible(False)
         self.body.clear()
 
     # ------------------------------------------------------- маршрутизация
     def show_node(self, domain: str, kind: str, name: str) -> None:
-        """kind: 'system' | 'circuit' (узел дерева), domain — активный домен."""
+        """kind: 'system' | 'circuit'; domain — heating/cooling/ventilation."""
         if not name:
             self.clear()
             return
@@ -106,11 +131,11 @@ class EquipmentDetailView(QWidget):
             self.clear()
             return
         self._vname = name
+        self._sname = None
         vkind = getattr(sysobj, "kind", "ahu")
         self.header.setText("{} · {}".format(
             name, _t("panel.detail.kind." + vkind, default=vkind)))
 
-        # Загружаем поля без срабатывания пересчёта
         self._loading = True
         self.t_in_w.setValue(float(getattr(sysobj, "t_supply_winter", 20.0)))
         self.t_in_s.setValue(float(getattr(sysobj, "t_supply_summer", 16.0)))
@@ -118,17 +143,16 @@ class EquipmentDetailView(QWidget):
         self.eta_s.setValue(float(getattr(sysobj, "recovery_efficiency_summer", 0.0)))
         self.fan_dp.setValue(float(getattr(sysobj, "fan_pressure_pa", 0.0)))
         self.fan_eff.setValue(float(getattr(sysobj, "fan_efficiency", 0.65)))
-        # Поля температур/рекуператора нужны только приточной стороне с теплообм.
         side = VENT_KIND_SIDE.get(vkind, "supply")
         has_coils = side == "supply" and (
             getattr(sysobj, "has_heater", True) or getattr(sysobj, "has_cooler", True))
         for key in ("panel.detail.f.t_supply_w", "panel.detail.f.t_supply_s",
                     "panel.detail.f.eta_w", "panel.detail.f.eta_s"):
-            self._row_labels[key].setVisible(has_coils)
-            dict(self._rows)[key].setVisible(has_coils)
+            self._vlabels[key].setVisible(has_coils)
+            dict(self._vrows)[key].setVisible(has_coils)
+        self.src_box.setVisible(False)
         self.params_box.setVisible(True)
         self._loading = False
-
         self._render_ventilation()
 
     def _on_param_changed(self) -> None:
@@ -154,10 +178,9 @@ class EquipmentDetailView(QWidget):
         if det is None:
             self.body.clear()
             return
-        rows: list[str] = []
-        rows.append(_t("panel.detail.flows").format(
+        rows = [_t("panel.detail.flows").format(
             n=det.n_spaces, sup=f"{det.supply_m3_h:.0f}",
-            exh=f"{det.exhaust_m3_h:.0f}"))
+            exh=f"{det.exhaust_m3_h:.0f}")]
 
         def _coil_html(title_key: str, c) -> str:
             if c is None:
@@ -176,8 +199,8 @@ class EquipmentDetailView(QWidget):
                     qs=f"{c.q_sensible_w / 1000:.1f}",
                     ql=f"{c.q_latent_w / 1000:.1f}",
                     cond=f"{c.condensate_kg_h:.1f}")
-            return ("<p><b>{}</b><br>{}<br>{}{}</p>".format(
-                _t(title_key), air, water, extra))
+            return "<p><b>{}</b><br>{}<br>{}{}</p>".format(
+                _t(title_key), air, water, extra)
 
         rows.append(_coil_html("panel.detail.heater", det.heater))
         rows.append(_coil_html("panel.detail.cooler", det.cooler))
@@ -185,12 +208,12 @@ class EquipmentDetailView(QWidget):
         def _fan_html(title_key: str, f) -> str:
             if f is None:
                 return ""
-            return ("<p><b>{}</b><br>{}</p>".format(
+            return "<p><b>{}</b><br>{}</p>".format(
                 _t(title_key),
                 _t("panel.detail.fan_line").format(
                     flow=f"{f.flow_m3_h:.0f}", dp=f"{f.pressure_pa:.0f}",
                     src=_src_label(f.pressure_source),
-                    kw=f"{f.power_kw:.2f}", sfp=f"{f.sfp_w_m3_s:.0f}")))
+                    kw=f"{f.power_kw:.2f}", sfp=f"{f.sfp_w_m3_s:.0f}"))
 
         rows.append(_fan_html("panel.detail.fan_supply", det.fan_supply))
         rows.append(_fan_html("panel.detail.fan_exhaust", det.fan_exhaust))
@@ -198,32 +221,86 @@ class EquipmentDetailView(QWidget):
             rows.append(f"<p style='color:#c0392b'>⚠ {w}</p>")
         self.body.setHtml("".join(r for r in rows if r))
 
-    # =================================================== источники / контуры
+    # =================================================== источник (правка)
     def _show_source(self, domain: str, name: str) -> None:
+        sysobj = self.project.systems_of(domain).get(name)
+        if sysobj is None:
+            self.clear()
+            return
+        self._sname = name
+        self._sdomain = domain
         self._vname = None
+        kind_key = ("panel.detail.kind.boiler" if domain == "heating"
+                    else "panel.detail.kind.chiller")
+        self.header.setText("{} · {}".format(name, _t(kind_key)))
+
+        self._loading = True
+        self.s_t_sup.setValue(float(getattr(sysobj, "t_supply", 0.0)))
+        self.s_t_ret.setValue(float(getattr(sysobj, "t_return", 0.0)))
+        if domain == "heating":
+            self._effcop_lbl.setText(_t("panel.detail.f.eff"))
+            self.s_effcop.setRange(0.3, 1.2)
+            self.s_effcop.setSingleStep(0.01)
+            self.s_effcop.setValue(float(getattr(sysobj, "efficiency", 0.92)))
+        else:
+            self._effcop_lbl.setText(_t("panel.detail.f.cop"))
+            self.s_effcop.setRange(1.0, 8.0)
+            self.s_effcop.setSingleStep(0.1)
+            self.s_effcop.setValue(float(getattr(sysobj, "cop", 3.5)))
+        self.s_cap.setValue(float(getattr(sysobj, "design_capacity_kw", 0.0)))
+        self.s_units.setValue(int(getattr(sysobj, "unit_count", 0) or 0))
         self.params_box.setVisible(False)
+        self.src_box.setVisible(True)
+        self._loading = False
+        self._render_source()
+
+    def _on_src_changed(self) -> None:
+        if self._loading or self._sname is None:
+            return
+        kw = dict(t_supply=self.s_t_sup.value(), t_return=self.s_t_ret.value(),
+                  design_capacity_kw=self.s_cap.value(),
+                  unit_count=self.s_units.value())
+        kw["efficiency" if self._sdomain == "heating" else "cop"] = self.s_effcop.value()
+        self.project.update_zone_system(self._sdomain, self._sname, **kw)
+        self.bridge.dirtyChanged.emit(True)
+        self._render_source()
+        if self._on_changed:
+            self._on_changed()
+
+    def _render_source(self) -> None:
         from hvac.equipment_sizing import select_equipment
         sel = select_equipment(self.project)
-        src = next((s for s in sel.sources(domain) if s.name == name), None)
-        self.header.setText(name)
+        src = next((s for s in sel.sources(self._sdomain)
+                    if s.name == self._sname), None)
         if src is None:
             self.body.clear()
             return
-        rows = [_t("panel.detail.source_head").format(
-            req=f"{src.required_kw:.1f}",
+        margin = getattr(src, "margin", 1.0)
+        rows = [_t("panel.detail.src.required").format(
+            req=f"{src.required_kw:.1f}", q=f"{src.q_total_w / 1000:.1f}",
+            m=f"{margin:.2f}")]
+        pick_key = ("panel.detail.src.picked_manual" if src.manual
+                    else "panel.detail.src.picked_auto")
+        rows.append(_t(pick_key).format(
             unit=f"{src.unit_kw:g}", n=src.units,
-            q=f"{src.q_total_w / 1000:.1f}")]
+            model=src.selected_model or "—"))
+        if src.q_ahu_w > 0:
+            rows.append(_t("panel.detail.src.ahu").format(
+                q=f"{src.q_ahu_w / 1000:.1f}"))
+        if src.n_direct_rooms:
+            rows.append(_t("panel.detail.src.direct").format(
+                n=src.n_direct_rooms, q=f"{src.q_direct_w / 1000:.1f}"))
         for c in src.circuits:
             rows.append(_t("panel.detail.source_circ").format(
-                name=c.name, q=f"{c.q_total_w / 1000:.1f}",
-                rooms=c.n_rooms,
+                name=c.name, q=f"{c.q_total_w / 1000:.1f}", rooms=c.n_rooms,
                 dn=f"{c.dn_mm:.0f}" if c.dn_mm else "—",
                 pump=c.pump_model or "—"))
         self.body.setHtml("<br>".join(rows))
 
     def _show_circuit(self, domain: str, name: str) -> None:
-        self._vname = None
+        self._vname = self._sname = None
         self.params_box.setVisible(False)
+        self.src_box.setVisible(False)
         from hvac.equipment_sizing import select_equipment
         sel = select_equipment(self.project)
         cs = next((c for s in sel.sources(domain) for c in s.circuits
@@ -242,9 +319,12 @@ class EquipmentDetailView(QWidget):
     # ----------------------------------------------------------- i18n
     def retranslate_ui(self) -> None:
         self.params_box.setTitle(_t("panel.detail.params"))
-        for key, lbl in self._row_labels.items():
+        self.src_box.setTitle(_t("panel.detail.params"))
+        for key, lbl in self._vlabels.items():
             lbl.setText(_t(key))
         if self._vname:
             self._show_ventilation(self._vname)
+        elif self._sname:
+            self._show_source(self._sdomain, self._sname)
         else:
             self.header.setText(_t("panel.detail.none"))

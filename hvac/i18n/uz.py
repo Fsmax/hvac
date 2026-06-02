@@ -35,7 +35,7 @@ UZ: Dict[str, str] = {
     "sidebar.ventilation":   "Ventilyatsiya",
     "sidebar.systems":       "Tizimlar va jihozlar",
     "sidebar.zones":         "Zonalar va tizimlar",
-    "sidebar.equipment":     "Jihozlar (tizimlar)",
+    "sidebar.equipment":     "Jihozlar",
     "sidebar.room_equipment":"Xonalardagi jihozlar",
     "sidebar.smoke":         "Tutun chiqarish",
     "sidebar.charts":        "Grafiklar",
@@ -501,6 +501,7 @@ UZ: Dict[str, str] = {
     "panel.ventilation.col.exhaust": "So‘rish, m³/soat",
     "panel.ventilation.col.hood":    "Soyabon, m³/soat",
     "panel.ventilation.col.ach":     "ACH, 1/soat",
+    "panel.ventilation.col.air":     "Havo",
     "panel.ventilation.col.imbal":   "Muvozanat",
     "panel.ventilation.tooltip.manual": ("Sarf qo‘lda tuzatilgan — "
                                           "qayta hisoblash bu xonani o‘zgartirmaydi"),
@@ -776,6 +777,33 @@ UZ: Dict[str, str] = {
     "panel.detail.source_head": "Kerak {req} kVt · tanlov {unit} kVt ×{n} · yuklama {q} kVt",
     "panel.detail.source_circ": "Kontur {name}: {q} kVt · {rooms} xona · DN {dn} · nasos {pump}",
     "panel.detail.circuit_head": "Yuklama {q} kVt ({rooms} xona + AHU {qa} kVt) · DN {dn} · Δp {dp} kPa · nasos {pump}",
+    # Issiqlik/sovuq manbai (jihoz kartochkasi)
+    "panel.detail.kind.boiler":  "Issiqlik manbai",
+    "panel.detail.kind.chiller": "Sovuq manbai",
+    "panel.detail.f.t_sup":      "Uzatish t, °C",
+    "panel.detail.f.t_ret":      "Qaytish t, °C",
+    "panel.detail.f.eff":        "Manba FIK",
+    "panel.detail.f.cop":        "COP / EER",
+    "panel.detail.f.capacity":   "Birlik quvvati, kVt (0 — avto)",
+    "panel.detail.f.units":      "Agregatlar soni",
+    "panel.detail.src.required": "Kerak {req} kVt (yuklama {q} kVt × zaxira {m})",
+    "panel.detail.src.picked_auto":   "Tanlov (avto): {unit} kVt × {n}",
+    "panel.detail.src.picked_manual": "Tanlov (qo‘lda): {unit} kVt × {n} · {model}",
+    "panel.detail.src.ahu":      "shu jumladan AHU kaloriferlari/sovutgichlari: {q} kVt",
+    "panel.detail.src.direct":   "To‘g‘ridan-to‘g‘ri xonalar: {n} ({q} kVt)",
+    # ===== Panel: Equipment («Jihozlar» bo‘limi) =====
+    "panel.equipws.title":   "Jihozlar",
+    "panel.equipws.hint":    ("Chapda — barcha jihozlar toifalar bo‘yicha. "
+                               "Qurilmani tanlang: o‘ngda to‘liq ma'lumot va "
+                               "parametrlarni jonli qayta hisob bilan tahrirlash."),
+    "panel.equipws.cat.heat":"Issiqlik manbalari",
+    "panel.equipws.cat.cool":"Sovuq manbalari",
+    "panel.equipws.cat.vent":"Ventilyatsiya",
+    "panel.equipws.btn.add": "Qo‘shish",
+    "panel.equipws.col.name":"Jihoz",
+    "panel.equipws.col.power":"Tanlov",
+    "panel.equipws.add.boiler":  "Qozon / issiqlik manbai",
+    "panel.equipws.add.chiller": "Chiller / sovuq manbai",
 
     # ========== Panel: Constructions ==========
     "panel.constructions.title":          "Konstruksiyalar",

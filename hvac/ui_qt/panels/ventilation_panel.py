@@ -28,8 +28,10 @@ _VENT_HEADER_KEYS = [
     "panel.ventilation.col.level",  "panel.ventilation.col.type",
     "panel.ventilation.col.area",   "panel.ventilation.col.supply",
     "panel.ventilation.col.exhaust","panel.ventilation.col.hood",
-    "panel.ventilation.col.ach",    "panel.ventilation.col.imbal",
+    "panel.ventilation.col.ach",    "panel.ventilation.col.air",
+    "panel.ventilation.col.imbal",
 ]
+_COL_AIR, _COL_IMBAL = 9, 10
 
 # Колонки расходов воздуха, доступные для ручной правки прямо в таблице.
 # Любая правка ставит vent_user_modified=True, и calculate_ventilation()
@@ -57,7 +59,8 @@ class VentilationModel(EditableTableModelMixin, QAbstractTableModel):
                   _COL_HOOD: "hood_m3h"}
     # Поля, снимаемые для отмены/повтора.
     _SNAPSHOT_FIELDS = ("supply_m3h", "exhaust_m3h", "hood_m3h",
-                        "ach_calculated", "vent_user_modified")
+                        "ach_calculated", "vent_user_modified",
+                        "air_heating", "air_cooling")
 
     def __init__(self, project: HVACProject, bridge: ProjectBridge):
         super().__init__()
@@ -114,16 +117,25 @@ class VentilationModel(EditableTableModelMixin, QAbstractTableModel):
             if col == 6: return f"{sp.exhaust_m3h:.0f}" if sp.exhaust_m3h else ""
             if col == 7: return f"{sp.hood_m3h:.0f}" if sp.hood_m3h else ""
             if col == 8: return f"{sp.ach_calculated:.1f}" if sp.ach_calculated else ""
-            if col == 9:
+            if col == _COL_AIR:
+                marks = []
+                if getattr(sp, "air_heating", False):
+                    marks.append(_t("panel.sysworkspace.air.mark_heat"))
+                if getattr(sp, "air_cooling", False):
+                    marks.append(_t("panel.sysworkspace.air.mark_cool"))
+                return "·".join(marks)
+            if col == _COL_IMBAL:
                 diff = sp.supply_m3h - (sp.exhaust_m3h + sp.hood_m3h)
                 return f"{diff:+.0f}" if (sp.supply_m3h or sp.exhaust_m3h) else ""
         if role == Qt.TextAlignmentRole and col >= 4:
+            if col == _COL_AIR:
+                return int(Qt.AlignCenter)
             return int(Qt.AlignRight | Qt.AlignVCenter)
         if role == Qt.ForegroundRole:
             # Вручную исправленные расходы выделяем акцентом.
             if sp.vent_user_modified and col in _EDITABLE_VENT_COLS:
                 return QBrush(QColor(tokens()["accent"]))
-            if col == 9 and (sp.supply_m3h or sp.exhaust_m3h):
+            if col == _COL_IMBAL and (sp.supply_m3h or sp.exhaust_m3h):
                 diff = sp.supply_m3h - (sp.exhaust_m3h + sp.hood_m3h)
                 if abs(diff) > 50:
                     return QBrush(QColor(tokens()["warning"]))
@@ -217,6 +229,26 @@ class VentilationModel(EditableTableModelMixin, QAbstractTableModel):
                 sp.exhaust_m3h = br.get("exhaust_m3h", 0.0)
                 sp.hood_m3h = br.get("hood_m3h", 0.0)
                 sp.ach_calculated = br.get("ach_calculated", 0.0)
+
+        return self._commit(source_rows, mutate)
+
+    def set_air_mode(self, source_rows, heating, cooling) -> int:
+        """Включает/выключает воздушное отопление/охлаждение у выбранных
+        помещений и пересчитывает расход приточки по нагрузке.
+
+        heating/cooling: True (вкл), False (выкл), None (не менять).
+        Отменяемо (поля air_* и расход в снимке). Возвращает число помещений.
+        """
+        from hvac.air_heating import apply_air_heating
+
+        def mutate(rows):
+            for r in rows:
+                sp = self.project.spaces[r]
+                if heating is not None:
+                    sp.air_heating = heating
+                if cooling is not None:
+                    sp.air_cooling = cooling
+            apply_air_heating(self.project)
 
         return self._commit(source_rows, mutate)
 
@@ -351,7 +383,7 @@ class VentilationPanel(QWidget):
         self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
-        widths = [80, 200, 110, 130, 70, 100, 100, 90, 80, 100]
+        widths = [80, 200, 110, 130, 70, 100, 100, 90, 80, 56, 100]
         for i, w in enumerate(widths):
             self.table.setColumnWidth(i, w)
         outer.addWidget(self.table, stretch=1)
@@ -446,6 +478,15 @@ class VentilationPanel(QWidget):
             a = preset_menu.addAction(_t(label_key))
             preset_acts[a] = (col, mode, value)
         act_reset = menu.addAction(_t("panel.ventilation.ctx.reset"))
+        # Подменю воздушного отопления/охлаждения (расход по нагрузке помещения).
+        air_menu = menu.addMenu(_t("panel.sysworkspace.air.menu"))
+        air_menu.setEnabled(bool(rows))
+        air_map = {
+            air_menu.addAction(_t("panel.sysworkspace.air.heat_on")): (True, None),
+            air_menu.addAction(_t("panel.sysworkspace.air.cool_on")): (None, True),
+            air_menu.addAction(_t("panel.sysworkspace.air.both_on")): (True, True),
+            air_menu.addAction(_t("panel.sysworkspace.air.off")): (False, False),
+        }
         menu.addSeparator()
         act_copy = menu.addAction(_t("panel.ventilation.ctx.copy"))
         act_paste = menu.addAction(_t("panel.ventilation.ctx.paste"))
@@ -470,6 +511,12 @@ class VentilationPanel(QWidget):
             n = self.model.apply_bulk(rows, col, mode, value)
             self.bridge.statusMessage.emit(
                 _t("panel.ventilation.preset.applied").format(n=n), 4000)
+            return
+        if chosen in air_map:
+            heating, cooling = air_map[chosen]
+            n = self.model.set_air_mode(rows, heating, cooling)
+            self.bridge.statusMessage.emit(
+                _t("panel.sysworkspace.air.status").format(n=n), 4000)
             return
         if chosen is act_bulk:
             self._bulk_edit()

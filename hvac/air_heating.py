@@ -232,26 +232,36 @@ def compute_air_heating(project: "HVACProject") -> Dict[str, AirRoomLoad]:
 
 
 def apply_air_heating(project: "HVACProject") -> int:
-    """Поднимает Space.supply_m3h до расхода, перекрывающего нагрузку, для
-    помещений с воздушным отоплением/охлаждением.
+    """Синхронизирует Space.supply_m3h с воздушным режимом помещений.
 
-    Идемпотентно: повторный вызов даёт тот же результат (база берётся из
-    ventilation_breakdown, а не из уже поднятого supply_m3h).
+    - помещения с air_heating/air_cooling: расход поднимается до перекрывающего
+      нагрузку (= max(вентиляция, отопление, охлаждение));
+    - помещения БЕЗ флагов: расход возвращается к вентиляционному (снимаем
+      ранее наложенную надбавку, если режим выключили).
 
-    Возвращает количество помещений, у которых расход был увеличен.
+    Помещения с ручной правкой расхода (vent_user_modified) не трогаются.
+    Идемпотентно: база берётся из ventilation_breakdown, а не из уже
+    поднятого supply_m3h. Возвращает количество поднятых помещений.
     """
     loads = compute_air_heating(project)
     boosted = 0
-    for sid, row in loads.items():
-        sp = project._space_by_id.get(sid)
-        if sp is None:
+    for sp in project.spaces:
+        if getattr(sp, "vent_user_modified", False):
             continue
-        if row.design_supply_m3h > sp.supply_m3h + 1e-6:
-            boosted += 1
-        # Всегда выставляем design (= max(vent, нагрузка)) — это и есть
-        # фактически подаваемый в помещение расход.
-        if row.design_supply_m3h > 0:
-            sp.supply_m3h = row.design_supply_m3h
+        row = loads.get(sp.space_id)
+        new_supply = None
+        if row is not None and row.design_supply_m3h > 0:
+            # Воздушный режим включён — расход по нагрузке.
+            new_supply = row.design_supply_m3h
+            if new_supply > sp.supply_m3h + 1e-6:
+                boosted += 1
+        elif row is None:
+            # Режим выключен — вернуть вентиляционный расход (если был поднят).
+            base = _vent_base(sp)
+            if base and abs(sp.supply_m3h - base) > 1e-6:
+                new_supply = base
+        if new_supply is not None:
+            sp.supply_m3h = new_supply
             if sp.volume_m3 > 0:
                 sp.ach_calculated = sp.supply_m3h / sp.volume_m3
     return boosted

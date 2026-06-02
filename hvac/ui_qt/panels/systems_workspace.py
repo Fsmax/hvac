@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView, QButtonGroup, QCheckBox, QDialog, QHBoxLayout,
     QHeaderView, QInputDialog, QLabel, QLineEdit, QMenu, QMessageBox,
     QPushButton, QSplitter, QTableWidget, QTableWidgetItem,
-    QTabWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
+    QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
 from hvac.air_heating import apply_air_heating
@@ -44,7 +44,6 @@ from hvac.ui_qt.bridge import ProjectBridge
 from hvac.ui_qt.panels.equipment_panel import (
     _AHUDialog, _CircuitDialog as _EditCircuitDialog, _SourceDialog,
 )
-from hvac.ui_qt.panels.equipment_detail_view import EquipmentDetailView
 from hvac.ui_qt.panels.room_equipment_panel import RoomEquipmentDialog
 from hvac.ui_qt.panels.zones_panel import (
     _DOMAIN_KEY, _DOMAIN_ORDER, _LOAD_KEY, _NumTableItem, _NumTreeItem,
@@ -171,7 +170,7 @@ class SystemsWorkspacePanel(QWidget):
         self.tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.tree.itemDoubleClicked.connect(lambda *_: self._edit_node())
-        self.tree.currentItemChanged.connect(lambda *_: self._on_node_selected())
+        self.tree.currentItemChanged.connect(lambda *_: self._update_summary())
         left_l.addWidget(self.tree, stretch=1)
         splitter.addWidget(left)
 
@@ -231,15 +230,7 @@ class SystemsWorkspacePanel(QWidget):
         brow.addWidget(self.device_btn)
         brow.addStretch(1)
         right_l.addLayout(brow)
-
-        # Правая часть — вкладки: «Помещения» (таблица) и «Расчёт» (детальный
-        # расчёт выбранного оборудования/источника).
-        self.right_tabs = QTabWidget()
-        self.right_tabs.addTab(right, _t("panel.sysworkspace.tab.rooms"))
-        self.detail_view = EquipmentDetailView(
-            self.project, self.bridge, on_changed=self._on_detail_changed)
-        self.right_tabs.addTab(self.detail_view, _t("panel.sysworkspace.tab.calc"))
-        splitter.addWidget(self.right_tabs)
+        splitter.addWidget(right)
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 3)
 
@@ -727,23 +718,7 @@ class SystemsWorkspacePanel(QWidget):
         self._refresh_tree()
         self._refresh_table()
         self._update_summary()
-        self._update_detail()
         self.undo_btn.setEnabled(bool(self._undo))
-
-    def _on_node_selected(self) -> None:
-        self._update_summary()
-        self._update_detail()
-
-    def _update_detail(self) -> None:
-        kind, name = self._current_node()
-        self.detail_view.show_node(self._domain, kind, name)
-
-    def _on_detail_changed(self) -> None:
-        """Параметры оборудования изменены во вкладке «Расчёт» — обновить
-        дерево/сводку/таблицу (мощности, расходы), не трогая саму вкладку."""
-        self._sel = select_equipment(self.project)
-        self._refresh_tree()
-        self._update_summary()
 
     def _refresh_tree(self) -> None:
         self.tree.setSortingEnabled(False)
@@ -896,7 +871,4 @@ class SystemsWorkspacePanel(QWidget):
         self.clear_btn.setText(_t("panel.zones.btn.clear"))
         self.device_btn.setText(_t("panel.sysworkspace.btn.device"))
         self.table.setHorizontalHeaderLabels(self._room_headers())
-        self.right_tabs.setTabText(0, _t("panel.sysworkspace.tab.rooms"))
-        self.right_tabs.setTabText(1, _t("panel.sysworkspace.tab.calc"))
-        self.detail_view.retranslate_ui()
         self._refresh()
