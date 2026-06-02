@@ -242,6 +242,16 @@ UZ: Dict[str, str] = {
     "panel.data.climate.override":    "Qo‘lda o‘zgartirish:",
     "panel.data.climate.t_heat_short":"t qish",
     "panel.data.climate.t_cool_short":"t yoz",
+    "panel.data.climate.true_north":  "True North burilishi:",
+    "panel.data.climate.true_north_hint": ("Quyosh hisobi uchun barcha "
+        "fasadlar tomonlarini global burab beradi (+ soat strelkasiga "
+        "qarshi). Qayta hisoblashda qo‘llanadi — har bir to‘siq "
+        "yo‘nalishini qo‘lda o‘zgartirish shart emas."),
+    "panel.data.climate.shading":     "Quyoshdan himoya:",
+    "panel.data.climate.shade_none":  "Soyalashsiz (100% quyosh)",
+    "panel.data.climate.shade_inner": "Ichki jalyuzi / tonirovka (−30%)",
+    "panel.data.climate.shade_outer": "Tashqi lamellar / markizalar (−50%)",
+    "panel.data.climate.shade_deep":  "Chuqur nišalar + jalyuzi (−70%)",
     "panel.data.sources.title": "Geometriya manbalari",
     "panel.data.sources.desc":  ("Revit-Dynamo'dan eksport qilingan CSV: "
                                   "spaces.csv (xonalar) va thermal.csv "
@@ -276,6 +286,8 @@ UZ: Dict[str, str] = {
                                            "Davom etilsinmi?"),
     "panel.data.status.loading_csv":     "CSV yuklanmoqda…",
     "panel.data.status.climate_applied": "Iqlim qo‘llanildi: {name}",
+    "panel.data.status.true_north":   "True North burilishi = {deg:+.0f}° (qayta hisoblashda qo‘llanadi)",
+    "panel.data.status.shading":      "Quyoshdan himoya: issiqlik kirimi −{pct}% (qayta hisoblashda qo‘llanadi)",
     "panel.data.status.opened":          "Ochildi: {path}",
     "panel.data.status.saved":           "Saqlandi: {path}",
     "panel.data.status.saved_full":      "To‘liq loyiha saqlandi: {path}",

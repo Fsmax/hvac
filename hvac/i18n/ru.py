@@ -237,6 +237,16 @@ RU: Dict[str, str] = {
     "panel.data.climate.override":    "Переопределить вручную:",
     "panel.data.climate.t_heat_short":"t зима",
     "panel.data.climate.t_cool_short":"t лето",
+    "panel.data.climate.true_north":  "Поворот True North:",
+    "panel.data.climate.true_north_hint": ("Глобально поворачивает стороны "
+        "света всех фасадов для солнечного расчёта (+ против часовой). "
+        "Применяется при пересчёте — править ориентацию по каждому "
+        "ограждению вручную не нужно."),
+    "panel.data.climate.shading":     "Защита от солнца:",
+    "panel.data.climate.shade_none":  "Без затенения (100% солнца)",
+    "panel.data.climate.shade_inner": "Внутренние жалюзи / тонировка (−30%)",
+    "panel.data.climate.shade_outer": "Внешние ламели / маркизы (−50%)",
+    "panel.data.climate.shade_deep":  "Глубокие ниши + жалюзи (−70%)",
     "panel.data.sources.title": "Источники геометрии",
     "panel.data.sources.desc":  ("CSV, выгруженные из Revit-Dynamo: "
                                   "spaces.csv (помещения) и thermal.csv "
@@ -271,6 +281,8 @@ RU: Dict[str, str] = {
                                            "Продолжить?"),
     "panel.data.status.loading_csv":     "Загружаю CSV…",
     "panel.data.status.climate_applied": "Применён климат: {name}",
+    "panel.data.status.true_north":   "Поворот True North = {deg:+.0f}° (применится при пересчёте)",
+    "panel.data.status.shading":      "Защита от солнца: теплопоступления −{pct}% (применится при пересчёте)",
     "panel.data.status.opened":          "Открыто: {path}",
     "panel.data.status.saved":           "Сохранено: {path}",
     "panel.data.status.saved_full":      "Сохранён полный проект: {path}",
