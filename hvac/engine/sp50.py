@@ -16,11 +16,37 @@ from hvac.catalogs.constructions import DEFAULT_U_BY_CATEGORY
 from hvac.parsers import effective_orientation
 
 
-# Коэффициент инсоляции в зависимости от ориентации (для летнего пика)
-SOLAR_ORIENTATION_FACTOR = {
-    "N":  0.20, "NE": 0.55, "E":  0.85, "SE": 0.75,
-    "S":  0.65, "SW": 0.85, "W":  0.95, "NW": 0.55, "": 0.65,
+# Проектные часы (солнечное время), по которым ищется пиковая солнечная
+# нагрузка. На каждый час солнце в одной точке неба, поэтому при суммировании
+# по фасадам не складываются утренний и вечерний максимумы (учёт
+# одновременности).
+SOLAR_DESIGN_HOURS = (8, 10, 12, 14, 16, 18)
+
+# Доля проектной вертикальной радиации (I_solar), падающей на фасад данной
+# ориентации в каждый из SOLAR_DESIGN_HOURS. Максимум каждой строки совпадает
+# с прежними пиковыми коэффициентами (N=0.20 … W=0.95), но теперь пики разнесены
+# во времени: комната с остеклением на один фасад сохраняет свой пик, а угловая
+# или сквозная больше не получает сумму несовпадающих пиков. 0.20 — рассеянная
+# радиация (как у северного фасада весь день).
+SOLAR_HOURLY_FACTOR = {
+    #       08     10     12     14     16     18
+    "N":  (0.20,  0.20,  0.20,  0.20,  0.20,  0.20),
+    "NE": (0.55,  0.35,  0.20,  0.20,  0.20,  0.20),
+    "E":  (0.85,  0.55,  0.22,  0.20,  0.20,  0.20),
+    "SE": (0.70,  0.75,  0.50,  0.25,  0.20,  0.20),
+    "S":  (0.30,  0.55,  0.65,  0.55,  0.30,  0.20),
+    "SW": (0.20,  0.25,  0.50,  0.85,  0.75,  0.30),
+    "W":  (0.20,  0.20,  0.22,  0.55,  0.95,  0.60),
+    "NW": (0.20,  0.20,  0.20,  0.30,  0.55,  0.50),
+    # Неизвестная ориентация — консервативно держим пик во все часы.
+    "":   (0.65,  0.65,  0.65,  0.65,  0.65,  0.65),
 }
+
+# Коэффициент аккумуляции солнечной теплоты остеклением (CLF, метод CLTD/CLF,
+# СП 60 / ASHRAE). Часть прошедшей радиации поглощается массивом ограждений и
+# отдаётся в помещение со сдвигом по времени, поэтому пиковая нагрузка на холод
+# меньше мгновенно прошедшей радиации. 0.75 — здание средней массивности.
+SOLAR_CLF = 0.75
 
 # Сопротивление R для 4-зонного расчёта пола по грунту (СП 50.13330 прил. Е).
 # Полоса 2 м от внутренней поверхности наружной стены.
@@ -318,11 +344,20 @@ class SP50Engine(CalculationEngine):
         has_real_glazing = _room_has_real_glazing(elems, project.constructions)
 
         q_trans = 0.0
-        q_solar = 0.0
+        # Солнце копим раздельно по проектным часам — на каждый час солнце в
+        # одной точке неба, поэтому пики разных фасадов не складываются.
+        # Пиковая нагрузка = максимум по часам (учёт одновременности).
+        solar_by_hour = [0.0] * len(SOLAR_DESIGN_HOURS)
         wwr_applied = False
 
         # Поворот True North → Project North (если задан)
         tn_offset = getattr(p, "true_north_offset_deg", 0.0)
+
+        def _add_solar(shgc: float, area: float, orient: str) -> None:
+            base = shgc * area * p.solar_intensity_w_m2 * p.solar_shading_factor
+            factors = SOLAR_HOURLY_FACTOR.get(orient, SOLAR_HOURLY_FACTOR[""])
+            for i, f in enumerate(factors):
+                solar_by_hour[i] += base * f
 
         for el in elems:
             if el.u_value <= 0 or el.net_area_m2 <= 0:
@@ -337,10 +372,7 @@ class SP50Engine(CalculationEngine):
             if is_glazed:
                 # Реальное стекло из Revit: всю площадь учитываем как окно
                 q_trans += el.u_value * el.net_area_m2 * cltd
-                f = SOLAR_ORIENTATION_FACTOR.get(eff_orient, 0.65)
-                q_solar += (con.shgc * el.net_area_m2 *
-                            p.solar_intensity_w_m2 * f *
-                            p.solar_shading_factor)
+                _add_solar(con.shgc, el.net_area_m2, eff_orient)
                 continue
 
             # Сплошная стена. Если WWR>0 и в помещении НЕТ реального стекла —
@@ -350,11 +382,11 @@ class SP50Engine(CalculationEngine):
             q_trans += el.u_value * wall_area * cltd
             if window_area > 0:
                 q_trans += p.wwr_u_window * window_area * cltd
-                f = SOLAR_ORIENTATION_FACTOR.get(eff_orient, 0.65)
-                q_solar += (p.wwr_shgc * window_area *
-                            p.solar_intensity_w_m2 * f *
-                            p.solar_shading_factor)
+                _add_solar(p.wwr_shgc, window_area, eff_orient)
                 wwr_applied = True
+
+        # Пик по часам с поправкой на аккумуляцию массивом (CLF).
+        q_solar = max(solar_by_hour) * SOLAR_CLF
 
         # Зафиксировать источник остекления для диагностики по этажам:
         # «real» — реальный витраж из Revit, «wwr» — оценка по WWR,

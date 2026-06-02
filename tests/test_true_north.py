@@ -87,37 +87,37 @@ class TestSolarWithRotation:
         return project, sp
 
     def test_n_window_no_offset(self):
-        """Окно N без поворота: f=0.20 → ~900 Вт солнца."""
+        """Окно N без поворота: пик f=0.20 → ~675 Вт солнца (с CLF)."""
         project, sp = self._setup_project("N", 0)
         engine = SP50Engine()
         br = engine.heat_gain(sp, project)
-        # Q_солнце = 0.6 × 10 × 750 × 0.20 × 1.0 = 900 Вт
-        assert br["Солнечная радиация"] == pytest.approx(900, rel=0.01)
+        # Q_солнце = 0.6 × 10 × 750 × 0.20(N) × 1.0 × 0.75(CLF) = 675 Вт
+        assert br["Солнечная радиация"] == pytest.approx(675, rel=0.01)
 
     def test_n_window_with_45_offset_becomes_ne(self):
-        """Окно N с поворотом +45° → реально NE: f=0.55 → ~2475 Вт солнца."""
+        """Окно N с поворотом +45° → реально NE: пик f=0.55 → ~1856 Вт (с CLF)."""
         project, sp = self._setup_project("N", 0, tn_offset=45)
         engine = SP50Engine()
         br = engine.heat_gain(sp, project)
-        # Q_солнце = 0.6 × 10 × 750 × 0.55 × 1.0 = 2475 Вт
-        assert br["Солнечная радиация"] == pytest.approx(2475, rel=0.01)
+        # Q_солнце = 0.6 × 10 × 750 × 0.55(NE) × 1.0 × 0.75(CLF) = 1856.25 Вт
+        assert br["Солнечная радиация"] == pytest.approx(1856.25, rel=0.01)
 
     def test_w_window_with_45_offset_becomes_nw(self):
-        """Окно W (270°) с поворотом +45° → 315° = NW: f=0.55 → ~2475 Вт.
-        Контрольная точка: запад без поворота даёт максимум солнца (~4275)."""
+        """Окно W (270°) с поворотом +45° → 315° = NW: пик f=0.55 → ~1856 Вт.
+        Контрольная точка: запад без поворота даёт максимум солнца (~3206)."""
         project, sp = self._setup_project("W", 270, tn_offset=45)
         engine = SP50Engine()
         br = engine.heat_gain(sp, project)
-        # Q_солнце = 0.6 × 10 × 750 × 0.55 × 1.0 = 2475 Вт (NW factor)
-        assert br["Солнечная радиация"] == pytest.approx(2475, rel=0.01)
+        # Q_солнце = 0.6 × 10 × 750 × 0.55(NW) × 1.0 × 0.75(CLF) = 1856.25 Вт
+        assert br["Солнечная радиация"] == pytest.approx(1856.25, rel=0.01)
 
     def test_no_offset_w_max_solar(self):
-        """Контроль: окно W без поворота — максимальное солнце f=0.95."""
+        """Контроль: окно W без поворота — максимальное солнце пик f=0.95."""
         project, sp = self._setup_project("W", 270, tn_offset=0)
         engine = SP50Engine()
         br = engine.heat_gain(sp, project)
-        # Q_солнце = 0.6 × 10 × 750 × 0.95 × 1.0 = 4275 Вт
-        assert br["Солнечная радиация"] == pytest.approx(4275, rel=0.01)
+        # Q_солнце = 0.6 × 10 × 750 × 0.95(W) × 1.0 × 0.75(CLF) = 3206.25 Вт
+        assert br["Солнечная радиация"] == pytest.approx(3206.25, rel=0.01)
 
 
 class TestPersistence:
