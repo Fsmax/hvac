@@ -26,12 +26,12 @@ def _make_project(space):
 class TestSP60Ventilation:
 
     def test_office_by_people(self):
-        """Офис, 2 чел → 80 м³/ч (40 × 2)."""
+        """Офис, 2 чел → 120 м³/ч (60 × 2, ШНҚ 2.08.02-23 табл.26)."""
         sp = _make_space("Офис", area_m2=20, volume_m3=60, people=2.0)
         engine = SP60VentilationEngine()
         result = engine.calculate(sp, _make_project(sp))
-        assert result["supply_m3h"] == pytest.approx(80, rel=0.01)
-        assert result["exhaust_m3h"] == pytest.approx(80, rel=0.01)  # balance=0
+        assert result["supply_m3h"] == pytest.approx(120, rel=0.01)
+        assert result["exhaust_m3h"] == pytest.approx(120, rel=0.01)  # balance=0
         assert "По людям" in result["method"]
 
     def test_office_min_ach_wins(self):
@@ -87,6 +87,15 @@ class TestSP60Ventilation:
         assert result["supply_m3h"] == pytest.approx(150, rel=0.01)
         assert result["exhaust_m3h"] == pytest.approx(165, rel=0.01)
         assert result["exhaust_m3h"] > result["supply_m3h"]
+
+    def test_sports_hall_per_person_shnk(self):
+        """Спортзал (ШНҚ 2.08.02-23 табл.23): 20 чел → 1600 м³/ч (80 × 20)."""
+        sp = _make_space("Спортзал", area_m2=200, volume_m3=600, people=20)
+        engine = SP60VentilationEngine()
+        result = engine.calculate(sp, _make_project(sp))
+        # max(20×80=1600, 600×1=600) = 1600 по людям
+        assert result["supply_m3h"] == pytest.approx(1600, rel=0.01)
+        assert "По людям" in result["method"]
 
     def test_kitchen_has_hood(self):
         """Ресторан/кухня — должен быть зонт + вытяжка > притока."""
@@ -235,6 +244,6 @@ class TestUserOverrides:
         # Меняем кол-во людей
         sp.occupancy_people = 5.0
         project.calculate_ventilation()
-        # Должно перерасcчитаться: 5×40 = 200 м³/ч
-        assert sp.supply_m3h == pytest.approx(200, rel=0.01)
+        # Должно перерасcчитаться: 5×60 = 300 м³/ч (ШНҚ 2.08.02-23 табл.26)
+        assert sp.supply_m3h == pytest.approx(300, rel=0.01)
         assert sp.supply_m3h != first
