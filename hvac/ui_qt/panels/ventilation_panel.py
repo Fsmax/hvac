@@ -332,6 +332,11 @@ class VentilationPanel(QWidget):
         head.addWidget(self.title_lbl)
         head.addStretch(1)
 
+        self.norms_btn = QPushButton(_t("panel.ventilation.btn_norms"))
+        self.norms_btn.setCursor(Qt.PointingHandCursor)
+        self.norms_btn.clicked.connect(self._open_norms)
+        head.addWidget(self.norms_btn)
+
         self.bulk_btn = QPushButton(_t("panel.ventilation.btn_bulk"))
         self.bulk_btn.setCursor(Qt.PointingHandCursor)
         self.bulk_btn.clicked.connect(self._bulk_edit)
@@ -417,6 +422,19 @@ class VentilationPanel(QWidget):
             parent = parent.parent()
         # Fallback: синхронно
         self.project.calculate_ventilation()
+
+    # ---------- Редактор норм по типам помещений ----------
+    def _open_norms(self) -> None:
+        from hvac.ui_qt.widgets.ventilation_norms_dialog import (
+            VentilationNormsDialog,
+        )
+        initial = None
+        rows = self._selected_source_rows()
+        if rows:
+            initial = self.project.spaces[rows[0]].room_type
+        dlg = VentilationNormsDialog(
+            self.project, self.bridge, initial_type=initial, parent=self)
+        dlg.exec()
 
     # ---------- Групповая правка ----------
     def _selected_source_rows(self) -> list[int]:
@@ -562,6 +580,7 @@ class VentilationPanel(QWidget):
     def retranslate_ui(self) -> None:
         self.title_lbl.setText(_t("panel.ventilation.title"))
         self.run_btn.setText(_t("panel.ventilation.btn_run"))
+        self.norms_btn.setText(_t("panel.ventilation.btn_norms"))
         self.bulk_btn.setText(_t("panel.ventilation.btn_bulk"))
         self.summary_card.set_title(_t("panel.ventilation.summary_card.title"))
         self.summary_card.set_subtitle(

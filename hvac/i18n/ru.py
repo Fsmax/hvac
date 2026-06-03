@@ -548,6 +548,89 @@ RU: Dict[str, str] = {
     "panel.ventilation.preset.living":     "Жилая — приток 1-кратный",
     "panel.ventilation.preset.office":     "Офис — приток 3-кратный",
     "panel.ventilation.preset.applied":    "Пресет применён: {n}",
+    "panel.ventilation.btn_norms":         "Нормы…",
+
+    # ========== Диалог: редактор норм вентиляции по типам ==========
+    "dlg.vent_norms.title":       "Нормы вентиляции — редактор",
+    "dlg.vent_norms.scope_hint": (
+        "Изменения сохраняются глобально для всех проектов:\n{path}\n"
+        "Применяются к помещениям соответствующего типа при следующем "
+        "расчёте вентиляции."),
+    "dlg.vent_norms.types_group":  "Типы помещений",
+    "dlg.vent_norms.col_type":     "Тип",
+    "dlg.vent_norms.col_source":   "Источник",
+    "dlg.vent_norms.src_sp":            "СП",
+    "dlg.vent_norms.src_sp_overridden": "СП ✓",
+    "dlg.vent_norms.src_custom":        "польз.",
+    "dlg.vent_norms.btn_new":      "+ Новый тип",
+    "dlg.vent_norms.btn_delete":   "🗑 Удалить",
+    "dlg.vent_norms.params_group": "Параметры нормы",
+    "dlg.vent_norms.status_custom": (
+        "⊕ Пользовательский тип — все поля сохраняются как есть."),
+    "dlg.vent_norms.status_overridden": (
+        "✓ Переопределены поля: {fields}. СП-значения остальных полей "
+        "сохраняются."),
+    "dlg.vent_norms.status_default": (
+        "○ Без правок — используются значения по СП."),
+    "dlg.vent_norms.sep.supply":   "Приток (бóльшее из критериев)",
+    "dlg.vent_norms.sep.exhaust":  "Вытяжка",
+    "dlg.vent_norms.sep.hood":     "Зонт",
+    "dlg.vent_norms.sep.desc":     "Описание",
+    "dlg.vent_norms.f.is_nc": (
+        "Без принудительной вентиляции (NC) — лестницы, лифты"),
+    "dlg.vent_norms.f.exhaust_only": (
+        "Только вытяжка (туалеты) — приток из перетока"),
+    "dlg.vent_norms.f.has_hood": (
+        "С зонтом (кухня) — часть вытяжки через зонт"),
+    "dlg.vent_norms.f.has_co_control": "Управление по CO (парковки)",
+    "dlg.vent_norms.f.m3_per_person": "На человека, м³/ч",
+    "dlg.vent_norms.f.m3_per_m2":     "На м² площади, м³/ч·м²",
+    "dlg.vent_norms.f.min_ach":       "Минимальная кратность, 1/ч",
+    "dlg.vent_norms.f.m3_per_kw":     "На кВт тепловыделений, м³/ч·кВт",
+    "dlg.vent_norms.f.balance": (
+        "Дисбаланс, % (отриц. → вытяжка > приток)"),
+    "dlg.vent_norms.f.exhaust_per_m2": "Удельная вытяжка (туалеты), м³/ч·м²",
+    "dlg.vent_norms.f.exhaust_min":    "Минимальная вытяжка, м³/ч",
+    "dlg.vent_norms.f.hood_factor":    "Доля вытяжки через зонт (0..1)",
+    "dlg.vent_norms.f.note":           "Норматив / комментарий",
+    "dlg.vent_norms.btn_reset":        "↺ Сбросить тип к СП",
+    "dlg.vent_norms.btn_save":         "💾 Сохранить",
+    "dlg.vent_norms.btn_save_recalc":  "💾 Сохранить и пересчитать",
+    "dlg.vent_norms.new_title":  "Новый тип",
+    "dlg.vent_norms.new_prompt": (
+        "Имя нового типа помещения (например: «СПА-зона», «Кинозал», "
+        "«Бассейн»):"),
+    "dlg.vent_norms.err_title":      "Ошибка",
+    "dlg.vent_norms.err_not_number": "Поле «{label}» не число: {val}",
+    "dlg.vent_norms.del_builtin_title": "Нельзя удалить",
+    "dlg.vent_norms.del_builtin_msg": (
+        "Тип «{t}» встроенный (СП). Можно только сбросить его override."),
+    "dlg.vent_norms.del_confirm_title": "Удалить тип?",
+    "dlg.vent_norms.del_confirm_msg": (
+        "Удалить пользовательский тип «{t}»?{extra}"),
+    "dlg.vent_norms.del_in_use": (
+        "\n\n⚠ В текущем проекте {n} помещений имеют этот тип. После "
+        "удаления они станут использовать дефолт «Прочее»."),
+    "dlg.vent_norms.info_title":       "Информация",
+    "dlg.vent_norms.reset_custom_msg": (
+        "Пользовательский тип нельзя «сбросить к СП» — только удалить."),
+    "dlg.vent_norms.reset_none_msg": (
+        "У типа «{t}» нет правок — значения уже из СП."),
+    "dlg.vent_norms.save_err_title": "Ошибка записи",
+    "dlg.vent_norms.save_err_msg":   "Не удалось сохранить нормы:\n{e}",
+    "dlg.vent_norms.reset_manual_title": "Сбросить ручные правки?",
+    "dlg.vent_norms.reset_manual_msg": (
+        "В проекте {n} помещений с ручными правками вентиляции. Сбросить "
+        "их, чтобы пересчёт применил новые нормы?\n\n«Нет» — пересчитать "
+        "только помещения без ручных правок."),
+    "dlg.vent_norms.done_title":      "Готово",
+    "dlg.vent_norms.done_recalc_msg": (
+        "Нормы сохранены: {path}\nВентиляция пересчитана."),
+    "dlg.vent_norms.saved_title": "Сохранено",
+    "dlg.vent_norms.saved_msg": (
+        "Нормы сохранены: {path}\nОни применятся при следующем расчёте "
+        "вентиляции."),
+    "dlg.vent_norms.calc_err_title": "Ошибка расчёта",
 
     # ========== Panel: Problems (проверки проекта) ==========
     "panel.problems.title":          "Проблемы и проверки",

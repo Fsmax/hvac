@@ -216,6 +216,132 @@
     "lighting_w_m2": 5,
     "equipment_w_m2": 500
   },
+  "Душевая": {
+    "keywords": [
+      "shower",
+      "душевая",
+      "душев"
+    ],
+    "t_in_heat": 25,
+    "t_in_cool": 28,
+    "ach_inf": 1.0,
+    "occupancy_density_m2_per_person": 10.0,
+    "lighting_w_m2": 8,
+    "equipment_w_m2": 0
+  },
+  "Гардероб": {
+    "keywords": [
+      "cloakroom",
+      "wardrobe",
+      "гардероб"
+    ],
+    "t_in_heat": 16,
+    "t_in_cool": 26,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 20.0,
+    "lighting_w_m2": 8,
+    "equipment_w_m2": 0
+  },
+  "Медпункт": {
+    "keywords": [
+      "medical",
+      "first aid",
+      "медпункт",
+      "медицинск",
+      "процедурн",
+      "изолятор"
+    ],
+    "t_in_heat": 21,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 10.0,
+    "lighting_w_m2": 12,
+    "equipment_w_m2": 10
+  },
+  "Спортзал": {
+    "keywords": [
+      "sport",
+      "gym",
+      "fitness",
+      "спортзал",
+      "спортивн",
+      "тренаж",
+      "фитнес"
+    ],
+    "t_in_heat": 18,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 8.0,
+    "lighting_w_m2": 15,
+    "equipment_w_m2": 5
+  },
+  "Бассейн": {
+    "keywords": [
+      "pool",
+      "swimming",
+      "бассейн"
+    ],
+    "t_in_heat": 27,
+    "t_in_cool": 29,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 10.0,
+    "lighting_w_m2": 12,
+    "equipment_w_m2": 5
+  },
+  "Раздевалка": {
+    "keywords": [
+      "changing room",
+      "locker",
+      "раздевалк"
+    ],
+    "t_in_heat": 22,
+    "t_in_cool": 25,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 4.0,
+    "lighting_w_m2": 8,
+    "equipment_w_m2": 0
+  },
+  "Сауна": {
+    "keywords": [
+      "sauna",
+      "сауна",
+      "парная",
+      "ҳаммом"
+    ],
+    "t_in_heat": 22,
+    "t_in_cool": 24,
+    "ach_inf": 0.3,
+    "occupancy_density_m2_per_person": 4.0,
+    "lighting_w_m2": 6,
+    "equipment_w_m2": 0
+  },
+  "Прачечная": {
+    "keywords": [
+      "laundry",
+      "прачечн",
+      "постирочн"
+    ],
+    "t_in_heat": 18,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 20.0,
+    "lighting_w_m2": 10,
+    "equipment_w_m2": 50
+  },
+  "Парикмахерская": {
+    "keywords": [
+      "barber",
+      "hairdress",
+      "парикмахер",
+      "сартарош"
+    ],
+    "t_in_heat": 20,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 8.0,
+    "lighting_w_m2": 15,
+    "equipment_w_m2": 10
+  },
   "Прочее": {
     "keywords": [],
     "t_in_heat": 18,
