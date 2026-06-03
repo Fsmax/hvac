@@ -242,6 +242,9 @@ RU: Dict[str, str] = {
         "света всех фасадов для солнечного расчёта (+ против часовой). "
         "Применяется при пересчёте — править ориентацию по каждому "
         "ограждению вручную не нужно."),
+    "panel.data.climate.zone":        "Климатическая зона (ШНҚ):",
+    "panel.data.climate.zone_apply":  "Применить tв(лето)",
+    "panel.data.climate.zone_info":   "ШНҚ 2.08.02-23 табл.18: tв(лето) ≈ {t} °C, φ ≤ {rh}%, v ≤ {v} м/с",
     "panel.data.climate.shading":     "Защита от солнца:",
     "panel.data.climate.shade_none":  "Без затенения (100% солнца)",
     "panel.data.climate.shade_inner": "Внутренние жалюзи / тонировка (−30%)",
@@ -283,6 +286,7 @@ RU: Dict[str, str] = {
     "panel.data.status.climate_applied": "Применён климат: {name}",
     "panel.data.status.true_north":   "Поворот True North = {deg:+.0f}° (применится при пересчёте)",
     "panel.data.status.shading":      "Защита от солнца: теплопоступления −{pct}% (применится при пересчёте)",
+    "panel.data.status.zone_applied": "tв(лето) {t} °C применена к {n} помещениям (применится при пересчёте)",
     "panel.data.status.opened":          "Открыто: {path}",
     "panel.data.status.saved":           "Сохранено: {path}",
     "panel.data.status.saved_full":      "Сохранён полный проект: {path}",

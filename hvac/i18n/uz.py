@@ -247,6 +247,9 @@ UZ: Dict[str, str] = {
         "fasadlar tomonlarini global burab beradi (+ soat strelkasiga "
         "qarshi). Qayta hisoblashda qo‘llanadi — har bir to‘siq "
         "yo‘nalishini qo‘lda o‘zgartirish shart emas."),
+    "panel.data.climate.zone":        "Iqlim zonasi (ШНҚ):",
+    "panel.data.climate.zone_apply":  "tich(yoz) qo‘llash",
+    "panel.data.climate.zone_info":   "ШНҚ 2.08.02-23 18-jadval: tich(yoz) ≈ {t} °C, φ ≤ {rh}%, v ≤ {v} m/s",
     "panel.data.climate.shading":     "Quyoshdan himoya:",
     "panel.data.climate.shade_none":  "Soyalashsiz (100% quyosh)",
     "panel.data.climate.shade_inner": "Ichki jalyuzi / tonirovka (−30%)",
@@ -288,6 +291,7 @@ UZ: Dict[str, str] = {
     "panel.data.status.climate_applied": "Iqlim qo‘llanildi: {name}",
     "panel.data.status.true_north":   "True North burilishi = {deg:+.0f}° (qayta hisoblashda qo‘llanadi)",
     "panel.data.status.shading":      "Quyoshdan himoya: issiqlik kirimi −{pct}% (qayta hisoblashda qo‘llanadi)",
+    "panel.data.status.zone_applied": "tich(yoz) {t} °C {n} xonaga qo‘llandi (qayta hisoblashda qo‘llanadi)",
     "panel.data.status.opened":          "Ochildi: {path}",
     "panel.data.status.saved":           "Saqlandi: {path}",
     "panel.data.status.saved_full":      "To‘liq loyiha saqlandi: {path}",

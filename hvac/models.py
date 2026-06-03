@@ -318,6 +318,11 @@ class ProjectParameters:
     # См. hvac/dew_point.py (DT_NORM_BY_NORM).
     thermal_norm: str = "KMK_UZ"
 
+    # Климатическая зона по ШНҚ 2.08.02-23 табл.18 (I / II / III).
+    # Определяет рекомендуемые расчётные параметры микроклимата тёплого
+    # периода (tв, φ, скорость воздуха). См. hvac/catalogs/climate_zones.py.
+    climate_zone: str = "II"
+
     def apply_city(self, city_name: str) -> bool:
         """Применяет климат города из CLIMATE_DB. Возвращает True если нашло."""
         from hvac.catalogs.climate import CLIMATE_DB
