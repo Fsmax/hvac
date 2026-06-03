@@ -90,6 +90,19 @@ class ShNK0802VentilationEngine(VentilationEngine):
 
         # 2. Только вытяжка (туалеты)
         if norms.get("exhaust_only"):
+            # 2a. Если заданы приборы — считаем по ШНҚ 2.08.02-23 табл.19:
+            # 100 м³/ч на унитаз, 50 м³/ч на писсуар (точнее, чем по площади).
+            wc = int(getattr(space, "wc_count", 0) or 0)
+            urinal = int(getattr(space, "urinal_count", 0) or 0)
+            if wc or urinal:
+                exh = wc * 100.0 + urinal * 50.0
+                result["exhaust_m3h"] = exh
+                result["supply_m3h"] = 0.0   # из перетока
+                result["method"] = (
+                    f"По приборам ({wc}×100 + {urinal}×50 м³/ч)")
+                result["ach_calculated"] = (
+                    exh / space.volume_m3 if space.volume_m3 else 0)
+                return result
             exh = norms.get("exhaust_per_m2", 0) * space.area_m2
             exh = max(exh, norms.get("exhaust_min", 50))
             result["exhaust_m3h"] = exh

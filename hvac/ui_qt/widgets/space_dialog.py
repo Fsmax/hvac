@@ -115,6 +115,8 @@ class SpaceEditResult:
     volume_m3: float
     t_in_heat: float
     t_in_cool: float
+    wc_count: int = 0
+    urinal_count: int = 0
 
 
 class SpaceEditDialog(QDialog):
@@ -191,6 +193,21 @@ class SpaceEditDialog(QDialog):
         self.t_cool_spin.setSuffix(" °C")
         form.addRow(_t("dlg.space.t_cool"), self.t_cool_spin)
 
+        # Санитарные приборы — для расчёта вытяжки санузлов по ШНҚ
+        # (100 м³/ч на унитаз, 50 на писсуар). 0 = считать по площади.
+        self.wc_spin = QSpinBox()
+        self.wc_spin.setRange(0, 999)
+        form.addRow(_t("dlg.space.wc_count"), self.wc_spin)
+
+        self.urinal_spin = QSpinBox()
+        self.urinal_spin.setRange(0, 999)
+        form.addRow(_t("dlg.space.urinal_count"), self.urinal_spin)
+
+        san_hint = QLabel(_t("dlg.space.sanitary_hint"))
+        san_hint.setProperty("role", "muted")
+        san_hint.setWordWrap(True)
+        form.addRow("", san_hint)
+
         # Префилл до подключения сигналов, чтобы сохранить исходный объём,
         # даже если он не равен площадь × высота (импорт из Revit и т.п.).
         if initial:
@@ -203,6 +220,9 @@ class SpaceEditDialog(QDialog):
             self.volume_spin.setValue(max(0.1, initial.volume_m3))
             self.t_heat_spin.setValue(initial.t_in_heat)
             self.t_cool_spin.setValue(initial.t_in_cool)
+            self.wc_spin.setValue(int(getattr(initial, "wc_count", 0) or 0))
+            self.urinal_spin.setValue(
+                int(getattr(initial, "urinal_count", 0) or 0))
 
         self.area_spin.valueChanged.connect(self._recompute_volume)
         self.height_spin.valueChanged.connect(self._recompute_volume)
@@ -247,6 +267,8 @@ class SpaceEditDialog(QDialog):
             volume_m3=float(self.volume_spin.value()),
             t_in_heat=float(self.t_heat_spin.value()),
             t_in_cool=float(self.t_cool_spin.value()),
+            wc_count=int(self.wc_spin.value()),
+            urinal_count=int(self.urinal_spin.value()),
         )
 
 

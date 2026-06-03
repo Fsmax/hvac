@@ -28,6 +28,8 @@ SAVED_SPACE_FIELDS = [
     "user_modified",
     # Вентиляция (если пользователь правил)
     "supply_m3h", "exhaust_m3h", "hood_m3h", "vent_user_modified",
+    # Санитарные приборы (расчёт вытяжки санузлов)
+    "wc_count", "urinal_count",
     # Зоны / системы
     "system_heating", "system_cooling", "system_ventilation",
     # Контуры внутри систем
@@ -48,6 +50,7 @@ FULL_SPACE_FIELDS = [
     "user_modified", "manual_entry",
     "supply_m3h", "exhaust_m3h", "hood_m3h", "ach_calculated",
     "vent_user_modified",
+    "wc_count", "urinal_count",
     "system_heating", "system_cooling", "system_ventilation",
     "circuit_heating", "circuit_cooling", "duct_zone",
     "air_heating", "air_cooling",

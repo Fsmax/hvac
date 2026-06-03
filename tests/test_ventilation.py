@@ -124,6 +124,25 @@ class TestSP60Ventilation:
         assert result["supply_m3h"] == pytest.approx(180, rel=0.01)
         assert result["exhaust_m3h"] == pytest.approx(198, rel=0.01)
 
+    def test_wc_by_fixtures_shnk(self):
+        """Санузел по приборам (ШНҚ 2.08.02-23 табл.19): 3 унитаза + 2 писсуара
+        → 400 м³/ч вытяжки, перекрывает расчёт по площади."""
+        sp = _make_space("Санузел", area_m2=20, volume_m3=60, people=0)
+        sp.wc_count = 3
+        sp.urinal_count = 2
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # 3×100 + 2×50 = 400
+        assert result["exhaust_m3h"] == pytest.approx(400, rel=0.01)
+        assert result["supply_m3h"] == 0
+        assert "приборам" in result["method"]
+
+    def test_wc_no_fixtures_falls_back_to_area(self):
+        """Без приборов санузел считается по площади (как раньше)."""
+        sp = _make_space("Санузел", area_m2=5, volume_m3=15, people=0)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        assert result["exhaust_m3h"] == pytest.approx(100, rel=0.01)
+        assert "Только вытяжка" in result["method"]
+
     def test_kitchen_has_hood(self):
         """Ресторан/кухня — должен быть зонт + вытяжка > притока."""
         sp = _make_space("Ресторан / кухня", area_m2=50, volume_m3=150, people=20)
@@ -274,3 +293,28 @@ class TestUserOverrides:
         # Должно перерасcчитаться: 5×60 = 300 м³/ч (ШНҚ 2.08.02-23 табл.26)
         assert sp.supply_m3h == pytest.approx(300, rel=0.01)
         assert sp.supply_m3h != first
+
+    def test_fixtures_persist_in_json(self):
+        """wc_count / urinal_count сохраняются и читаются из JSON-проекта."""
+        import tempfile, os
+        from hvac.io_json import save_project, load_project
+
+        sp = _make_space("Санузел", area_m2=6, volume_m3=18, people=0)
+        sp.wc_count = 2
+        sp.urinal_count = 1
+        sp.manual_entry = True       # self-contained сохранение
+        project = _make_project(sp)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json",
+                                          delete=False) as f:
+            path = f.name
+        try:
+            save_project(project, path)
+            p2 = HVACProject()
+            load_project(p2, path)
+            sp2 = p2.get_space(sp.space_id)
+            assert sp2 is not None
+            assert sp2.wc_count == 2
+            assert sp2.urinal_count == 1
+        finally:
+            os.unlink(path)
