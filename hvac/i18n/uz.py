@@ -555,6 +555,87 @@ UZ: Dict[str, str] = {
     "panel.ventilation.preset.living":     "Turar xona — 1 karra so‘rish",
     "panel.ventilation.preset.office":     "Ofis — 3 karra berish",
     "panel.ventilation.preset.applied":    "Shablon qo‘llandi: {n}",
+    "panel.ventilation.btn_norms":         "Me'yorlar…",
+
+    # ========== Dialog: shamollatish me'yorlari muharriri ==========
+    "dlg.vent_norms.title":       "Shamollatish me'yorlari — muharrir",
+    "dlg.vent_norms.scope_hint": (
+        "O‘zgarishlar barcha loyihalar uchun global saqlanadi:\n{path}\n"
+        "Mos turdagi xonalarga keyingi shamollatish hisobida qo‘llaniladi."),
+    "dlg.vent_norms.types_group":  "Xona turlari",
+    "dlg.vent_norms.col_type":     "Tur",
+    "dlg.vent_norms.col_source":   "Manba",
+    "dlg.vent_norms.src_sp":            "SP",
+    "dlg.vent_norms.src_sp_overridden": "SP ✓",
+    "dlg.vent_norms.src_custom":        "foyd.",
+    "dlg.vent_norms.btn_new":      "+ Yangi tur",
+    "dlg.vent_norms.btn_delete":   "🗑 O‘chirish",
+    "dlg.vent_norms.params_group": "Me'yor parametrlari",
+    "dlg.vent_norms.status_custom": (
+        "⊕ Foydalanuvchi turi — barcha maydonlar shundayligicha saqlanadi."),
+    "dlg.vent_norms.status_overridden": (
+        "✓ Qayta belgilangan maydonlar: {fields}. Qolganlari uchun SP "
+        "qiymatlari saqlanadi."),
+    "dlg.vent_norms.status_default": (
+        "○ Tahrirsiz — SP qiymatlari ishlatiladi."),
+    "dlg.vent_norms.sep.supply":   "Berish (mezonlardan kattasi)",
+    "dlg.vent_norms.sep.exhaust":  "So‘rish",
+    "dlg.vent_norms.sep.hood":     "Soyabon",
+    "dlg.vent_norms.sep.desc":     "Tavsif",
+    "dlg.vent_norms.f.is_nc": (
+        "Majburiy shamollatishsiz (NC) — zinapoyalar, liftlar"),
+    "dlg.vent_norms.f.exhaust_only": (
+        "Faqat so‘rish (hojatxonalar) — berish o‘tkazmadan"),
+    "dlg.vent_norms.f.has_hood": (
+        "Soyabon bilan (oshxona) — so‘rishning bir qismi soyabon orqali"),
+    "dlg.vent_norms.f.has_co_control": "CO bo‘yicha boshqaruv (avtoturargoh)",
+    "dlg.vent_norms.f.m3_per_person": "Bir kishiga, m³/soat",
+    "dlg.vent_norms.f.m3_per_m2":     "1 m² yuzaga, m³/soat·m²",
+    "dlg.vent_norms.f.min_ach":       "Minimal karralik, 1/soat",
+    "dlg.vent_norms.f.m3_per_kw":     "1 kVt issiqlik ajralishiga, m³/soat·kVt",
+    "dlg.vent_norms.f.balance": (
+        "Disbalans, % (manfiy → so‘rish > berish)"),
+    "dlg.vent_norms.f.exhaust_per_m2": "Solishtirma so‘rish (hojatxona), m³/soat·m²",
+    "dlg.vent_norms.f.exhaust_min":    "Minimal so‘rish, m³/soat",
+    "dlg.vent_norms.f.hood_factor":    "Soyabon orqali so‘rish ulushi (0..1)",
+    "dlg.vent_norms.f.note":           "Me'yor / izoh",
+    "dlg.vent_norms.btn_reset":        "↺ Turni SP ga qaytarish",
+    "dlg.vent_norms.btn_save":         "💾 Saqlash",
+    "dlg.vent_norms.btn_save_recalc":  "💾 Saqlash va qayta hisoblash",
+    "dlg.vent_norms.new_title":  "Yangi tur",
+    "dlg.vent_norms.new_prompt": (
+        "Yangi xona turi nomi (masalan: «SPA-zona», «Kinozal», «Basseyn»):"),
+    "dlg.vent_norms.err_title":      "Xato",
+    "dlg.vent_norms.err_not_number": "«{label}» maydoni son emas: {val}",
+    "dlg.vent_norms.del_builtin_title": "O‘chirib bo‘lmaydi",
+    "dlg.vent_norms.del_builtin_msg": (
+        "«{t}» turi o‘rnatilgan (SP). Faqat override ni qaytarish mumkin."),
+    "dlg.vent_norms.del_confirm_title": "Turni o‘chirilsinmi?",
+    "dlg.vent_norms.del_confirm_msg": (
+        "«{t}» foydalanuvchi turini o‘chirilsinmi?{extra}"),
+    "dlg.vent_norms.del_in_use": (
+        "\n\n⚠ Joriy loyihada {n} ta xona shu turda. O‘chirilgach ular "
+        "«Прочее» standartidan foydalanadi."),
+    "dlg.vent_norms.info_title":       "Ma'lumot",
+    "dlg.vent_norms.reset_custom_msg": (
+        "Foydalanuvchi turini «SP ga qaytarib» bo‘lmaydi — faqat o‘chirish."),
+    "dlg.vent_norms.reset_none_msg": (
+        "«{t}» turida tahrir yo‘q — qiymatlar allaqachon SP dan."),
+    "dlg.vent_norms.save_err_title": "Yozish xatosi",
+    "dlg.vent_norms.save_err_msg":   "Me'yorlarni saqlab bo‘lmadi:\n{e}",
+    "dlg.vent_norms.reset_manual_title": "Qo‘l tahrirlari bekor qilinsinmi?",
+    "dlg.vent_norms.reset_manual_msg": (
+        "Loyihada {n} ta xona qo‘lda tahrirlangan. Yangi me'yorlar "
+        "qo‘llanishi uchun ularni bekor qilinsinmi?\n\n«Yo‘q» — faqat qo‘l "
+        "tahrirsiz xonalarni qayta hisoblash."),
+    "dlg.vent_norms.done_title":      "Tayyor",
+    "dlg.vent_norms.done_recalc_msg": (
+        "Me'yorlar saqlandi: {path}\nShamollatish qayta hisoblandi."),
+    "dlg.vent_norms.saved_title": "Saqlandi",
+    "dlg.vent_norms.saved_msg": (
+        "Me'yorlar saqlandi: {path}\nUlar keyingi shamollatish hisobida "
+        "qo‘llaniladi."),
+    "dlg.vent_norms.calc_err_title": "Hisob xatosi",
 
     # ========== Panel: Problems (loyiha tekshiruvlari) ==========
     "panel.problems.title":          "Muammolar va tekshiruvlar",
