@@ -21,6 +21,33 @@ from typing import Dict, List, Type
 from hvac.catalogs.user_norms import get_ventilation_norms
 
 
+def _pool_moisture_airflow(space, project, a_water: float) -> float:
+    """Приток на удаление влаги с зеркала бассейна, м³/ч (СП 31-113).
+
+    Испарение W = A · q_исп, где удельное испарение q [кг/(м²·ч)] зависит
+    от t воды (для занятого бассейна ≈0.2 при 28°C). Расход воздуха:
+        L = W·1000 / (ρ · Δd),  Δd = d_возд − d_приток [г/кг], ρ≈1.2 кг/м³.
+    Влагосодержание воздуха помещения считается по t и расчётной φ.
+    """
+    from hvac.dew_point import saturation_pressure_pa, _resolve_rh
+
+    t_w = getattr(space, "water_temp_c", 0.0) or 28.0
+    # Удельное испарение, кг/(м²·ч): занятый бассейн ≈0.2 при 28°C.
+    q_evap = max(0.05, 0.2 + 0.012 * (t_w - 28.0))
+    w_kg_h = a_water * q_evap
+
+    # Влагосодержание воздуха помещения (г/кг) по t воздуха и φ.
+    t_air = space.t_in_cool if space.t_in_cool > 0 else 28.0
+    rh = _resolve_rh(space) / 100.0
+    p_v = rh * saturation_pressure_pa(t_air)
+    d_room = 622.0 * p_v / (101325.0 - p_v)
+    # Влагосодержание приточного (наружного) воздуха — из параметров проекта.
+    d_supply = getattr(project.params, "w_out_summer_g_kg", 8.0)
+    delta_d = max(d_room - d_supply, 1.0)        # защита от деления на ~0
+
+    return w_kg_h * 1000.0 / (1.2 * delta_d)
+
+
 class VentilationEngine(ABC):
     """Абстрактный движок расчёта вентиляции."""
 
@@ -139,6 +166,14 @@ class ShNK0802VentilationEngine(VentilationEngine):
             if q_kw > 0:
                 L = q_kw * m3_kw
                 candidates.append((L, f"По тепловыделению ({q_kw:.2f} кВт × {m3_kw} м³/ч·кВт)"))
+
+        # По влагоудалению (бассейны) — если задана площадь зеркала воды
+        a_water = getattr(space, "water_surface_m2", 0.0) or 0.0
+        if a_water > 0:
+            L = _pool_moisture_airflow(space, project, a_water)
+            if L > 0:
+                candidates.append(
+                    (L, f"По влагоудалению ({a_water:.0f} м² зеркала)"))
 
         if not candidates:
             result["warnings"].append("Нет данных для расчёта")

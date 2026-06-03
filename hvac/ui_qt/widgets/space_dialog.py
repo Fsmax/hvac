@@ -117,6 +117,8 @@ class SpaceEditResult:
     t_in_cool: float
     wc_count: int = 0
     urinal_count: int = 0
+    water_surface_m2: float = 0.0
+    water_temp_c: float = 0.0
 
 
 class SpaceEditDialog(QDialog):
@@ -208,6 +210,24 @@ class SpaceEditDialog(QDialog):
         san_hint.setWordWrap(True)
         form.addRow("", san_hint)
 
+        # Бассейны — влагоудаление по испарению с зеркала воды.
+        self.water_area_spin = QDoubleSpinBox()
+        self.water_area_spin.setRange(0.0, 100000.0)
+        self.water_area_spin.setDecimals(1)
+        self.water_area_spin.setSuffix(" м²")
+        form.addRow(_t("dlg.space.water_surface"), self.water_area_spin)
+
+        self.water_temp_spin = QDoubleSpinBox()
+        self.water_temp_spin.setRange(0.0, 45.0)
+        self.water_temp_spin.setDecimals(1)
+        self.water_temp_spin.setSuffix(" °C")
+        form.addRow(_t("dlg.space.water_temp"), self.water_temp_spin)
+
+        pool_hint = QLabel(_t("dlg.space.pool_hint"))
+        pool_hint.setProperty("role", "muted")
+        pool_hint.setWordWrap(True)
+        form.addRow("", pool_hint)
+
         # Префилл до подключения сигналов, чтобы сохранить исходный объём,
         # даже если он не равен площадь × высота (импорт из Revit и т.п.).
         if initial:
@@ -223,6 +243,10 @@ class SpaceEditDialog(QDialog):
             self.wc_spin.setValue(int(getattr(initial, "wc_count", 0) or 0))
             self.urinal_spin.setValue(
                 int(getattr(initial, "urinal_count", 0) or 0))
+            self.water_area_spin.setValue(
+                float(getattr(initial, "water_surface_m2", 0.0) or 0.0))
+            self.water_temp_spin.setValue(
+                float(getattr(initial, "water_temp_c", 0.0) or 0.0))
 
         self.area_spin.valueChanged.connect(self._recompute_volume)
         self.height_spin.valueChanged.connect(self._recompute_volume)
@@ -269,6 +293,8 @@ class SpaceEditDialog(QDialog):
             t_in_cool=float(self.t_cool_spin.value()),
             wc_count=int(self.wc_spin.value()),
             urinal_count=int(self.urinal_spin.value()),
+            water_surface_m2=float(self.water_area_spin.value()),
+            water_temp_c=float(self.water_temp_spin.value()),
         )
 
 

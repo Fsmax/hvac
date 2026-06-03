@@ -143,6 +143,24 @@ class TestSP60Ventilation:
         assert result["exhaust_m3h"] == pytest.approx(100, rel=0.01)
         assert "Только вытяжка" in result["method"]
 
+    def test_pool_moisture_removal(self):
+        """Бассейн с зеркалом воды: приток по влагоудалению доминирует."""
+        sp = _make_space("Бассейн", area_m2=200, volume_m3=800, people=5)
+        sp.water_surface_m2 = 100.0
+        sp.water_temp_c = 28.0
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # Влагоудаление (~4000 м³/ч) >> по людям (400) и кратности (1600)
+        assert "влагоудалению" in result["method"]
+        assert result["supply_m3h"] > 3000
+
+    def test_pool_without_water_surface(self):
+        """Без площади зеркала бассейн считается по людям/кратности."""
+        sp = _make_space("Бассейн", area_m2=200, volume_m3=800, people=5)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        assert "влагоудалению" not in result["method"]
+        # max(5×80=400, 800×2=1600) = 1600 по кратности
+        assert result["supply_m3h"] == pytest.approx(1600, rel=0.01)
+
     def test_kitchen_has_hood(self):
         """Ресторан/кухня — должен быть зонт + вытяжка > притока."""
         sp = _make_space("Ресторан / кухня", area_m2=50, volume_m3=150, people=20)
