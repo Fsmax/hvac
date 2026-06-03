@@ -53,20 +53,40 @@ class TestSP60Ventilation:
         assert "По площади" in result["method"]
 
     def test_wc_exhaust_only(self):
-        """Туалет 5 м² → exhaust 50 м³/ч, приток = 0 (переток)."""
+        """Туалет 5 м² → exhaust 100 м³/ч (ШНҚ 2.08.02-23: 100 на унитаз),
+        приток = 0 (переток)."""
         sp = _make_space("Санузел", area_m2=5, volume_m3=15, people=0)
         engine = SP60VentilationEngine()
         result = engine.calculate(sp, _make_project(sp))
         assert result["supply_m3h"] == 0
-        assert result["exhaust_m3h"] == pytest.approx(50, rel=0.01)
+        assert result["exhaust_m3h"] == pytest.approx(100, rel=0.01)
         assert "Только вытяжка" in result["method"]
 
     def test_wc_large_uses_area(self):
-        """Большой санузел 10 м² → 100 м³/ч (10 × 10)."""
+        """Большой санузел 10 м² → 200 м³/ч (10 × 20 м³/ч·м²)."""
         sp = _make_space("Санузел", area_m2=10, volume_m3=30, people=0)
         engine = SP60VentilationEngine()
         result = engine.calculate(sp, _make_project(sp))
-        assert result["exhaust_m3h"] == pytest.approx(100, rel=0.01)
+        assert result["exhaust_m3h"] == pytest.approx(200, rel=0.01)
+
+    def test_vestibule_ach_shnk(self):
+        """Вестибюль (ШНҚ 2.08.02-23 табл.19): кратность ≥2 → V×2."""
+        sp = _make_space("Вестибюль", area_m2=20, volume_m3=60, people=1.0)
+        engine = SP60VentilationEngine()
+        result = engine.calculate(sp, _make_project(sp))
+        # max(40 м³/ч·чел, 60×2=120 по кратности) = 120
+        assert result["supply_m3h"] == pytest.approx(120, rel=0.01)
+        assert "По кратности" in result["method"]
+
+    def test_shower_by_ach_shnk(self):
+        """Душевая (ШНҚ 2.08.02-23 табл.19): кратность ≥5, вытяжка > притока."""
+        sp = _make_space("Душевая", area_m2=10, volume_m3=30, people=0)
+        engine = SP60VentilationEngine()
+        result = engine.calculate(sp, _make_project(sp))
+        # supply = 30×5 = 150; balance=-10 → exhaust = 150×1.10 = 165
+        assert result["supply_m3h"] == pytest.approx(150, rel=0.01)
+        assert result["exhaust_m3h"] == pytest.approx(165, rel=0.01)
+        assert result["exhaust_m3h"] > result["supply_m3h"]
 
     def test_kitchen_has_hood(self):
         """Ресторан/кухня — должен быть зонт + вытяжка > притока."""
