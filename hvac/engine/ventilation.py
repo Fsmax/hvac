@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Расчёт вентиляции по СП 60.13330.2020 (Strategy Pattern).
+"""Расчёт вентиляции по ШНҚ 2.08.02-23 (Strategy Pattern).
 
 Возвращает для каждого помещения:
   • supply_m3h          — приток, м³/ч
@@ -56,17 +56,17 @@ def list_ventilation_engines() -> List[str]:
     return list(_VENT_REGISTRY.keys())
 
 
-# ---------- Реализация СП 60.13330.2020 ----------
+# ---------- Реализация ШНҚ 2.08.02-23 ----------
 
 
 @register_ventilation_engine
-class SP60VentilationEngine(VentilationEngine):
-    """Расчёт вентиляции по СП 60.13330.2020 + СП 44 (гостиницы) +
-    СП 113 (парковки)."""
+class ShNK0802VentilationEngine(VentilationEngine):
+    """Расчёт вентиляции по ШНҚ 2.08.02-23 «Жамоат бинолари ва иншоотлари»
+    (для типов вне ШНҚ — фолбэк на СП 60 / СП 44 / СП 113)."""
 
     @property
     def name(self) -> str:
-        return "СП 60.13330.2020"
+        return "ШНҚ 2.08.02-23"
 
     def calculate(self, space, project) -> Dict:
         # Эффективные нормы: пользовательский override (если есть) + СП-дефолт.
@@ -162,4 +162,18 @@ class SP60VentilationEngine(VentilationEngine):
                     f"Кратность {ach:.1f} ниже норматива {min_ach}"
                 )
 
+        # Парковки: расход нормируется по выбросу CO (динамика въезда/выезда).
+        # В модели нет числа машин, поэтому принят упрощённый расчёт по
+        # площади — помечаем это предупреждением, чтобы инженер проверил.
+        if norms.get("has_co_control"):
+            result["warnings"].append(
+                "Парковка: проверьте расход по выбросу CO (СП 113 / ШНҚ); "
+                "упрощённо принято по площади."
+            )
+
         return result
+
+
+# Историческое имя — движок раньше назывался по СП 60. Оставляем алиас,
+# чтобы не ломать импорты (тесты, внешний код).
+SP60VentilationEngine = ShNK0802VentilationEngine

@@ -97,6 +97,33 @@ class TestSP60Ventilation:
         assert result["supply_m3h"] == pytest.approx(1600, rel=0.01)
         assert "По людям" in result["method"]
 
+    def test_engine_name_is_shnk(self):
+        """Движок вентиляции теперь идентифицируется как ШНҚ 2.08.02-23."""
+        assert SP60VentilationEngine().name == "ШНҚ 2.08.02-23"
+
+    def test_parking_co_warning(self):
+        """Парковка — предупреждение проверить расход по CO (ШНҚ/СП 113)."""
+        sp = _make_space("Гараж / автостоянка", area_m2=1000, volume_m3=3000,
+                         people=0)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        assert any("CO" in w for w in result["warnings"])
+
+    def test_exhibition_per_person_shnk(self):
+        """Выставочный зал (ШНҚ 2.08.02-23 табл.21): ≥20 м³/ч·чел."""
+        sp = _make_space("Выставочный зал", area_m2=100, volume_m3=400,
+                         people=30)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # max(30×20=600, 400×1=400) = 600 по людям
+        assert result["supply_m3h"] == pytest.approx(600, rel=0.01)
+
+    def test_dishwash_by_ach_shnk(self):
+        """Моечная (ШНҚ 2.08.02-23 табл.24): кратность ≥6, вытяжка > притока."""
+        sp = _make_space("Моечная", area_m2=10, volume_m3=30, people=0)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # supply = 30×6 = 180; balance=-10 → exhaust = 180×1.10 = 198
+        assert result["supply_m3h"] == pytest.approx(180, rel=0.01)
+        assert result["exhaust_m3h"] == pytest.approx(198, rel=0.01)
+
     def test_kitchen_has_hood(self):
         """Ресторан/кухня — должен быть зонт + вытяжка > притока."""
         sp = _make_space("Ресторан / кухня", area_m2=50, volume_m3=150, people=20)
