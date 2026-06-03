@@ -342,6 +342,51 @@
     "lighting_w_m2": 15,
     "equipment_w_m2": 10
   },
+  "Выставочный зал": {
+    "keywords": [
+      "exhibition",
+      "gallery",
+      "museum",
+      "выставочн",
+      "экспозиц",
+      "музей"
+    ],
+    "t_in_heat": 22,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 4.0,
+    "lighting_w_m2": 15,
+    "equipment_w_m2": 5
+  },
+  "Архив / хранилище": {
+    "keywords": [
+      "archive",
+      "book storage",
+      "архив",
+      "хранилищ",
+      "книгохран"
+    ],
+    "t_in_heat": 18,
+    "t_in_cool": 24,
+    "ach_inf": 0.3,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 8,
+    "equipment_w_m2": 2
+  },
+  "Моечная": {
+    "keywords": [
+      "dishwash",
+      "ware wash",
+      "моечн",
+      "посудомо"
+    ],
+    "t_in_heat": 20,
+    "t_in_cool": 26,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 10.0,
+    "lighting_w_m2": 10,
+    "equipment_w_m2": 30
+  },
   "Прочее": {
     "keywords": [],
     "t_in_heat": 18,

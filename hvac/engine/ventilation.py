@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Расчёт вентиляции по СП 60.13330.2020 (Strategy Pattern).
+"""Расчёт вентиляции по ШНҚ 2.08.02-23 (Strategy Pattern).
 
 Возвращает для каждого помещения:
   • supply_m3h          — приток, м³/ч
@@ -19,6 +19,33 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Type
 
 from hvac.catalogs.user_norms import get_ventilation_norms
+
+
+def _pool_moisture_airflow(space, project, a_water: float) -> float:
+    """Приток на удаление влаги с зеркала бассейна, м³/ч (СП 31-113).
+
+    Испарение W = A · q_исп, где удельное испарение q [кг/(м²·ч)] зависит
+    от t воды (для занятого бассейна ≈0.2 при 28°C). Расход воздуха:
+        L = W·1000 / (ρ · Δd),  Δd = d_возд − d_приток [г/кг], ρ≈1.2 кг/м³.
+    Влагосодержание воздуха помещения считается по t и расчётной φ.
+    """
+    from hvac.dew_point import saturation_pressure_pa, _resolve_rh
+
+    t_w = getattr(space, "water_temp_c", 0.0) or 28.0
+    # Удельное испарение, кг/(м²·ч): занятый бассейн ≈0.2 при 28°C.
+    q_evap = max(0.05, 0.2 + 0.012 * (t_w - 28.0))
+    w_kg_h = a_water * q_evap
+
+    # Влагосодержание воздуха помещения (г/кг) по t воздуха и φ.
+    t_air = space.t_in_cool if space.t_in_cool > 0 else 28.0
+    rh = _resolve_rh(space) / 100.0
+    p_v = rh * saturation_pressure_pa(t_air)
+    d_room = 622.0 * p_v / (101325.0 - p_v)
+    # Влагосодержание приточного (наружного) воздуха — из параметров проекта.
+    d_supply = getattr(project.params, "w_out_summer_g_kg", 8.0)
+    delta_d = max(d_room - d_supply, 1.0)        # защита от деления на ~0
+
+    return w_kg_h * 1000.0 / (1.2 * delta_d)
 
 
 class VentilationEngine(ABC):
@@ -56,17 +83,17 @@ def list_ventilation_engines() -> List[str]:
     return list(_VENT_REGISTRY.keys())
 
 
-# ---------- Реализация СП 60.13330.2020 ----------
+# ---------- Реализация ШНҚ 2.08.02-23 ----------
 
 
 @register_ventilation_engine
-class SP60VentilationEngine(VentilationEngine):
-    """Расчёт вентиляции по СП 60.13330.2020 + СП 44 (гостиницы) +
-    СП 113 (парковки)."""
+class ShNK0802VentilationEngine(VentilationEngine):
+    """Расчёт вентиляции по ШНҚ 2.08.02-23 «Жамоат бинолари ва иншоотлари»
+    (для типов вне ШНҚ — фолбэк на СП 60 / СП 44 / СП 113)."""
 
     @property
     def name(self) -> str:
-        return "СП 60.13330.2020"
+        return "ШНҚ 2.08.02-23"
 
     def calculate(self, space, project) -> Dict:
         # Эффективные нормы: пользовательский override (если есть) + СП-дефолт.
@@ -90,6 +117,19 @@ class SP60VentilationEngine(VentilationEngine):
 
         # 2. Только вытяжка (туалеты)
         if norms.get("exhaust_only"):
+            # 2a. Если заданы приборы — считаем по ШНҚ 2.08.02-23 табл.19:
+            # 100 м³/ч на унитаз, 50 м³/ч на писсуар (точнее, чем по площади).
+            wc = int(getattr(space, "wc_count", 0) or 0)
+            urinal = int(getattr(space, "urinal_count", 0) or 0)
+            if wc or urinal:
+                exh = wc * 100.0 + urinal * 50.0
+                result["exhaust_m3h"] = exh
+                result["supply_m3h"] = 0.0   # из перетока
+                result["method"] = (
+                    f"По приборам ({wc}×100 + {urinal}×50 м³/ч)")
+                result["ach_calculated"] = (
+                    exh / space.volume_m3 if space.volume_m3 else 0)
+                return result
             exh = norms.get("exhaust_per_m2", 0) * space.area_m2
             exh = max(exh, norms.get("exhaust_min", 50))
             result["exhaust_m3h"] = exh
@@ -127,6 +167,14 @@ class SP60VentilationEngine(VentilationEngine):
                 L = q_kw * m3_kw
                 candidates.append((L, f"По тепловыделению ({q_kw:.2f} кВт × {m3_kw} м³/ч·кВт)"))
 
+        # По влагоудалению (бассейны) — если задана площадь зеркала воды
+        a_water = getattr(space, "water_surface_m2", 0.0) or 0.0
+        if a_water > 0:
+            L = _pool_moisture_airflow(space, project, a_water)
+            if L > 0:
+                candidates.append(
+                    (L, f"По влагоудалению ({a_water:.0f} м² зеркала)"))
+
         if not candidates:
             result["warnings"].append("Нет данных для расчёта")
             return result
@@ -162,4 +210,18 @@ class SP60VentilationEngine(VentilationEngine):
                     f"Кратность {ach:.1f} ниже норматива {min_ach}"
                 )
 
+        # Парковки: расход нормируется по выбросу CO (динамика въезда/выезда).
+        # В модели нет числа машин, поэтому принят упрощённый расчёт по
+        # площади — помечаем это предупреждением, чтобы инженер проверил.
+        if norms.get("has_co_control"):
+            result["warnings"].append(
+                "Парковка: проверьте расход по выбросу CO (СП 113 / ШНҚ); "
+                "упрощённо принято по площади."
+            )
+
         return result
+
+
+# Историческое имя — движок раньше назывался по СП 60. Оставляем алиас,
+# чтобы не ломать импорты (тесты, внешний код).
+SP60VentilationEngine = ShNK0802VentilationEngine

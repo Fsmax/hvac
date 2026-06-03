@@ -283,6 +283,34 @@ class DataPanel(QWidget):
         sh_row.addWidget(self.shading_combo, stretch=1)
         card.body().addSpacing(8)
         card.body().addLayout(sh_row)
+
+        # Климатическая зона (ШНҚ 2.08.02-23 табл.18) — рекомендуемые
+        # расчётные параметры микроклимата тёплого периода. Кнопка
+        # «Применить» проставляет tв(лето) во все помещения (опционально).
+        from hvac.catalogs.climate_zones import list_climate_zones
+        self.zone_combo = QComboBox()
+        for z in list_climate_zones():
+            self.zone_combo.addItem(z, z)
+        self.zone_combo.currentIndexChanged.connect(self._apply_climate_zone)
+
+        zone_row = QHBoxLayout()
+        self._lbl_zone = QLabel()
+        self._tr_label(self._lbl_zone, "panel.data.climate.zone")
+        zone_row.addWidget(self._lbl_zone)
+        zone_row.addWidget(self.zone_combo)
+        self.zone_apply_btn = QPushButton()
+        self._tr_button(self.zone_apply_btn, "panel.data.climate.zone_apply")
+        self.zone_apply_btn.clicked.connect(self._apply_zone_to_rooms)
+        zone_row.addWidget(self.zone_apply_btn)
+        zone_row.addStretch(1)
+        card.body().addSpacing(8)
+        card.body().addLayout(zone_row)
+
+        self._lbl_zone_info = QLabel()
+        self._lbl_zone_info.setProperty("role", "hint")
+        self._lbl_zone_info.setWordWrap(True)
+        card.body().addWidget(self._lbl_zone_info)
+        self._refresh_zone_info()
         return card
 
     def _build_sources_card(self) -> Card:
@@ -427,6 +455,14 @@ class DataPanel(QWidget):
         self.shading_combo.setCurrentIndex(idx)
         self.shading_combo.blockSignals(False)
 
+        # Климатическая зона
+        zi = self.zone_combo.findData(getattr(p, "climate_zone", "II"))
+        if zi >= 0:
+            self.zone_combo.blockSignals(True)
+            self.zone_combo.setCurrentIndex(zi)
+            self.zone_combo.blockSignals(False)
+        self._refresh_zone_info()
+
         # Источники
         self._spaces_path = self.project.spaces_csv_path or ""
         self._thermal_path = self.project.thermal_csv_path or ""
@@ -511,6 +547,35 @@ class DataPanel(QWidget):
         self.bridge.dirtyChanged.emit(True)
         self.bridge.statusMessage.emit(
             _t("panel.data.status.true_north").format(deg=value), 3000)
+
+    def _refresh_zone_info(self) -> None:
+        from hvac.catalogs.climate_zones import zone_params
+        p = zone_params(getattr(self.project.params, "climate_zone", "II"))
+        self._lbl_zone_info.setText(
+            _t("panel.data.climate.zone_info").format(
+                t=p["t_cool"], rh=p["rh_max"], v=p["v_max"]))
+
+    def _apply_climate_zone(self, _idx: int) -> None:
+        zone = self.zone_combo.currentData()
+        if not zone:
+            return
+        self.project.params.climate_zone = zone
+        self._refresh_zone_info()
+        self.bridge.dirtyChanged.emit(True)
+
+    def _apply_zone_to_rooms(self) -> None:
+        from hvac.catalogs.climate_zones import zone_indoor_cooling_temp
+        if not self.project.spaces:
+            return
+        t = zone_indoor_cooling_temp(
+            getattr(self.project.params, "climate_zone", "II"))
+        for sp in self.project.spaces:
+            sp.t_in_cool = t
+            sp.user_modified = True
+        self.bridge.dirtyChanged.emit(True)
+        self.bridge.statusMessage.emit(
+            _t("panel.data.status.zone_applied").format(
+                n=len(self.project.spaces), t=t), 4000)
 
     def _apply_shading(self, _idx: int) -> None:
         factor = self.shading_combo.currentData()

@@ -97,6 +97,70 @@ class TestSP60Ventilation:
         assert result["supply_m3h"] == pytest.approx(1600, rel=0.01)
         assert "По людям" in result["method"]
 
+    def test_engine_name_is_shnk(self):
+        """Движок вентиляции теперь идентифицируется как ШНҚ 2.08.02-23."""
+        assert SP60VentilationEngine().name == "ШНҚ 2.08.02-23"
+
+    def test_parking_co_warning(self):
+        """Парковка — предупреждение проверить расход по CO (ШНҚ/СП 113)."""
+        sp = _make_space("Гараж / автостоянка", area_m2=1000, volume_m3=3000,
+                         people=0)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        assert any("CO" in w for w in result["warnings"])
+
+    def test_exhibition_per_person_shnk(self):
+        """Выставочный зал (ШНҚ 2.08.02-23 табл.21): ≥20 м³/ч·чел."""
+        sp = _make_space("Выставочный зал", area_m2=100, volume_m3=400,
+                         people=30)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # max(30×20=600, 400×1=400) = 600 по людям
+        assert result["supply_m3h"] == pytest.approx(600, rel=0.01)
+
+    def test_dishwash_by_ach_shnk(self):
+        """Моечная (ШНҚ 2.08.02-23 табл.24): кратность ≥6, вытяжка > притока."""
+        sp = _make_space("Моечная", area_m2=10, volume_m3=30, people=0)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # supply = 30×6 = 180; balance=-10 → exhaust = 180×1.10 = 198
+        assert result["supply_m3h"] == pytest.approx(180, rel=0.01)
+        assert result["exhaust_m3h"] == pytest.approx(198, rel=0.01)
+
+    def test_wc_by_fixtures_shnk(self):
+        """Санузел по приборам (ШНҚ 2.08.02-23 табл.19): 3 унитаза + 2 писсуара
+        → 400 м³/ч вытяжки, перекрывает расчёт по площади."""
+        sp = _make_space("Санузел", area_m2=20, volume_m3=60, people=0)
+        sp.wc_count = 3
+        sp.urinal_count = 2
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # 3×100 + 2×50 = 400
+        assert result["exhaust_m3h"] == pytest.approx(400, rel=0.01)
+        assert result["supply_m3h"] == 0
+        assert "приборам" in result["method"]
+
+    def test_wc_no_fixtures_falls_back_to_area(self):
+        """Без приборов санузел считается по площади (как раньше)."""
+        sp = _make_space("Санузел", area_m2=5, volume_m3=15, people=0)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        assert result["exhaust_m3h"] == pytest.approx(100, rel=0.01)
+        assert "Только вытяжка" in result["method"]
+
+    def test_pool_moisture_removal(self):
+        """Бассейн с зеркалом воды: приток по влагоудалению доминирует."""
+        sp = _make_space("Бассейн", area_m2=200, volume_m3=800, people=5)
+        sp.water_surface_m2 = 100.0
+        sp.water_temp_c = 28.0
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # Влагоудаление (~4000 м³/ч) >> по людям (400) и кратности (1600)
+        assert "влагоудалению" in result["method"]
+        assert result["supply_m3h"] > 3000
+
+    def test_pool_without_water_surface(self):
+        """Без площади зеркала бассейн считается по людям/кратности."""
+        sp = _make_space("Бассейн", area_m2=200, volume_m3=800, people=5)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        assert "влагоудалению" not in result["method"]
+        # max(5×80=400, 800×2=1600) = 1600 по кратности
+        assert result["supply_m3h"] == pytest.approx(1600, rel=0.01)
+
     def test_kitchen_has_hood(self):
         """Ресторан/кухня — должен быть зонт + вытяжка > притока."""
         sp = _make_space("Ресторан / кухня", area_m2=50, volume_m3=150, people=20)
@@ -247,3 +311,28 @@ class TestUserOverrides:
         # Должно перерасcчитаться: 5×60 = 300 м³/ч (ШНҚ 2.08.02-23 табл.26)
         assert sp.supply_m3h == pytest.approx(300, rel=0.01)
         assert sp.supply_m3h != first
+
+    def test_fixtures_persist_in_json(self):
+        """wc_count / urinal_count сохраняются и читаются из JSON-проекта."""
+        import tempfile, os
+        from hvac.io_json import save_project, load_project
+
+        sp = _make_space("Санузел", area_m2=6, volume_m3=18, people=0)
+        sp.wc_count = 2
+        sp.urinal_count = 1
+        sp.manual_entry = True       # self-contained сохранение
+        project = _make_project(sp)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json",
+                                          delete=False) as f:
+            path = f.name
+        try:
+            save_project(project, path)
+            p2 = HVACProject()
+            load_project(p2, path)
+            sp2 = p2.get_space(sp.space_id)
+            assert sp2 is not None
+            assert sp2.wc_count == 2
+            assert sp2.urinal_count == 1
+        finally:
+            os.unlink(path)
