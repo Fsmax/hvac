@@ -2,9 +2,12 @@
 """VentilationPanel — таблица расходов воздуха по помещениям + сводка."""
 from __future__ import annotations
 
+import re
 from typing import Any
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
+from PySide6.QtCore import (
+    QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt,
+)
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
@@ -21,6 +24,13 @@ from hvac.ui_qt.widgets.card import Card
 from hvac.ui_qt.widgets.table_edit import (
     EditableTableModelMixin, TableEditBinder,
 )
+
+
+def _floor_num(level: str) -> float:
+    """Числовой ключ этажа из строки уровня («L12» → 12, «-1» → -1).
+    Без числа — в конец списка."""
+    m = re.search(r"-?\d+", level or "")
+    return float(m.group()) if m else 1e9
 
 
 _VENT_HEADER_KEYS = [
@@ -315,6 +325,50 @@ class BulkVentDialog(QDialog):
         return col, mode, self.value_spin.value()
 
 
+class _VentFilterProxy(QSortFilterProxyModel):
+    """Поиск + фильтры этаж / тип / зона для таблицы вентиляции.
+    Зона = система вентиляции помещения (system_ventilation)."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._text = ""
+        self._level = ""
+        self._type = ""
+        self._zone = ""
+
+    def set_text(self, t: str) -> None:
+        self._text = (t or "").lower().strip()
+        self.invalidateFilter()
+
+    def set_level(self, v: str) -> None:
+        self._level = "" if v == _t("filter.all") else v
+        self.invalidateFilter()
+
+    def set_type(self, v: str) -> None:
+        self._type = "" if v == _t("filter.all") else v
+        self.invalidateFilter()
+
+    def set_zone(self, v: str) -> None:
+        self._zone = "" if v == _t("filter.all") else v
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row: int, _parent: QModelIndex) -> bool:
+        sp = self.sourceModel().project.spaces[source_row]
+        if self._level and (sp.level or "") != self._level:
+            return False
+        if self._type and (sp.room_type or "") != self._type:
+            return False
+        if self._zone and (sp.system_ventilation or "") != self._zone:
+            return False
+        if self._text:
+            hay = " ".join((sp.number, sp.name, sp.level or "",
+                            sp.room_type or "",
+                            sp.system_ventilation or "")).lower()
+            if self._text not in hay:
+                return False
+        return True
+
+
 class VentilationPanel(QWidget):
     def __init__(self, project: HVACProject, bridge: ProjectBridge,
                  parent: QWidget | None = None):
@@ -358,20 +412,40 @@ class VentilationPanel(QWidget):
         self.summary_card.body().addWidget(self.summary_lbl)
         outer.addWidget(self.summary_card)
 
-        # Поиск
+        # Поиск + фильтры этаж / тип / зона
+        flt = QHBoxLayout()
         self.search = QLineEdit()
         self.search.setPlaceholderText(_t("btn.search.ph"))
         self.search.setClearButtonEnabled(True)
-        outer.addWidget(self.search)
+        flt.addWidget(self.search, stretch=1)
+
+        self._level_filter_lbl = QLabel(_t("panel.spaces.filter.level"))
+        flt.addWidget(self._level_filter_lbl)
+        self.level_filter = QComboBox()
+        self.level_filter.setMinimumWidth(90)
+        flt.addWidget(self.level_filter)
+
+        self._type_filter_lbl = QLabel(_t("panel.spaces.filter.type"))
+        flt.addWidget(self._type_filter_lbl)
+        self.type_filter = QComboBox()
+        self.type_filter.setMinimumWidth(120)
+        flt.addWidget(self.type_filter)
+
+        self._zone_filter_lbl = QLabel(_t("panel.spaces.filter.zone"))
+        flt.addWidget(self._zone_filter_lbl)
+        self.zone_filter = QComboBox()
+        self.zone_filter.setMinimumWidth(120)
+        flt.addWidget(self.zone_filter)
+        outer.addLayout(flt)
 
         # Таблица
-        from PySide6.QtCore import QSortFilterProxyModel
         self.model = VentilationModel(project, bridge)
-        self.proxy = QSortFilterProxyModel(self)
+        self.proxy = _VentFilterProxy(self)
         self.proxy.setSourceModel(self.model)
-        self.proxy.setFilterCaseSensitivity(Qt.CaseInsensitive)
-        self.proxy.setFilterKeyColumn(-1)
-        self.search.textChanged.connect(self.proxy.setFilterFixedString)
+        self.search.textChanged.connect(self.proxy.set_text)
+        self.level_filter.currentTextChanged.connect(self.proxy.set_level)
+        self.type_filter.currentTextChanged.connect(self.proxy.set_type)
+        self.zone_filter.currentTextChanged.connect(self.proxy.set_zone)
 
         self.table = QTableView()
         self.table.setModel(self.proxy)
@@ -402,9 +476,13 @@ class VentilationPanel(QWidget):
         bridge.dataLoaded.connect(self._refresh_summary)
         bridge.projectLoaded.connect(self._refresh_summary)
         bridge.ventilationDone.connect(self._refresh_summary)
+        bridge.dataLoaded.connect(self._refresh_filter_options)
+        bridge.projectLoaded.connect(self._refresh_filter_options)
+        bridge.ventilationDone.connect(self._refresh_filter_options)
         # Ручная правка ячейки меняет суммарные расходы — обновляем карточку.
         self.model.dataChanged.connect(lambda *a: self._refresh_summary())
         self._refresh_summary()
+        self._refresh_filter_options()
 
     def _run(self) -> None:
         if not self.project.spaces:
@@ -576,6 +654,32 @@ class VentilationPanel(QWidget):
                 hood=_fmt(hood), diff=_fmt(diff, plus=True))
         )
 
+    def _refresh_filter_options(self, *args: Any) -> None:
+        """Пересобирает опции фильтров (этаж/тип/зона) из текущих помещений,
+        сохраняя выбор; этажи сортируются численно. Зона = система
+        вентиляции (system_ventilation)."""
+        spaces = self.project.spaces
+        levels = sorted({s.level for s in spaces if s.level}, key=_floor_num)
+        types = sorted({s.room_type for s in spaces if s.room_type})
+        zones = sorted({s.system_ventilation for s in spaces
+                        if s.system_ventilation})
+        all_label = _t("filter.all")
+        for combo, items in ((self.level_filter, levels),
+                             (self.type_filter, types),
+                             (self.zone_filter, zones)):
+            current = combo.currentText() or all_label
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem(all_label)
+            combo.addItems(items)
+            idx = combo.findText(current)
+            combo.setCurrentIndex(max(0, idx))
+            combo.blockSignals(False)
+        # Сигналы были заблокированы — синхронизируем прокси вручную.
+        self.proxy.set_level(self.level_filter.currentText())
+        self.proxy.set_type(self.type_filter.currentText())
+        self.proxy.set_zone(self.zone_filter.currentText())
+
     # ---------- Локализация ----------
     def retranslate_ui(self) -> None:
         self.title_lbl.setText(_t("panel.ventilation.title"))
@@ -586,6 +690,10 @@ class VentilationPanel(QWidget):
         self.summary_card.set_subtitle(
             _t("panel.ventilation.summary_card.subtitle"))
         self.search.setPlaceholderText(_t("btn.search.ph"))
+        self._level_filter_lbl.setText(_t("panel.spaces.filter.level"))
+        self._type_filter_lbl.setText(_t("panel.spaces.filter.type"))
+        self._zone_filter_lbl.setText(_t("panel.spaces.filter.zone"))
+        self._refresh_filter_options()
         self.model.headerDataChanged.emit(
             Qt.Horizontal, 0, self.model.columnCount() - 1)
         self._refresh_summary()
