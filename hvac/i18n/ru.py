@@ -591,6 +591,8 @@ RU: Dict[str, str] = {
     "dlg.vent_norms.f.m3_per_m2":     "На м² площади, м³/ч·м²",
     "dlg.vent_norms.f.min_ach":       "Минимальная кратность, 1/ч",
     "dlg.vent_norms.f.m3_per_kw":     "На кВт тепловыделений, м³/ч·кВт",
+    "dlg.vent_norms.f.m3_per_spectator": "На зрителя, м³/ч",
+    "dlg.vent_norms.f.m3_per_car":    "На машино-место, м³/ч",
     "dlg.vent_norms.f.balance": (
         "Дисбаланс, % (отриц. → вытяжка > приток)"),
     "dlg.vent_norms.f.exhaust_per_m2": "Удельная вытяжка (туалеты), м³/ч·м²",
@@ -1083,6 +1085,9 @@ RU: Dict[str, str] = {
     "dlg.space.water_surface":   "Зеркало воды:",
     "dlg.space.water_temp":      "tводы:",
     "dlg.space.pool_hint":       "Для бассейнов: приток берёт max с расходом на удаление влаги (испарение с зеркала, СП 31-113). 0 — без влагоудаления.",
+    "dlg.space.spectator_count": "Зрит. мест:",
+    "dlg.space.car_count":       "Машино-мест:",
+    "dlg.space.occupancy_hint":  "Зрители (ШНҚ табл.23: +20 м³/ч на место) — для спортзалов/залов; машино-места — для парковок (расчёт по CO). 0 — не учитывать.",
     "dlg.space.geom_hint":       "Объём = площадь × высота. Меняешь объём — пересчитывается высота.",
     "dlg.space.type":            "Тип:",
     "dlg.space.lvl_1":           "1 этаж",

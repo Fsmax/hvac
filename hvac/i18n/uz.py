@@ -597,6 +597,8 @@ UZ: Dict[str, str] = {
     "dlg.vent_norms.f.m3_per_m2":     "1 m² yuzaga, m³/soat·m²",
     "dlg.vent_norms.f.min_ach":       "Minimal karralik, 1/soat",
     "dlg.vent_norms.f.m3_per_kw":     "1 kVt issiqlik ajralishiga, m³/soat·kVt",
+    "dlg.vent_norms.f.m3_per_spectator": "Tomoshabinga, m³/soat",
+    "dlg.vent_norms.f.m3_per_car":    "Mashina-joyga, m³/soat",
     "dlg.vent_norms.f.balance": (
         "Disbalans, % (manfiy → so‘rish > berish)"),
     "dlg.vent_norms.f.exhaust_per_m2": "Solishtirma so‘rish (hojatxona), m³/soat·m²",
@@ -1092,6 +1094,9 @@ UZ: Dict[str, str] = {
     "dlg.space.water_surface":   "Suv oynasi:",
     "dlg.space.water_temp":      "tsuv:",
     "dlg.space.pool_hint":       "Basseynlar uchun: berish namni chiqarish sarfi bilan max olinadi (suv oynasidan bug‘lanish, СП 31-113). 0 — namni chiqarishsiz.",
+    "dlg.space.spectator_count": "Tomoshabin joylari:",
+    "dlg.space.car_count":       "Mashina-joylar:",
+    "dlg.space.occupancy_hint":  "Tomoshabinlar (ШНҚ 23-jadval: joyiga +20 m³/soat) — sport zallari uchun; mashina-joylar — avtoturargohlar uchun (CO bo‘yicha). 0 — hisobga olinmaydi.",
     "dlg.space.geom_hint":       "Hajm = yuza × balandlik. Hajmni o‘zgartirsangiz — balandlik qayta hisoblanadi.",
     "dlg.space.type":            "Tur:",
     "dlg.space.lvl_1":           "1-qavat",

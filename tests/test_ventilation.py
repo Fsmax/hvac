@@ -161,6 +161,26 @@ class TestSP60Ventilation:
         # max(5×80=400, 800×2=1600) = 1600 по кратности
         assert result["supply_m3h"] == pytest.approx(1600, rel=0.01)
 
+    def test_sports_hall_with_spectators(self):
+        """Спортзал со зрителями (ШНҚ табл.23): занимающиеся×80 + зрители×20."""
+        sp = _make_space("Спортзал", area_m2=400, volume_m3=2000, people=10)
+        sp.spectator_count = 200
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # 10×80 + 200×20 = 4800; кратность 2000×1=2000 → max 4800
+        assert result["supply_m3h"] == pytest.approx(4800, rel=0.01)
+        assert "зрит" in result["method"]
+
+    def test_parking_by_car_count(self):
+        """Парковка по машино-местам (СП 113): 100 мест × 150 = 15000 м³/ч."""
+        sp = _make_space("Гараж / автостоянка", area_m2=1000, volume_m3=3000,
+                         people=0)
+        sp.car_count = 100
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # max(площадь 6×1000=6000, места 100×150=15000, ACH 1.5×3000=4500)
+        assert result["supply_m3h"] == pytest.approx(15000, rel=0.01)
+        assert "машино-местам" in result["method"]
+        assert any("машино-местам" in w for w in result["warnings"])
+
     def test_kitchen_has_hood(self):
         """Ресторан/кухня — должен быть зонт + вытяжка > притока."""
         sp = _make_space("Ресторан / кухня", area_m2=50, volume_m3=150, people=20)

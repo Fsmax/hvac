@@ -906,7 +906,9 @@ class SpacesPanel(QWidget):
             wc_count=int(getattr(sp, "wc_count", 0) or 0),
             urinal_count=int(getattr(sp, "urinal_count", 0) or 0),
             water_surface_m2=float(getattr(sp, "water_surface_m2", 0.0) or 0.0),
-            water_temp_c=float(getattr(sp, "water_temp_c", 0.0) or 0.0))
+            water_temp_c=float(getattr(sp, "water_temp_c", 0.0) or 0.0),
+            spectator_count=int(getattr(sp, "spectator_count", 0) or 0),
+            car_count=int(getattr(sp, "car_count", 0) or 0))
         dlg = SpaceEditDialog(self, initial=initial,
                               known_levels=self._known_levels())
         if dlg.exec() != QDialog.Accepted:
@@ -929,6 +931,8 @@ class SpacesPanel(QWidget):
         sp.urinal_count = v.urinal_count
         sp.water_surface_m2 = v.water_surface_m2
         sp.water_temp_c = v.water_temp_c
+        sp.spectator_count = v.spectator_count
+        sp.car_count = v.car_count
         sp.user_modified = True
         self.bridge.dirtyChanged.emit(True)
         # Точечно перерисовываем строку (не сбрасывая историю inline-правок),
