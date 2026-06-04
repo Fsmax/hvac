@@ -551,6 +551,8 @@ UZ: Dict[str, str] = {
     "panel.ventilation.ctx.copy":    "Nusxalash (Ctrl+C)",
     "panel.ventilation.ctx.paste":   "Joylash (Ctrl+V)",
     "panel.ventilation.ctx.fill_down": "Pastga to‘ldirish (Ctrl+D)",
+    "panel.ventilation.ctx.clear":   "Tozalash (Del)",
+    "panel.ventilation.ctx.clear_done": "Tozalangan qatorlar: {n}",
     "panel.ventilation.ctx.undo":    "Bekor qilish (Ctrl+Z)",
     "panel.ventilation.ctx.redo":    "Qaytarish (Ctrl+Y)",
     "panel.ventilation.paste.done":  "Joylangan qiymatlar: {n}",

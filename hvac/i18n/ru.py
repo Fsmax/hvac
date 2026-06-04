@@ -544,6 +544,8 @@ RU: Dict[str, str] = {
     "panel.ventilation.ctx.copy":    "Копировать (Ctrl+C)",
     "panel.ventilation.ctx.paste":   "Вставить (Ctrl+V)",
     "panel.ventilation.ctx.fill_down": "Заполнить вниз (Ctrl+D)",
+    "panel.ventilation.ctx.clear":   "Очистить (Del)",
+    "panel.ventilation.ctx.clear_done": "Очищено ячеек в строках: {n}",
     "panel.ventilation.ctx.undo":    "Отменить (Ctrl+Z)",
     "panel.ventilation.ctx.redo":    "Повторить (Ctrl+Y)",
     "panel.ventilation.paste.done":  "Вставлено значений: {n}",

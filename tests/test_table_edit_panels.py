@@ -380,3 +380,19 @@ def test_ventilation_bulk_uses_cell_selection(qapp):
     for r in (0, 2):
         sm.select(panel.proxy.index(r, _COL_SUPPLY), QItemSelectionModel.Select)
     assert panel._selected_source_rows() == [0, 2]
+
+
+def test_ventilation_clear_cells(qapp):
+    """Групповое удаление: «Очистить» (Delete) обнуляет выделенные ячейки
+    расхода, не трогая остальные строки."""
+    from hvac.ui_qt.panels.ventilation_panel import _COL_EXHAUST
+    p = _vent_project(3)
+    for s in p.spaces:
+        s.exhaust_m3h = 64.0
+    panel = _vent_panel(p)
+    sm = panel.table.selectionModel()
+    sm.clearSelection()
+    for r in (0, 2):
+        sm.select(panel.proxy.index(r, _COL_EXHAUST), QItemSelectionModel.Select)
+    panel._clear_cells()
+    assert [s.exhaust_m3h for s in p.spaces] == [0.0, 64.0, 0.0]

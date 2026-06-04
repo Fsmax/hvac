@@ -8,7 +8,7 @@ from typing import Any
 from PySide6.QtCore import (
     QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt,
 )
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
     QFormLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMenu,
@@ -475,6 +475,10 @@ class VentilationPanel(QWidget):
         # с глобальными shortcut'ами главного окна.
         self._edit = TableEditBinder(self.table, self.proxy, self.model,
                                      self.bridge)
+        # Delete — очистка (в 0) выделенных ячеек расхода (Excel-стиль).
+        self._clear_sc = QShortcut(QKeySequence(Qt.Key_Delete), self.table)
+        self._clear_sc.setContext(Qt.WidgetWithChildrenShortcut)
+        self._clear_sc.activated.connect(self._clear_cells)
 
         bridge.dataLoaded.connect(self._refresh_summary)
         bridge.projectLoaded.connect(self._refresh_summary)
@@ -564,6 +568,24 @@ class VentilationPanel(QWidget):
         from hvac.ui_qt.widgets.table_clipboard import copy_selection_to_clipboard
         copy_selection_to_clipboard(self.table)
 
+    def _clear_cells(self) -> None:
+        """Очистка (в 0) выделенных ячеек редактируемых столбцов расхода —
+        Delete или пункт меню «Очистить». Одна отменяемая операция; во время
+        правки ячейки игнорируется."""
+        if self.table.state() == QAbstractItemView.EditingState:
+            return
+        sel = self.table.selectionModel()
+        if sel is None:
+            return
+        editable = self.model._EDITABLE_COLS
+        edits = {(self.proxy.mapToSource(idx).row(), idx.column()): 0.0
+                 for idx in sel.selectedIndexes()
+                 if idx.column() in editable}
+        n = self.model.set_cells(edits)
+        if n:
+            self.bridge.statusMessage.emit(
+                _t("panel.ventilation.ctx.clear_done").format(n=n), 3000)
+
     def _show_context_menu(self, pos) -> None:
         if not self.project.spaces:
             return
@@ -593,6 +615,7 @@ class VentilationPanel(QWidget):
         act_copy = menu.addAction(_t("panel.ventilation.ctx.copy"))
         act_paste = menu.addAction(_t("panel.ventilation.ctx.paste"))
         act_fill = menu.addAction(_t("panel.ventilation.ctx.fill_down"))
+        act_clear = menu.addAction(_t("panel.ventilation.ctx.clear"))
         menu.addSeparator()
         act_undo = menu.addAction(_t("panel.ventilation.ctx.undo"))
         act_redo = menu.addAction(_t("panel.ventilation.ctx.redo"))
@@ -602,6 +625,7 @@ class VentilationPanel(QWidget):
             self.project.spaces[r].vent_user_modified for r in rows))
         act_copy.setEnabled(has_sel)
         act_fill.setEnabled(has_sel)
+        act_clear.setEnabled(has_sel)
         act_undo.setEnabled(self.model.can_undo())
         act_redo.setEnabled(self.model.can_redo())
 
@@ -632,6 +656,8 @@ class VentilationPanel(QWidget):
             self._paste()
         elif chosen is act_fill:
             self._fill_down()
+        elif chosen is act_clear:
+            self._clear_cells()
         elif chosen is act_undo:
             self._undo()
         elif chosen is act_redo:
