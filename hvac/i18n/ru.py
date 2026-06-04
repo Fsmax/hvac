@@ -1579,8 +1579,10 @@ RU: Dict[str, str] = {
     "export.fmt.equipment.desc":     "Сводка по помещениям + спецификации радиаторов/фанкойлов/диффузоров.",
     "export.fmt.equipment.name":     "Оборудование_{name}.xlsx",
     "export.fmt.revit.title":        "CSV для Revit (обратная запись)",
-    "export.fmt.revit.desc":         ("Запустите revit_dynamo_apply_results.py в Dynamo — Q зима/лето "
-                                        "запишутся в параметры помещений."),
+    "export.fmt.revit.desc":         ("Полный набор: нагрузки, вентиляция (приток/вытяжка/кратность), "
+                                        "температуры, имена систем и контуров. Запустите "
+                                        "revit_dynamo_apply_results.py в Dynamo — значения запишутся "
+                                        "в параметры Space/Room."),
     "export.fmt.revit.name":         "results_for_revit.csv",
     "export.fmt.spec.title":         "Спецификация по ГОСТ 21.110",
     "export.fmt.spec.desc":          ("Полная спецификация оборудования и материалов: котлы, AHU, "

@@ -1,17 +1,36 @@
 # -*- coding: utf-8 -*-
 # Dynamo CPython3 script for Revit 2026.
-# Применяет результаты расчёта (heating/cooling load) обратно в параметры
-# Space/Room в Revit. Читает CSV с колонками:
-#     space_id, heating_load_w, cooling_load_w
-# (формируется программой hvac_calc.py через "Файл → Экспорт для Revit")
+# Применяет результаты расчёта обратно в параметры Space/Room в Revit.
+# Читает CSV, сформированный программой (Файл → Экспорт для Revit),
+# с полным инженерным набором колонок:
+#     space_id, space_number, space_name,
+#     heating_load_w, cooling_load_w, cooling_sensible_w, cooling_latent_w,
+#     supply_m3h, exhaust_m3h, ach,
+#     t_in_heat, t_in_cool,
+#     system_heating, system_cooling, system_ventilation,
+#     circuit_heating, circuit_cooling, duct_zone
 #
 # Использование в Dynamo:
 #   IN[0] : путь к CSV с результатами (например, "D:\HVAC\results_for_revit.csv")
-#   IN[1] : имя параметра для теплопотерь (по умолч. "Heating Load")
-#   IN[2] : имя параметра для теплопоступл. (по умолч. "Cooling Load")
+#   IN[1] : имя параметра для теплопотерь   (необяз., по умолч. "Heating Load")
+#   IN[2] : имя параметра для теплопоступл.  (необяз., по умолч. "Cooling Load")
 #
-# Параметры должны существовать в проекте у категории Spaces/Rooms.
-# Если параметра нет — добавьте Project Parameter (Number или Common — Power, Вт).
+# В проекте Revit создайте Project Parameters категории Spaces (или Rooms):
+#   ЧИСЛОВЫЕ:  Heating Load, Cooling Load, Cooling Sensible Load,
+#       Cooling Latent Load, Supply Airflow, Exhaust Airflow, Air Changes,
+#       Heating Setpoint, Cooling Setpoint
+#   ТЕКСТОВЫЕ (тип «Текст»): Heating System, Cooling System, Ventilation System,
+#       Heating Circuit, Cooling Circuit, Duct Zone
+#
+# Числовые параметры можно создать двумя способами — скрипт сам определит,
+# как писать значение:
+#   • тип «Число» (без единиц) — значение пишется как есть: Вт, м³/ч, °C;
+#   • типизированный параметр (HVAC > Мощность / Расход воздуха,
+#     Электрика и т.п. / Температура) — значение автоматически переводится
+#     во внутренние единицы Revit (для температуры с учётом смещения °C→K).
+#
+# Колонки, для которых параметр не найден, просто пропускаются — создавать
+# нужно только те, что вам действительно требуются в модели.
 
 import clr
 import csv
@@ -27,6 +46,8 @@ from Autodesk.Revit.DB import (
     ElementId,
     FilteredElementCollector,
     StorageType,
+    UnitTypeId,
+    UnitUtils,
 )
 
 doc = DocumentManager.Instance.CurrentDBDocument
@@ -64,45 +85,76 @@ def parse_float(s, default=0.0):
         return default
 
 
-def set_value(element, names_or_builtin, value_w):
-    """Записывает значение в первый найденный параметр.
-    names_or_builtin — список имён параметров или BuiltInParameter (кортежем)."""
-    param = None
-    for n in names_or_builtin:
-        if isinstance(n, str):
+def find_param(element, names):
+    """Первый записываемый параметр из списка имён, или None."""
+    for n in names:
+        try:
             param = element.LookupParameter(n)
-        else:
-            try:
-                param = element.get_Parameter(n)
-            except Exception:
-                param = None
+        except Exception:
+            param = None
         if param and not param.IsReadOnly:
-            break
-        param = None
-    if param is None:
-        return False, "Параметр не найден"
+            return param
+    return None
 
+
+def _to_internal(param, value, unit_type_id):
+    """Переводит значение в СИ во внутренние единицы Revit, ЕСЛИ параметр
+    типизирован единицей измерения (HVAC Power / Air Flow / Temperature и
+    т.п.). Для безразмерного «Число» возвращает значение как есть.
+
+    Это позволяет одному скрипту писать и в простые Number-параметры
+    (значение «как есть»: Вт, м³/ч, °C), и в типизированные параметры
+    Revit, которые в БД хранятся во внутренних единицах. Для температуры
+    UnitUtils корректно учитывает смещение °C→K."""
+    if unit_type_id is None:
+        return value
+    try:
+        spec = param.Definition.GetDataType()
+        if UnitUtils.IsMeasurableSpec(spec):
+            return UnitUtils.ConvertToInternalUnits(float(value), unit_type_id)
+    except Exception:
+        pass
+    return value
+
+
+def set_number(element, names, value_w, unit_type_id=None):
+    """Записывает числовое значение в первый найденный параметр.
+    Double — с автоконверсией единиц (см. _to_internal); Integer —
+    округление; String — форматирование текстом."""
+    param = find_param(element, names)
+    if param is None:
+        return None  # параметр не создан — не ошибка, просто пропуск
     try:
         if param.StorageType == StorageType.Double:
-            # Revit хранит мощность во внутренних единицах. Для категории Power
-            # это W → 1 Вт = 1.0 в внутр. единицах? Проверка через AsValueString.
-            # Простой подход: установить через value_string не надёжен.
-            # Установим напрямую — для большинства Project Parameters типа
-            # «Число» это просто значение в Вт.
-            try:
-                param.Set(float(value_w))
-                return True, "OK"
-            except Exception as e:
-                return False, text(e)
-        elif param.StorageType == StorageType.String:
-            param.Set("{0:.0f} W".format(value_w))
-            return True, "OK (text)"
-        elif param.StorageType == StorageType.Integer:
-            param.Set(int(round(value_w)))
-            return True, "OK"
-    except Exception as e:
-        return False, text(e)
-    return False, "Тип параметра не поддержан"
+            param.Set(float(_to_internal(param, value_w, unit_type_id)))
+            return True
+        if param.StorageType == StorageType.Integer:
+            param.Set(int(round(float(value_w))))
+            return True
+        if param.StorageType == StorageType.String:
+            param.Set("{0:.1f}".format(float(value_w)))
+            return True
+    except Exception:
+        return False
+    return False
+
+
+def set_text(element, names, value):
+    """Записывает текстовое значение (имя системы/контура) в строковый
+    параметр. Пустые значения не пишутся, чтобы не затирать данные."""
+    s = text(value).strip()
+    if not s:
+        return None
+    param = find_param(element, names)
+    if param is None:
+        return None
+    try:
+        if param.StorageType == StorageType.String:
+            param.Set(s)
+            return True
+    except Exception:
+        return False
+    return False  # параметр есть, но не текстовый
 
 
 # ---------- разбор входов ----------
@@ -120,6 +172,42 @@ try:
         cooling_param_name = clean_input(IN[2])
 except Exception:
     pass
+
+# Сопоставление колонок CSV параметрам Revit.
+# Списки имён дают запасные варианты — берётся первый записываемый.
+# heating/cooling начинаются с переопределяемого пользователем имени.
+# Третий элемент — единица СИ для автоконверсии в типизированных
+# параметрах Revit (None = безразмерное «Число», пишется как есть).
+NUMERIC_FIELDS = [
+    ("heating_load_w",     [heating_param_name, "Heating Load",
+                            "Calculated Heating Load", "Design Heating Load"],
+                           UnitTypeId.Watts),
+    ("cooling_load_w",     [cooling_param_name, "Cooling Load",
+                            "Calculated Cooling Load", "Design Cooling Load"],
+                           UnitTypeId.Watts),
+    ("cooling_sensible_w", ["Cooling Sensible Load", "Sensible Cooling Load"],
+                           UnitTypeId.Watts),
+    ("cooling_latent_w",   ["Cooling Latent Load", "Latent Cooling Load"],
+                           UnitTypeId.Watts),
+    ("supply_m3h",         ["Supply Airflow", "Supply Air Flow"],
+                           UnitTypeId.CubicMetersPerHour),
+    ("exhaust_m3h",        ["Exhaust Airflow", "Exhaust Air Flow"],
+                           UnitTypeId.CubicMetersPerHour),
+    ("ach",                ["Air Changes", "Air Changes per Hour", "ACH"], None),
+    ("t_in_heat",          ["Heating Setpoint", "Heating Set Point"],
+                           UnitTypeId.Celsius),
+    ("t_in_cool",          ["Cooling Setpoint", "Cooling Set Point"],
+                           UnitTypeId.Celsius),
+]
+TEXT_FIELDS = [
+    ("system_heating",     ["Heating System"]),
+    ("system_cooling",     ["Cooling System"]),
+    ("system_ventilation", ["Ventilation System"]),
+    ("circuit_heating",    ["Heating Circuit"]),
+    ("circuit_cooling",    ["Cooling Circuit"]),
+    ("duct_zone",          ["Duct Zone"]),
+]
+
 
 if not csv_path:
     OUT = ["Ошибка: не задан путь к CSV (IN[0])"]
@@ -152,11 +240,9 @@ else:
 
         ok_count = 0
         miss_count = 0
-        param_errors = []
-        names_heat = [heating_param_name, "Heating Load",
-                      "Calculated Heating Load", "Design Heating Load"]
-        names_cool = [cooling_param_name, "Cooling Load",
-                      "Calculated Cooling Load", "Design Cooling Load"]
+        written_params = 0
+        skipped_params = set()   # имена колонок без найденного параметра
+        failed_params = []       # реальные ошибки записи
 
         for r in rows:
             sid = (r.get("space_id") or "").strip()
@@ -166,26 +252,44 @@ else:
             if element is None:
                 miss_count += 1
                 continue
-            q_heat = parse_float(r.get("heating_load_w"))
-            q_cool = parse_float(r.get("cooling_load_w"))
 
-            ok_h, msg_h = set_value(element, names_heat, q_heat)
-            ok_c, msg_c = set_value(element, names_cool, q_cool)
+            touched = False
+            for col, names, unit in NUMERIC_FIELDS:
+                if col not in r:
+                    continue
+                res = set_number(element, names, parse_float(r.get(col)), unit)
+                if res is True:
+                    written_params += 1
+                    touched = True
+                elif res is False:
+                    failed_params.append("{0}: {1}".format(sid, col))
+                else:
+                    skipped_params.add(col)
 
-            if ok_h or ok_c:
+            for col, names in TEXT_FIELDS:
+                if col not in r:
+                    continue
+                res = set_text(element, names, r.get(col))
+                if res is True:
+                    written_params += 1
+                    touched = True
+                elif res is False:
+                    failed_params.append("{0}: {1}".format(sid, col))
+                else:
+                    skipped_params.add(col)
+
+            if touched:
                 ok_count += 1
-            if not ok_h:
-                param_errors.append("{0}: heating — {1}".format(sid, msg_h))
-            if not ok_c:
-                param_errors.append("{0}: cooling — {1}".format(sid, msg_c))
 
         TransactionManager.Instance.TransactionTaskDone()
 
         OUT = [
             "Готово",
             "Обновлено помещений: " + str(ok_count),
-            "Не найдено: " + str(miss_count),
-            "Параметр отопления: " + heating_param_name,
-            "Параметр охлаждения: " + cooling_param_name,
-            "Ошибки (первые 10): " + " | ".join(param_errors[:10]) if param_errors else "Ошибок нет",
+            "Записано значений параметров: " + str(written_params),
+            "Помещений не найдено в модели: " + str(miss_count),
+            ("Колонки без параметра в проекте (пропущены): "
+             + (", ".join(sorted(skipped_params)) if skipped_params else "нет")),
+            ("Ошибки записи (первые 10): "
+             + (" | ".join(failed_params[:10]) if failed_params else "нет")),
         ]

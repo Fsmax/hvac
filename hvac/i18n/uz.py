@@ -1588,8 +1588,10 @@ UZ: Dict[str, str] = {
     "export.fmt.equipment.desc":     "Xonalar bo‘yicha xulosa + radiator/fankoyl/diffuzor spetsifikatsiyalari.",
     "export.fmt.equipment.name":     "Jihozlar_{name}.xlsx",
     "export.fmt.revit.title":        "Revit uchun CSV (teskari yozish)",
-    "export.fmt.revit.desc":         ("Dynamo’da revit_dynamo_apply_results.py ni ishga tushiring — "
-                                        "Q qish/yoz xona parametrlariga yoziladi."),
+    "export.fmt.revit.desc":         ("To‘liq to‘plam: yuklamalar, ventilyatsiya (kelish/chiqish/karralik), "
+                                        "haroratlar, tizim va konturlar nomlari. Dynamo’da "
+                                        "revit_dynamo_apply_results.py ni ishga tushiring — qiymatlar "
+                                        "Space/Room parametrlariga yoziladi."),
     "export.fmt.revit.name":         "results_for_revit.csv",
     "export.fmt.spec.title":         "GOST 21.110 bo‘yicha spetsifikatsiya",
     "export.fmt.spec.desc":          ("Jihoz va materiallarning to‘liq spetsifikatsiyasi: qozonlar, AHU, "
