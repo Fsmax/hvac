@@ -347,7 +347,11 @@ class ZonesPanel(QWidget):
         sel = self.table.selectionModel()
         if sel is None:
             return []
-        return sorted({idx.row() for idx in sel.selectedRows()})
+        # Только ВИДИМЫЕ строки: скрытые фильтром (поиск/«только узел»)
+        # помещения остаются выделенными, но не должны попадать в назначение
+        # (drag&drop, кнопки, меню) — иначе назначается невидимая комната.
+        return sorted({idx.row() for idx in sel.selectedRows()
+                       if not self.table.isRowHidden(idx.row())})
 
     def _ids_for(self, rows: list[int]) -> list[str]:
         # space_id хранится в Qt.UserRole первой ячейки строки — это
