@@ -451,7 +451,10 @@ class VentilationPanel(QWidget):
         self.table.setModel(self.proxy)
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        # Поячейковое выделение (как в Excel и в разделе «Помещения»): нужно
+        # для копирования/вставки/протяжки одиночных ячеек. При SelectRows клик
+        # выделял всю строку, и вставка падала на нередактируемых колонках.
+        self.table.setSelectionBehavior(QAbstractItemView.SelectItems)
         self.table.verticalHeader().setVisible(False)
         self.table.verticalHeader().setDefaultSectionSize(26)
         self.table.horizontalHeader().setHighlightSections(False)
@@ -521,8 +524,11 @@ class VentilationPanel(QWidget):
         sel = self.table.selectionModel()
         if sel is None:
             return []
+        # selectedIndexes(), а не selectedRows(): при поячейковом выделении
+        # «строка целиком» не выделяется, но строку каждой выбранной ячейки
+        # учитываем для групповой правки.
         rows = {self.proxy.mapToSource(idx).row()
-                for idx in sel.selectedRows()}
+                for idx in sel.selectedIndexes()}
         return sorted(rows)
 
     def _bulk_edit(self) -> None:

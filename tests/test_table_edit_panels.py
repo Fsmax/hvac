@@ -322,3 +322,61 @@ def test_constructions_paste_u_column(qapp):
         sm.select(panel.proxy.index(r, m.COL_U), QItemSelectionModel.Select)
     panel._edit.paste()
     assert all(abs(c.u_value - 0.15) < 1e-9 for c in m._items)
+
+
+# ======================= Вентиляция =======================
+
+def _vent_project(n=3):
+    p = HVACProject()
+    p.params.apply_city("Ташкент")
+    for i in range(n):
+        sp = Space(space_id=f"r{i}", number=f"R{i}", name="x", level="L1",
+                   area_m2=20, volume_m3=60, height_m=3,
+                   room_type="Офис", t_in_heat=20.0)
+        sp.supply_m3h = (i + 1) * 100.0
+        p.spaces.append(sp)
+        p._space_by_id[sp.space_id] = sp
+    return p
+
+
+def _vent_panel(p):
+    from hvac.ui_qt.bridge import ProjectBridge
+    from hvac.ui_qt.panels.ventilation_panel import VentilationPanel
+    panel = VentilationPanel(p, ProjectBridge(p))
+    panel.proxy.sort(-1)  # детерминированный порядок: proxy == source
+    return panel
+
+
+def test_ventilation_cell_selection(qapp):
+    """Excel-режим: поячейковое выделение — без него copy/paste/fill
+    одиночных ячеек не работают (клик выделял всю строку)."""
+    from PySide6.QtWidgets import QAbstractItemView
+    panel = _vent_panel(_vent_project())
+    assert panel.table.selectionBehavior() == QAbstractItemView.SelectItems
+
+
+def test_ventilation_paste_single_value(qapp):
+    """Регрессия: вставка одного значения в столбец «Приток»."""
+    from hvac.ui_qt.panels.ventilation_panel import _COL_SUPPLY
+    p = _vent_project(3)
+    panel = _vent_panel(p)
+    QApplication.clipboard().setText("120")
+    sm = panel.table.selectionModel()
+    sm.clearSelection()
+    for r in range(3):
+        sm.select(panel.proxy.index(r, _COL_SUPPLY), QItemSelectionModel.Select)
+    panel._edit.paste()
+    assert all(abs(s.supply_m3h - 120.0) < 1e-9 for s in p.spaces)
+
+
+def test_ventilation_bulk_uses_cell_selection(qapp):
+    """Групповая правка собирает строки из выделенных ячеек (selectedIndexes),
+    а не из selectedRows() — иначе при поячейковом выделении было бы пусто."""
+    from hvac.ui_qt.panels.ventilation_panel import _COL_SUPPLY
+    p = _vent_project(3)
+    panel = _vent_panel(p)
+    sm = panel.table.selectionModel()
+    sm.clearSelection()
+    for r in (0, 2):
+        sm.select(panel.proxy.index(r, _COL_SUPPLY), QItemSelectionModel.Select)
+    assert panel._selected_source_rows() == [0, 2]
