@@ -181,6 +181,28 @@ class TestSP60Ventilation:
         assert "машино-местам" in result["method"]
         assert any("машино-местам" in w for w in result["warnings"])
 
+    def test_cold_shop_by_ach(self):
+        """Холодный цех (ШНҚ табл.24): кратность ≥4 → V×4."""
+        sp = _make_space("Холодный цех", area_m2=20, volume_m3=60, people=0)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        assert result["supply_m3h"] == pytest.approx(240, rel=0.01)
+
+    def test_cold_room_low_ach(self):
+        """Холодильная камера (ШНҚ табл.22): минимальный обмен (кратность 1)."""
+        sp = _make_space("Холодильная камера", area_m2=10, volume_m3=25,
+                         people=0)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        assert result["supply_m3h"] == pytest.approx(25, rel=0.01)
+
+    def test_hot_shop_has_hood(self):
+        """Горячий цех (ШНҚ табл.24): зонт + вытяжка > притока."""
+        sp = _make_space("Горячий цех", area_m2=30, volume_m3=90, people=0)
+        result = SP60VentilationEngine().calculate(sp, _make_project(sp))
+        # min_ach 90×4=360; exhaust=360×1.20=432; hood=0.5×432=216
+        assert result["supply_m3h"] == pytest.approx(360, rel=0.01)
+        assert result["exhaust_m3h"] > result["supply_m3h"]
+        assert result["hood_m3h"] > 0
+
     def test_kitchen_has_hood(self):
         """Ресторан/кухня — должен быть зонт + вытяжка > притока."""
         sp = _make_space("Ресторан / кухня", area_m2=50, volume_m3=150, people=20)

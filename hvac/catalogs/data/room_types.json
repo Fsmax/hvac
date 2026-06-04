@@ -387,6 +387,49 @@
     "lighting_w_m2": 10,
     "equipment_w_m2": 30
   },
+  "Горячий цех": {
+    "keywords": [
+      "hot shop",
+      "горячий цех",
+      "доготовочн"
+    ],
+    "t_in_heat": 16,
+    "t_in_cool": 24,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 10.0,
+    "lighting_w_m2": 15,
+    "equipment_w_m2": 250
+  },
+  "Холодный цех": {
+    "keywords": [
+      "cold shop",
+      "холодный цех",
+      "заготовочн",
+      "мясной цех",
+      "овощной цех"
+    ],
+    "t_in_heat": 16,
+    "t_in_cool": 22,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 12.0,
+    "lighting_w_m2": 12,
+    "equipment_w_m2": 40
+  },
+  "Холодильная камера": {
+    "keywords": [
+      "cold room",
+      "cold store",
+      "refrigerat",
+      "холодильн",
+      "морозильн"
+    ],
+    "t_in_heat": 4,
+    "t_in_cool": 4,
+    "ach_inf": 0.3,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 6,
+    "equipment_w_m2": 0
+  },
   "Прочее": {
     "keywords": [],
     "t_in_heat": 18,
