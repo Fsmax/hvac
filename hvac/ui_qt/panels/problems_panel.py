@@ -54,7 +54,7 @@ class ProblemsModel(QAbstractTableModel):
             import traceback
             traceback.print_exc()
             data = []
-        data.sort(key=lambda d: _SEVERITY_ORDER.get(d.get("severity"), 9))
+        data.sort(key=lambda d: _SEVERITY_ORDER.get(d.get("severity", ""), 9))
         self._rows = data
         self.endResetModel()
 

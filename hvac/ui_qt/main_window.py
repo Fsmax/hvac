@@ -474,7 +474,7 @@ class MainWindow(QMainWindow):
         """Переход к помещению в разделе «Помещения» (из панели «Проблемы»)."""
         self._navigate_to("spaces")
         panel = self._panels.get("spaces")
-        if hasattr(panel, "select_space"):
+        if panel is not None and hasattr(panel, "select_space"):
             panel.select_space(space_id)
 
     def _on_data_loaded(self) -> None:

@@ -272,9 +272,13 @@ class DataPanel(QWidget):
         for label_key, factor in self._shading_specs:
             self.shading_combo.addItem(_t(label_key), factor)
         self.shading_combo.currentIndexChanged.connect(self._apply_shading)
+
         # Перевод пунктов при смене языка (порядок фиксирован, фактор в data).
-        self._tr(lambda: [self.shading_combo.setItemText(i, _t(lk))
-                          for i, (lk, _f) in enumerate(self._shading_specs)])
+        def _retranslate_shading() -> None:
+            for i, (lk, _f) in enumerate(self._shading_specs):
+                self.shading_combo.setItemText(i, _t(lk))
+
+        self._tr(_retranslate_shading)
 
         sh_row = QHBoxLayout()
         self._lbl_shading = QLabel()

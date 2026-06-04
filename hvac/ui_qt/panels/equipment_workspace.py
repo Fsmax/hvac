@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from hvac.equipment import VENTILATION_KINDS, make_ventilation_defaults
-from hvac.equipment_sizing import select_equipment
+from hvac.equipment_sizing import EquipmentSelection, select_equipment
 from hvac.i18n import t as _t
 from hvac.project import HVACProject
 from hvac.ui_qt.bridge import ProjectBridge
@@ -43,7 +43,7 @@ class EquipmentWorkspacePanel(QWidget):
         super().__init__(parent)
         self.project = project
         self.bridge = bridge
-        self._sel = None
+        self._sel: Optional[EquipmentSelection] = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(20, 20, 20, 20)
@@ -175,6 +175,8 @@ class EquipmentWorkspacePanel(QWidget):
     def _find(self, data) -> Optional[QTreeWidgetItem]:
         for i in range(self.tree.topLevelItemCount()):
             cat = self.tree.topLevelItem(i)
+            if cat is None:
+                continue
             for j in range(cat.childCount()):
                 node = cat.child(j)
                 if node.data(0, Qt.UserRole) == data:
@@ -200,6 +202,8 @@ class EquipmentWorkspacePanel(QWidget):
         self.tree.blockSignals(True)
         for i in range(self.tree.topLevelItemCount()):
             cat = self.tree.topLevelItem(i)
+            if cat is None:
+                continue
             domain = _CATEGORIES[i][0]
             picked = self._picked_kw(domain)
             for j in range(cat.childCount()):

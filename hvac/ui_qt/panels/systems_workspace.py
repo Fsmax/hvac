@@ -33,7 +33,9 @@ from PySide6.QtWidgets import (
 )
 
 from hvac.air_heating import apply_air_heating
-from hvac.equipment_sizing import select_equipment
+from hvac.equipment_sizing import (
+    EquipmentSelection, SourceSelection, select_equipment,
+)
 from hvac.i18n import t as _t
 from hvac.project import HVACProject
 from hvac.room_equipment import (
@@ -92,7 +94,7 @@ class SystemsWorkspacePanel(QWidget):
         self._domain = "heating"
         self._undo: list[dict] = []
         self._clip: Optional[dict] = None      # буфер копирования прибора
-        self._sel = None                       # последний select_equipment()
+        self._sel: Optional[EquipmentSelection] = None                       # последний select_equipment()
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(20, 20, 20, 20)
@@ -434,7 +436,7 @@ class SystemsWorkspacePanel(QWidget):
                 vsys = self.project.systems_of(domain).get(name)
                 if vsys is None:
                     return
-                dlg = _AHUDialog(
+                dlg: QDialog = _AHUDialog(
                     self, vsys=vsys,
                     heating_circuits=sorted(self.project.circuits_of("heating")),
                     cooling_circuits=sorted(self.project.circuits_of("cooling")))
@@ -814,7 +816,8 @@ class SystemsWorkspacePanel(QWidget):
             self.summary_lbl.setText(_t("panel.sysworkspace.sum.source").format(
                 name=name, req=f"{src.required_kw:.1f}", pick=pick))
         else:  # circuit
-            src_list = self._sel.sources(domain) if self._sel else []
+            src_list: list[SourceSelection] = (
+                self._sel.sources(domain) if self._sel else [])
             cs = next((c for s in src_list for c in s.circuits if c.name == name),
                       None)
             if cs is None:
@@ -843,8 +846,8 @@ class SystemsWorkspacePanel(QWidget):
                     visible = getattr(sp, circ_field, "") == node
             if visible and text:
                 row_text = " ".join(
-                    (self.table.item(r, c).text()
-                     if self.table.item(r, c) else "")
+                    (cell.text() if (cell := self.table.item(r, c)) is not None
+                     else "")
                     for c in range(self.table.columnCount())).lower()
                 visible = text in row_text
             self.table.setRowHidden(r, not visible)

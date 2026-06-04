@@ -215,7 +215,9 @@ class RoomEquipmentDialog(QDialog):
         if self.heat_circ_combo is None:
             return {}
 
-        def _v(box: QComboBox) -> str:
+        def _v(box: QComboBox | None) -> str:
+            if box is None:
+                return ""
             t = box.currentText().strip()
             return "" if t == self._NONE else t
 
