@@ -115,6 +115,7 @@ UZ: Dict[str, str] = {
     "btn.delete":            "O‘chirish",
     "btn.duplicate":         "Nusxalash",
     "btn.edit_space":        "O‘zgartirish…",
+    "btn.space_detail":      "Xususiyatlar…",
     "btn.compute":           "Hisoblash",
     "btn.run":               "Ishga tushirish",
     "btn.cancel":            "Bekor qilish",
@@ -307,6 +308,10 @@ UZ: Dict[str, str] = {
     "panel.spaces.col.area":      "S, m²",
     "panel.spaces.col.volume":    "V, m³",
     "panel.spaces.col.t_heat":    "t qish",
+    "panel.spaces.col.t_cool":    "t yoz",
+    "panel.spaces.col.occup":     "Odamlar",
+    "panel.spaces.col.light":     "Yorit., Vt/m²",
+    "panel.spaces.col.equip":     "Jihoz, Vt/m²",
     "panel.spaces.col.q_heat":    "Q qish, kVt",
     "panel.spaces.col.q_cool":    "Q yoz, kVt",
     "panel.spaces.col.density":   "Vt/m²",
@@ -352,6 +357,7 @@ UZ: Dict[str, str] = {
     "panel.spaces.bulk.no_selection":   ("Hech qanday xona tanlanmagan. "
                                           "Qatorlarni (Ctrl/Shift) tanlab, qayta urinib ko‘ring."),
     "panel.spaces.bulk.applied":        "Guruhli tahrir: {n} ta yangilandi",
+    "panel.spaces.detail.title":        "Xona xususiyatlari",
 
     # ========== Common ==========
     "btn.refresh":            "Yangilash",

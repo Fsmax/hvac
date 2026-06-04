@@ -112,6 +112,7 @@ RU: Dict[str, str] = {
     "btn.delete":            "Удалить",
     "btn.duplicate":         "Копировать",
     "btn.edit_space":        "Изменить…",
+    "btn.space_detail":      "Свойства…",
     "btn.compute":           "Рассчитать",
     "btn.run":               "Запустить",
     "btn.cancel":            "Отмена",
@@ -302,6 +303,10 @@ RU: Dict[str, str] = {
     "panel.spaces.col.area":      "S, м²",
     "panel.spaces.col.volume":    "V, м³",
     "panel.spaces.col.t_heat":    "t зима",
+    "panel.spaces.col.t_cool":    "t лето",
+    "panel.spaces.col.occup":     "Люди",
+    "panel.spaces.col.light":     "Освещ., Вт/м²",
+    "panel.spaces.col.equip":     "Обор., Вт/м²",
     "panel.spaces.col.q_heat":    "Q зима, кВт",
     "panel.spaces.col.q_cool":    "Q лето, кВт",
     "panel.spaces.col.density":   "Вт/м²",
@@ -347,6 +352,7 @@ RU: Dict[str, str] = {
     "panel.spaces.bulk.no_selection":   ("Не выделено ни одного помещения. "
                                           "Выделите строки (Ctrl/Shift) и повторите."),
     "panel.spaces.bulk.applied":        "Групповая правка: обновлено {n}",
+    "panel.spaces.detail.title":        "Свойства помещения",
 
     # ========== Common ==========
     "btn.refresh":            "Обновить",
