@@ -1598,6 +1598,21 @@ RU: Dict[str, str] = {
                                         "радиаторы, фанкойлы, VRF, насосы, баки, шумоглушители, медь, "
                                         "трубы тёплого пола. Группировка по разделам ГОСТ 21.110-2013."),
     "export.fmt.spec.name":          "Спецификация_{name}.xlsx",
+    "export.fmt.gas.title":          "PDF: расчёт газа (письмо для ТУ)",
+    "export.fmt.gas.desc":           ("Письмо-расчёт потребности в газе от мощности газовых котлов "
+                                        "проекта: часовой / суточный / месячный / годовой расход."),
+    "export.fmt.gas.name":           "Расчёт_газа_{name}.pdf",
+    "export.gas.params":             "Параметры расчёта газа",
+    "export.gas.object":             "Объект",
+    "export.gas.signatory":          "Должность подписанта",
+    "export.gas.signatory_default":  "ГИП",
+    "export.gas.signatory_name":     "Ф.И.О. подписанта",
+    "export.gas.lhv":                "Qнр газа, ккал/м³",
+    "export.gas.eff":                "КПД котла η",
+    "export.gas.k":                  "Коэф. использования K",
+    "export.gas.hours":              "Часов работы в сутки",
+    "export.gas.days_month":         "Суток в месяце",
+    "export.gas.heating_days":       "Отопительный период, сут",
     "export.default_name":           "Project",
 
     # ========== Panel: Calculation ==========

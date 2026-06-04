@@ -13,9 +13,10 @@ from typing import Callable
 from PySide6.QtCore import QObject, QThread, Qt, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
-    QButtonGroup, QCheckBox, QDialog, QFileDialog, QFrame, QHBoxLayout,
-    QLabel, QLineEdit, QMessageBox, QProgressBar, QPushButton, QRadioButton,
-    QSizePolicy, QVBoxLayout, QWidget,
+    QButtonGroup, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout,
+    QFrame, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+    QProgressBar, QPushButton, QRadioButton, QSizePolicy, QSpinBox,
+    QVBoxLayout, QWidget,
 )
 
 from hvac.i18n import t as _t
@@ -71,6 +72,11 @@ def _specification(project: HVACProject, path: str) -> None:
     export_specification_xlsx(spec, path)
 
 
+def _gas_load(project: HVACProject, path: str, **params) -> None:
+    from hvac.gas_load import export_project_gas_load_pdf
+    export_project_gas_load_pdf(project, path, **params)
+
+
 FORMATS = [
     ExportFormat(
         "excel", "export.fmt.excel.title", "export.fmt.excel.desc",
@@ -92,6 +98,10 @@ FORMATS = [
         "spec_gost", "export.fmt.spec.title", "export.fmt.spec.desc",
         ".xlsx", "export.fmt.spec.name", _specification,
     ),
+    ExportFormat(
+        "gas_load", "export.fmt.gas.title", "export.fmt.gas.desc",
+        ".pdf", "export.fmt.gas.name", _gas_load,
+    ),
 ]
 
 
@@ -102,15 +112,17 @@ class ExportWorker(QObject):
     finished = Signal()
     failed = Signal(str, str)
 
-    def __init__(self, fmt: ExportFormat, project: HVACProject, path: str):
+    def __init__(self, fmt: ExportFormat, project: HVACProject, path: str,
+                 params: dict | None = None):
         super().__init__()
         self.fmt = fmt
         self.project = project
         self.path = path
+        self.params = params or {}
 
     def run(self) -> None:
         try:
-            self.fmt.runner(self.project, self.path)
+            self.fmt.runner(self.project, self.path, **self.params)
             self.finished.emit()
         except Exception as e:
             self.failed.emit(str(e), traceback.format_exc())
@@ -149,6 +161,10 @@ class ExportCenter(QDialog):
         for i, fmt in enumerate(FORMATS):
             row = self._make_format_row(fmt, default=i == 0)
             outer.addWidget(row)
+
+        # Параметры расчёта газа (видны только для формата «gas_load»)
+        self.gas_params = self._make_gas_params()
+        outer.addWidget(self.gas_params)
 
         outer.addSpacing(4)
 
@@ -221,6 +237,84 @@ class ExportCenter(QDialog):
         lay.addLayout(col, stretch=1)
         return frame
 
+    def _make_gas_params(self) -> QGroupBox:
+        """Поля параметров для письма-расчёта газа."""
+        from hvac.gas_load import (
+            NATURAL_GAS_LHV_KCAL_M3, DEFAULT_LOAD_FACTOR,
+            DEFAULT_HOURS_PER_DAY, DEFAULT_DAYS_PER_MONTH,
+            DEFAULT_HEATING_DAYS, project_efficiency,
+        )
+        box = QGroupBox(_t("export.gas.params"))
+        form = QFormLayout(box)
+
+        self.gas_object = QLineEdit(self.project.params.project_name or "")
+        form.addRow(_t("export.gas.object"), self.gas_object)
+
+        self.gas_sign_pos = QLineEdit(_t("export.gas.signatory_default"))
+        form.addRow(_t("export.gas.signatory"), self.gas_sign_pos)
+
+        self.gas_sign_name = QLineEdit("")
+        form.addRow(_t("export.gas.signatory_name"), self.gas_sign_name)
+
+        self.gas_lhv = QDoubleSpinBox()
+        self.gas_lhv.setRange(1000.0, 12000.0)
+        self.gas_lhv.setDecimals(0)
+        self.gas_lhv.setSingleStep(50.0)
+        self.gas_lhv.setValue(NATURAL_GAS_LHV_KCAL_M3)
+        form.addRow(_t("export.gas.lhv"), self.gas_lhv)
+
+        self.gas_eff = QDoubleSpinBox()
+        self.gas_eff.setRange(0.50, 1.00)
+        self.gas_eff.setDecimals(2)
+        self.gas_eff.setSingleStep(0.01)
+        self.gas_eff.setValue(project_efficiency(self.project))
+        form.addRow(_t("export.gas.eff"), self.gas_eff)
+
+        self.gas_k = QDoubleSpinBox()
+        self.gas_k.setRange(0.10, 1.00)
+        self.gas_k.setDecimals(2)
+        self.gas_k.setSingleStep(0.05)
+        self.gas_k.setValue(DEFAULT_LOAD_FACTOR)
+        form.addRow(_t("export.gas.k"), self.gas_k)
+
+        self.gas_hours = QDoubleSpinBox()
+        self.gas_hours.setRange(1.0, 24.0)
+        self.gas_hours.setDecimals(0)
+        self.gas_hours.setValue(DEFAULT_HOURS_PER_DAY)
+        form.addRow(_t("export.gas.hours"), self.gas_hours)
+
+        self.gas_days_month = QSpinBox()
+        self.gas_days_month.setRange(28, 31)
+        self.gas_days_month.setValue(int(DEFAULT_DAYS_PER_MONTH))
+        form.addRow(_t("export.gas.days_month"), self.gas_days_month)
+
+        self.gas_heating_days = QSpinBox()
+        self.gas_heating_days.setRange(1, 365)
+        self.gas_heating_days.setValue(int(DEFAULT_HEATING_DAYS))
+        form.addRow(_t("export.gas.heating_days"), self.gas_heating_days)
+
+        box.setVisible(False)
+        return box
+
+    def _collect_gas_params(self) -> dict:
+        """Параметры из полей → kwargs для export_project_gas_load_pdf."""
+        from hvac.gas_load import kcal_to_kwh
+        params: dict = {
+            "signatory": (self.gas_sign_pos.text().strip()
+                          or _t("export.gas.signatory_default")),
+            "signatory_name": self.gas_sign_name.text().strip(),
+            "lhv_kwh_m3": kcal_to_kwh(self.gas_lhv.value()),
+            "efficiency": self.gas_eff.value(),
+            "load_factor": self.gas_k.value(),
+            "hours_per_day": self.gas_hours.value(),
+            "days_per_month": float(self.gas_days_month.value()),
+            "heating_days": float(self.gas_heating_days.value()),
+        }
+        obj = self.gas_object.text().strip()
+        if obj:
+            params["object_name"] = obj
+        return params
+
     def _current_format(self) -> ExportFormat:
         for k, rb in self._format_widgets.items():
             if rb.isChecked():
@@ -229,6 +323,8 @@ class ExportCenter(QDialog):
 
     def _on_format_changed(self, key: str) -> None:
         self._suggest_path()
+        if hasattr(self, "gas_params"):
+            self.gas_params.setVisible(key == "gas_load")
 
     def _suggest_path(self) -> None:
         fmt = self._current_format()
@@ -250,7 +346,9 @@ class ExportCenter(QDialog):
             self.path_edit.setText(path)
 
     def _do_export(self) -> None:
-        if not self.project.spaces:
+        fmt = self._current_format()
+        # Письмо-расчёт газа берёт данные из котлов, помещения не требуются.
+        if not self.project.spaces and fmt.key != "gas_load":
             QMessageBox.information(
                 self, _t("export.no_data.title"),
                 _t("export.no_data.msg"))
@@ -262,13 +360,13 @@ class ExportCenter(QDialog):
                 _t("export.no_path.msg"))
             return
 
-        fmt = self._current_format()
+        params = self._collect_gas_params() if fmt.key == "gas_load" else {}
         self.export_btn.setEnabled(False)
         self.cancel_btn.setEnabled(False)
         self.progress.setVisible(True)
 
         self._thread = QThread(self)
-        self._worker = ExportWorker(fmt, self.project, path)
+        self._worker = ExportWorker(fmt, self.project, path, params)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.finished.connect(lambda: self._on_finished(path))

@@ -1607,6 +1607,21 @@ UZ: Dict[str, str] = {
                                         "radiatorlar, fankoyl, VRF, nasoslar, baklar, shovqin pasaytirgich, "
                                         "mis, issiq pol quvurlari. GOST 21.110-2013 bo‘limlari bo‘yicha guruhlanadi."),
     "export.fmt.spec.name":          "Spetsifikatsiya_{name}.xlsx",
+    "export.fmt.gas.title":          "PDF: gaz hisobi (TSh uchun xat)",
+    "export.fmt.gas.desc":           ("Loyiha gaz qozonlari quvvatidan kelib chiqib gazga ehtiyoj "
+                                        "hisobi: soatlik / sutkalik / oylik / yillik sarf."),
+    "export.fmt.gas.name":           "Gaz_hisobi_{name}.pdf",
+    "export.gas.params":             "Gaz hisobi parametrlari",
+    "export.gas.object":             "Obyekt",
+    "export.gas.signatory":          "Imzolovchi lavozimi",
+    "export.gas.signatory_default":  "BLM",
+    "export.gas.signatory_name":     "Imzolovchi F.I.O.",
+    "export.gas.lhv":                "Gaz Qнр, kkal/m³",
+    "export.gas.eff":                "Qozon FIK η",
+    "export.gas.k":                  "Foydalanish koeff. K",
+    "export.gas.hours":              "Sutkasiga ish soati",
+    "export.gas.days_month":         "Oydagi sutkalar",
+    "export.gas.heating_days":       "Isitish davri, sutka",
     "export.default_name":           "Loyiha",
 
     # ========== Panel: Calculation ==========
