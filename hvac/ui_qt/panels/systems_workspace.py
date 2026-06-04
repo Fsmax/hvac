@@ -22,11 +22,12 @@
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView, QButtonGroup, QCheckBox, QDialog, QHBoxLayout,
+    QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDialog, QHBoxLayout,
     QHeaderView, QInputDialog, QLabel, QLineEdit, QMenu, QMessageBox,
     QPushButton, QSplitter, QTableWidget, QTableWidgetItem,
     QTreeWidgetItem, QVBoxLayout, QWidget,
@@ -54,10 +55,23 @@ from hvac.ui_qt.panels.zones_panel import (
 
 
 _ROOM_COL_KEYS = [
-    "panel.zones.rcol.number", "panel.zones.rcol.name", "panel.zones.rcol.area",
-    "panel.zones.rcol.load", "panel.zones.rcol.system", "panel.zones.rcol.circuit",
+    "panel.zones.rcol.number", "panel.zones.rcol.level", "panel.zones.rcol.name",
+    "panel.zones.rcol.area", "panel.zones.rcol.load", "panel.zones.rcol.system",
+    "panel.zones.rcol.circuit",
     "panel.sysworkspace.rcol.air", "panel.sysworkspace.rcol.device",
 ]
+
+
+def _level_num(level: str) -> float:
+    """Числовой ключ этажа из строки уровня («L12» → 12, «-1» → -1).
+    Без числа — в конец списка."""
+    m = re.search(r"-?\d+", level or "")
+    return float(m.group()) if m else 1e9
+
+
+def _floor_key(sp) -> float:
+    """Числовой ключ этажа помещения для сортировки таблицы."""
+    return _level_num(getattr(sp, "level", "") or "")
 
 
 def _air_marker(sp) -> str:
@@ -191,6 +205,29 @@ class SystemsWorkspacePanel(QWidget):
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(lambda *_: self._filter())
         flt.addWidget(self.search, stretch=1)
+
+        # Выпадающие фильтры: этаж / тип / зона (как в разделе «Помещения»).
+        self._level_filter_lbl = QLabel(_t("panel.spaces.filter.level"))
+        flt.addWidget(self._level_filter_lbl)
+        self.level_filter = QComboBox()
+        self.level_filter.setMinimumWidth(90)
+        self.level_filter.currentTextChanged.connect(lambda *_: self._filter())
+        flt.addWidget(self.level_filter)
+
+        self._type_filter_lbl = QLabel(_t("panel.spaces.filter.type"))
+        flt.addWidget(self._type_filter_lbl)
+        self.type_filter = QComboBox()
+        self.type_filter.setMinimumWidth(120)
+        self.type_filter.currentTextChanged.connect(lambda *_: self._filter())
+        flt.addWidget(self.type_filter)
+
+        self._zone_filter_lbl = QLabel(_t("panel.spaces.filter.zone"))
+        flt.addWidget(self._zone_filter_lbl)
+        self.zone_filter = QComboBox()
+        self.zone_filter.setMinimumWidth(120)
+        self.zone_filter.currentTextChanged.connect(lambda *_: self._filter())
+        flt.addWidget(self.zone_filter)
+
         self.node_filter_cb = QCheckBox(_t("panel.sysworkspace.filter_node"))
         self.node_filter_cb.stateChanged.connect(lambda *_: self._filter())
         flt.addWidget(self.node_filter_cb)
@@ -212,7 +249,7 @@ class SystemsWorkspacePanel(QWidget):
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
         self.table.cellDoubleClicked.connect(self._edit_room_device)
-        for i, w in enumerate([60, 200, 70, 100, 130, 130, 56, 200]):
+        for i, w in enumerate([60, 64, 200, 70, 100, 130, 130, 56, 200]):
             self.table.setColumnWidth(i, w)
         right_l.addWidget(self.table, stretch=1)
 
@@ -245,7 +282,7 @@ class SystemsWorkspacePanel(QWidget):
     # ================= helpers =================
     def _room_headers(self) -> list[str]:
         heads = [_t(k) for k in _ROOM_COL_KEYS]
-        heads[3] = _t(_LOAD_KEY[self._domain])
+        heads[4] = _t(_LOAD_KEY[self._domain])
         return heads
 
     def _selected_rows(self) -> list[int]:
@@ -775,22 +812,48 @@ class SystemsWorkspacePanel(QWidget):
             num = QTableWidgetItem(sp.number)
             num.setData(Qt.UserRole, sp.space_id)
             self.table.setItem(r, 0, num)
-            self.table.setItem(r, 1, QTableWidgetItem(sp.name))
+            self.table.setItem(r, 1, _NumTableItem(sp.level or "", _floor_key(sp)))
+            self.table.setItem(r, 2, QTableWidgetItem(sp.name))
             ar = _NumTableItem(f"{sp.area_m2:.0f}", sp.area_m2)
             ar.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.table.setItem(r, 2, ar)
+            self.table.setItem(r, 3, ar)
             ld = _NumTableItem(load_txt, load)
             ld.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.table.setItem(r, 3, ld)
-            self.table.setItem(r, 4, QTableWidgetItem(getattr(sp, sys_field, "") or ""))
-            self.table.setItem(r, 5, QTableWidgetItem(getattr(sp, circ_field, "") or ""))
+            self.table.setItem(r, 4, ld)
+            self.table.setItem(r, 5, QTableWidgetItem(getattr(sp, sys_field, "") or ""))
+            self.table.setItem(r, 6, QTableWidgetItem(getattr(sp, circ_field, "") or ""))
             air = QTableWidgetItem(_air_marker(sp))
             air.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(r, 6, air)
-            self.table.setItem(r, 7, QTableWidgetItem(
+            self.table.setItem(r, 7, air)
+            self.table.setItem(r, 8, QTableWidgetItem(
                 _device_for_domain(domain, sp.room_equipment)))
         self.table.setSortingEnabled(True)
+        self._refresh_filter_options()
         self._filter()
+
+    def _refresh_filter_options(self) -> None:
+        """Пересобирает опции выпадающих фильтров (этаж/тип/зона) из текущих
+        помещений, сохраняя выбранное значение. Зона = система активного
+        домена (отопление/холод/вентиляция)."""
+        sys_field, _circ = self.project.zoning_space_fields(self._domain)
+        levels = sorted({s.level for s in self.project.spaces if s.level},
+                        key=_level_num)
+        types = sorted({s.room_type for s in self.project.spaces
+                        if s.room_type})
+        zones = sorted({getattr(s, sys_field, "") for s in self.project.spaces
+                        if getattr(s, sys_field, "")})
+        all_label = _t("filter.all")
+        for combo, items in ((self.level_filter, levels),
+                             (self.type_filter, types),
+                             (self.zone_filter, zones)):
+            current = combo.currentText() or all_label
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem(all_label)
+            combo.addItems(items)
+            idx = combo.findText(current)
+            combo.setCurrentIndex(max(0, idx))
+            combo.blockSignals(False)
 
     def _update_summary(self) -> None:
         kind, name = self._current_node()
@@ -834,12 +897,26 @@ class SystemsWorkspacePanel(QWidget):
         kind, node = self._current_node()
         only = self.node_filter_cb.isChecked()
         sys_field, circ_field = self.project.zoning_space_fields(self._domain)
+        all_label = _t("filter.all")
+        lvl = self.level_filter.currentText()
+        lvl = "" if lvl == all_label else lvl
+        typ = self.type_filter.currentText()
+        typ = "" if typ == all_label else typ
+        zone = self.zone_filter.currentText()
+        zone = "" if zone == all_label else zone
         by_id = {sp.space_id: sp for sp in self.project.spaces}
         for r in range(self.table.rowCount()):
             visible = True
             it = self.table.item(r, 0)
             sp = by_id.get(it.data(Qt.UserRole)) if it else None
-            if only and kind and sp is not None:
+            if sp is not None:
+                if lvl and (sp.level or "") != lvl:
+                    visible = False
+                elif typ and (getattr(sp, "room_type", "") or "") != typ:
+                    visible = False
+                elif zone and (getattr(sp, sys_field, "") or "") != zone:
+                    visible = False
+            if visible and only and kind and sp is not None:
                 if kind == "system":
                     visible = getattr(sp, sys_field, "") == node
                 else:
@@ -869,6 +946,9 @@ class SystemsWorkspacePanel(QWidget):
             _t("panel.sysworkspace.tree.name"), _t("panel.sysworkspace.tree.kw")])
         self.search.setPlaceholderText(_t("btn.search.ph"))
         self.node_filter_cb.setText(_t("panel.sysworkspace.filter_node"))
+        self._level_filter_lbl.setText(_t("panel.spaces.filter.level"))
+        self._type_filter_lbl.setText(_t("panel.spaces.filter.type"))
+        self._zone_filter_lbl.setText(_t("panel.spaces.filter.zone"))
         self.assign_sys_btn.setText(_t("panel.zones.btn.assign_system"))
         self.assign_circ_btn.setText(_t("panel.zones.btn.assign_circuit"))
         self.clear_btn.setText(_t("panel.zones.btn.clear"))
