@@ -58,7 +58,7 @@ def export_results_for_revit(project: HVACProject, path: str) -> None:
         w = csv.writer(f)
         w.writerow(csv_header())
         for sp in project.spaces:
-            row = [sp.space_id, sp.number, sp.name]
+            row: list[object] = [sp.space_id, sp.number, sp.name]
             for _col, _param, _kind, accessor in REVIT_FIELDS:
                 row.append(accessor(sp))
             w.writerow(row)
