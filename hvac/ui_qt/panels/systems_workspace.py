@@ -22,6 +22,7 @@
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 from PySide6.QtCore import Qt
@@ -54,10 +55,18 @@ from hvac.ui_qt.panels.zones_panel import (
 
 
 _ROOM_COL_KEYS = [
-    "panel.zones.rcol.number", "panel.zones.rcol.name", "panel.zones.rcol.area",
-    "panel.zones.rcol.load", "panel.zones.rcol.system", "panel.zones.rcol.circuit",
+    "panel.zones.rcol.number", "panel.zones.rcol.level", "panel.zones.rcol.name",
+    "panel.zones.rcol.area", "panel.zones.rcol.load", "panel.zones.rcol.system",
+    "panel.zones.rcol.circuit",
     "panel.sysworkspace.rcol.air", "panel.sysworkspace.rcol.device",
 ]
+
+
+def _floor_key(sp) -> float:
+    """Числовой ключ этажа для сортировки: первое целое из level
+    («L12» → 12, «-1 этаж» → -1). Без числа — в конец списка."""
+    m = re.search(r"-?\d+", getattr(sp, "level", "") or "")
+    return float(m.group()) if m else 1e9
 
 
 def _air_marker(sp) -> str:
@@ -212,7 +221,7 @@ class SystemsWorkspacePanel(QWidget):
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
         self.table.cellDoubleClicked.connect(self._edit_room_device)
-        for i, w in enumerate([60, 200, 70, 100, 130, 130, 56, 200]):
+        for i, w in enumerate([60, 64, 200, 70, 100, 130, 130, 56, 200]):
             self.table.setColumnWidth(i, w)
         right_l.addWidget(self.table, stretch=1)
 
@@ -245,7 +254,7 @@ class SystemsWorkspacePanel(QWidget):
     # ================= helpers =================
     def _room_headers(self) -> list[str]:
         heads = [_t(k) for k in _ROOM_COL_KEYS]
-        heads[3] = _t(_LOAD_KEY[self._domain])
+        heads[4] = _t(_LOAD_KEY[self._domain])
         return heads
 
     def _selected_rows(self) -> list[int]:
@@ -775,19 +784,20 @@ class SystemsWorkspacePanel(QWidget):
             num = QTableWidgetItem(sp.number)
             num.setData(Qt.UserRole, sp.space_id)
             self.table.setItem(r, 0, num)
-            self.table.setItem(r, 1, QTableWidgetItem(sp.name))
+            self.table.setItem(r, 1, _NumTableItem(sp.level or "", _floor_key(sp)))
+            self.table.setItem(r, 2, QTableWidgetItem(sp.name))
             ar = _NumTableItem(f"{sp.area_m2:.0f}", sp.area_m2)
             ar.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.table.setItem(r, 2, ar)
+            self.table.setItem(r, 3, ar)
             ld = _NumTableItem(load_txt, load)
             ld.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.table.setItem(r, 3, ld)
-            self.table.setItem(r, 4, QTableWidgetItem(getattr(sp, sys_field, "") or ""))
-            self.table.setItem(r, 5, QTableWidgetItem(getattr(sp, circ_field, "") or ""))
+            self.table.setItem(r, 4, ld)
+            self.table.setItem(r, 5, QTableWidgetItem(getattr(sp, sys_field, "") or ""))
+            self.table.setItem(r, 6, QTableWidgetItem(getattr(sp, circ_field, "") or ""))
             air = QTableWidgetItem(_air_marker(sp))
             air.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(r, 6, air)
-            self.table.setItem(r, 7, QTableWidgetItem(
+            self.table.setItem(r, 7, air)
+            self.table.setItem(r, 8, QTableWidgetItem(
                 _device_for_domain(domain, sp.room_equipment)))
         self.table.setSortingEnabled(True)
         self._filter()

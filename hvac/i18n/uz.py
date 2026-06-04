@@ -791,6 +791,7 @@ UZ: Dict[str, str] = {
     "panel.zones.btn.assign_circuit":  "Konturga belgilash ▾",
     "panel.zones.btn.clear":           "Belgilashni olib tashlash",
     "panel.zones.rcol.number":         "№",
+    "panel.zones.rcol.level":          "Qavat",
     "panel.zones.rcol.name":           "Xona",
     "panel.zones.rcol.area":           "S, m²",
     "panel.zones.rcol.load":           "Yuklama",

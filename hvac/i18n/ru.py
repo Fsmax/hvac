@@ -782,6 +782,7 @@ RU: Dict[str, str] = {
     "panel.zones.btn.assign_circuit":  "Назначить контуру ▾",
     "panel.zones.btn.clear":           "Снять назначение",
     "panel.zones.rcol.number":         "№",
+    "panel.zones.rcol.level":          "Этаж",
     "panel.zones.rcol.name":           "Помещение",
     "panel.zones.rcol.area":           "S, м²",
     "panel.zones.rcol.load":           "Нагрузка",
