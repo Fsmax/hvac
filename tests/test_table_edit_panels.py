@@ -64,6 +64,10 @@ def test_spaces_editable_columns(qapp):
                                           _col("volume_m3"),
                                           _col("room_type"),
                                           _col("t_in_heat"),
+                                          _col("t_in_cool"),
+                                          _col("occupancy_people"),
+                                          _col("lighting_w_m2"),
+                                          _col("equipment_w_m2"),
                                           _col("system_heating")}
 
 

@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """SpacesPanel — таблица помещений с фильтрами, поиском, inline-edit.
 
-Главный экран приложения. Слева — таблица всех помещений с цветовой
-индикацией аномалий; справа — PropertiesPanel выделенного помещения.
+Главный экран приложения: таблица всех помещений на всю ширину с цветовой
+индикацией аномалий и Excel-режимом (поячейковое выделение, копирование/
+вставка/протяжка столбца). Детали выделенного помещения (свойства +
+ограждения) открываются в отдельном окне SpaceDetailWindow по кнопке
+«Свойства…».
 """
 from __future__ import annotations
 
@@ -49,6 +52,10 @@ _COLUMN_TITLE_KEYS = [
     "panel.spaces.col.area",
     "panel.spaces.col.volume",
     "panel.spaces.col.t_heat",
+    "panel.spaces.col.t_cool",
+    "panel.spaces.col.occup",
+    "panel.spaces.col.light",
+    "panel.spaces.col.equip",
     "panel.spaces.col.q_heat",
     "panel.spaces.col.q_cool",
     "panel.spaces.col.density",
@@ -121,6 +128,18 @@ class SpacesTableModel(EditableTableModelMixin, QAbstractTableModel):
                align=int(Qt.AlignRight | Qt.AlignVCenter)),
         Column("panel.spaces.col.t_heat",   "t_in_heat",      70, editable=True,
                fmt=lambda v: f"{v:.1f}",
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.t_cool",   "t_in_cool",      70, editable=True,
+               fmt=lambda v: f"{v:.1f}",
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.occup",    "occupancy_people", 70, editable=True,
+               fmt=lambda v: _fmt_num(v, 1),
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.light",    "lighting_w_m2",  90, editable=True,
+               fmt=lambda v: _fmt_num(v, 1),
+               align=int(Qt.AlignRight | Qt.AlignVCenter)),
+        Column("panel.spaces.col.equip",    "equipment_w_m2", 90, editable=True,
+               fmt=lambda v: _fmt_num(v, 1),
                align=int(Qt.AlignRight | Qt.AlignVCenter)),
         Column("panel.spaces.col.q_heat",   "heat_loss_w",   110,
                fmt=lambda v: f"{(v or 0)/1000:.2f}",
@@ -521,12 +540,56 @@ class SpacesBulkDialog(QDialog):
 
 
 # ===========================================================================
+# Отдельное окно деталей помещения
+# ===========================================================================
+
+
+class SpaceDetailWindow(QDialog):
+    """Плавающее немодальное окно: свойства помещения + ограждения.
+
+    Раньше эти панели жили в правой части SpacesPanel и занимали пол-экрана.
+    Вынесены в отдельное окно, чтобы таблица помещений была на всю ширину
+    (Excel-режим). Окно следует за выбором строки в таблице — но только пока
+    открыто, поэтому навигация по таблице при закрытом окне не пересобирает
+    тяжёлую таблицу ограждений."""
+
+    def __init__(self, project: HVACProject, bridge: ProjectBridge,
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setModal(False)
+        self.setWindowTitle(_t("panel.spaces.detail.title"))
+        self.resize(620, 860)
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+
+        split = QSplitter(Qt.Vertical)
+        split.setHandleWidth(6)
+        self.props = PropertiesPanel(project, bridge)
+        split.addWidget(self.props)
+        self.boundaries = BoundariesPanel(project, bridge)
+        split.addWidget(self.boundaries)
+        split.setStretchFactor(0, 2)
+        split.setStretchFactor(1, 3)
+        split.setSizes([320, 480])
+        lay.addWidget(split)
+
+    def show_space(self, sp: Optional[Space]) -> None:
+        self.props.show_space(sp)
+        self.boundaries.show_space(sp)
+
+    def retranslate_ui(self) -> None:
+        self.setWindowTitle(_t("panel.spaces.detail.title"))
+
+
+# ===========================================================================
 # Сама панель
 # ===========================================================================
 
 
 class SpacesPanel(QWidget):
-    """Левая таблица + правый PropertiesPanel."""
+    """Полноширинная таблица помещений; детали — в отдельном окне."""
 
     spaceSelected = Signal(object)  # Space | None
 
@@ -597,6 +660,11 @@ class SpacesPanel(QWidget):
         self.b_edit.clicked.connect(self._on_edit)
         toolbar.addWidget(self.b_edit)
 
+        # Открывает отдельное окно «Свойства + Ограждения» выбранного помещения.
+        self.b_detail = QPushButton(_t("btn.space_detail"))
+        self.b_detail.clicked.connect(self._open_detail)
+        toolbar.addWidget(self.b_detail)
+
         self.b_del = QPushButton(_t("btn.delete"))
         self.b_del.clicked.connect(self._on_delete)
         toolbar.addWidget(self.b_del)
@@ -616,19 +684,23 @@ class SpacesPanel(QWidget):
         outer.addLayout(toolbar)
 
         # Splitter: таблица | свойства
-        splitter = QSplitter(Qt.Horizontal)
-        splitter.setHandleWidth(6)  # хватаемая ручка (была 1px — не ухватить)
-
-        # --- Таблица ---
+        # --- Таблица (на всю ширину панели) ---
         self.table = QTableView()
         self.model = SpacesTableModel(self.project, self.bridge, self)
         self.proxy = SpacesFilterProxy(self)
         self.proxy.setSourceModel(self.model)
+        # Сортировка по «сырому» значению (EditRole), а не по форматированной
+        # строке — иначе числовые колонки (S, V, Люди, Q) сортировались бы
+        # лексически («10» < «9»).
+        self.proxy.setSortRole(Qt.EditRole)
         self.table.setModel(self.proxy)
 
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        # Поячейковое выделение (как в Excel): можно выделить столбец «Люди»
+        # у группы помещений и вставить/протянуть одно значение, не затрагивая
+        # остальные поля строки. Текущая строка по-прежнему ведёт окно деталей.
+        self.table.setSelectionBehavior(QAbstractItemView.SelectItems)
         self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.setEditTriggers(
             QAbstractItemView.DoubleClicked | QAbstractItemView.SelectedClicked
@@ -665,41 +737,32 @@ class SpacesPanel(QWidget):
         self.table.setItemDelegateForColumn(
             level_col, ComboDelegate(self._known_levels, self.table))
 
-        # Числовые ячейки: площадь / объём / зимняя tв. Свой делегат — иначе
-        # стандартный QDoubleSpinBox Qt обрезал бы значения на 99.99.
+        # Числовые ячейки: площадь / объём / зимняя tв / люди. Свой делегат —
+        # иначе стандартный QDoubleSpinBox Qt обрезал бы значения на 99.99.
         for key, lo, hi, dec, suf in (
             ("area_m2",   0.0, 1_000_000.0, 2, " м²"),
             ("volume_m3", 0.0, 10_000_000.0, 2, " м³"),
             ("t_in_heat", -50.0, 50.0, 1, " °C"),
+            ("t_in_cool", -50.0, 50.0, 1, " °C"),
+            ("occupancy_people", 0.0, 100_000.0, 1, ""),
+            ("lighting_w_m2", 0.0, 500.0, 1, " Вт/м²"),
+            ("equipment_w_m2", 0.0, 500.0, 1, " Вт/м²"),
         ):
             ci = next(i for i, c in enumerate(SpacesTableModel.COLUMNS)
                       if c.key == key)
             self.table.setItemDelegateForColumn(
                 ci, NumberDelegate(lo, hi, dec, suf, self.table))
 
-        splitter.addWidget(self.table)
+        outer.addWidget(self.table, stretch=1)
 
-        # --- Properties + Boundaries (вертикальный сплит) ---
-        # Высоту блока «Ограждения» меняют, перетаскивая эту ручку.
-        right_split = QSplitter(Qt.Vertical)
-        right_split.setHandleWidth(6)  # хватаемая ручка (была 1px — не ухватить)
-
-        self.props = PropertiesPanel(self.project, self.bridge)
-        right_split.addWidget(self.props)
-
-        self.boundaries = BoundariesPanel(self.project, self.bridge)
-        right_split.addWidget(self.boundaries)
-        right_split.setStretchFactor(0, 2)
-        right_split.setStretchFactor(1, 3)
-        right_split.setSizes([260, 440])
-
-        splitter.addWidget(right_split)
-
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 2)
-        splitter.setSizes([800, 600])
-
-        outer.addWidget(splitter, stretch=1)
+        # --- Окно деталей (Свойства + Ограждения) ---
+        # Отдельное немодальное окно, чтобы таблица была на всю ширину.
+        # self.props / self.boundaries — алиасы для совместимости со старым
+        # кодом (_on_edit, _on_row_changed).
+        self.detail = SpaceDetailWindow(self.project, self.bridge, self)
+        self.props = self.detail.props
+        self.boundaries = self.detail.boundaries
+        self._current_space: Optional[Space] = None
 
     def _wire_signals(self) -> None:
         self.search.textChanged.connect(self.proxy.set_text)
@@ -780,8 +843,11 @@ class SpacesPanel(QWidget):
         sel = self.table.selectionModel()
         if sel is None:
             return []
+        # selectedIndexes(), а не selectedRows(): при поячейковом выделении
+        # «строка целиком» не выделяется, но строку каждой выбранной ячейки
+        # учитываем для групповой правки.
         return sorted({self.proxy.mapToSource(idx).row()
-                       for idx in sel.selectedRows()})
+                       for idx in sel.selectedIndexes()})
 
     def _bulk_edit(self) -> None:
         rows = self._selected_source_rows()
@@ -839,16 +905,35 @@ class SpacesPanel(QWidget):
             self._edit.redo()
 
     def _on_row_changed(self, current: QModelIndex, _previous: QModelIndex) -> None:
-        if not current.isValid():
-            self.props.show_space(None)
-            self.boundaries.show_space(None)
-            self.spaceSelected.emit(None)
-            return
-        source_idx = self.proxy.mapToSource(current)
-        sp = self.model.space_at(source_idx.row())
-        self.props.show_space(sp)
-        self.boundaries.show_space(sp)
+        sp: Optional[Space] = None
+        if current.isValid():
+            source_idx = self.proxy.mapToSource(current)
+            sp = self.model.space_at(source_idx.row())
+        self._current_space = sp
+        # Окно деталей пересобираем только когда оно открыто — иначе быстрая
+        # навигация по таблице не тратила бы время на тяжёлую таблицу
+        # ограждений (десятки комбобоксов на помещение).
+        if self.detail.isVisible():
+            self.detail.show_space(sp)
         self.spaceSelected.emit(sp)
+
+    def _open_detail(self) -> None:
+        """Открывает (или поднимает на передний план) окно «Свойства +
+        Ограждения» для текущего помещения."""
+        if self._current_space is None:
+            self._current_space = self._selected_space()
+        self.detail.show_space(self._current_space)
+        self.detail.show()
+        self.detail.raise_()
+        self.detail.activateWindow()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 (Qt API)
+        # Уходя с раздела «Помещения», прячем плавающее окно деталей, чтобы
+        # оно не висело поверх других вкладок.
+        detail = getattr(self, "detail", None)
+        if detail is not None:
+            detail.hide()
+        super().hideEvent(event)
 
     # ===== Ручное управление помещениями =====
     def _selected_space(self) -> Space | None:
@@ -1033,6 +1118,7 @@ class SpacesPanel(QWidget):
         self._zone_filter_lbl.setText(_t("panel.spaces.filter.zone"))
         self.b_add.setText(_t("btn.add_space"))
         self.b_edit.setText(_t("btn.edit_space"))
+        self.b_detail.setText(_t("btn.space_detail"))
         self.b_del.setText(_t("btn.delete"))
         self.b_dup.setText(_t("btn.duplicate"))
         self.b_import.setText(_t("btn.import"))
@@ -1041,6 +1127,7 @@ class SpacesPanel(QWidget):
         # сообщаем Qt, что header-секции стоит перерисовать.
         self.model.headerDataChanged.emit(
             Qt.Horizontal, 0, self.model.columnCount() - 1)
+        self.detail.retranslate_ui()
         # Опции фильтров (значение "(все)") пересобираем
         self._refresh_filter_options()
         self._refresh_count()
