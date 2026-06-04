@@ -166,7 +166,8 @@ hvac_v4/
 ├── tests/                   # Юнит-тесты (659 шт.)
 │
 ├── revit_dynamo_hvac_write_csv.py    # Dynamo: выгрузка из Revit
-└── revit_dynamo_apply_results.py     # Dynamo: запись Q обратно в Revit
+├── revit_dynamo_apply_results.py     # Dynamo: запись результатов в Space/Room
+└── revit_dynamo_distribute_loads_to_fancoils.py  # Dynamo: нагрузка Space → фанкойлы
 ```
 
 ## Зависимости
@@ -266,6 +267,15 @@ TABS_REGISTRY.append(MyTab)
 
    Создавать нужно только те параметры, что реально нужны в модели —
    колонки без соответствующего параметра скрипт молча пропускает.
+
+5. **(Опц.) Разнести нагрузку на фанкойлы**: запустить
+   `revit_dynamo_distribute_loads_to_fancoils.py` в Dynamo. Скрипт находит
+   фанкойлы (Mechanical Equipment) в каждом помещении и пишет в их параметры
+   `Design Cooling Load` / `Design Heating Load` долю нагрузки помещения.
+   Если фанкойлов в помещении несколько — нагрузка делится между ними
+   **поровну** (`Q_помещения / N`). Параметры читаются из Space (`Cooling
+   Load` / `Heating Load`, заполненные шагом 4), поэтому сначала запускают
+   `apply_results.py`, затем этот скрипт.
 
 ## Результат на тестовых данных (CHR_MZN, Ташкент)
 
