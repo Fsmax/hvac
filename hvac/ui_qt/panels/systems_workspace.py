@@ -287,7 +287,14 @@ class SystemsWorkspacePanel(QWidget):
 
     def _selected_rows(self) -> list[int]:
         sel = self.table.selectionModel()
-        return sorted({i.row() for i in sel.selectedRows()}) if sel else []
+        if not sel:
+            return []
+        # Только ВИДИМЫЕ строки: помещения, скрытые фильтром (этаж/тип/зона/
+        # поиск/«только узел»), остаются выделенными в QTableWidget, но не
+        # должны попадать в назначение (drag&drop, кнопки, меню) — иначе
+        # «невидимая» комната с другого этажа случайно привязывается.
+        return sorted({i.row() for i in sel.selectedRows()
+                       if not self.table.isRowHidden(i.row())})
 
     def _ids_for(self, rows: list[int]) -> list[str]:
         out = []
