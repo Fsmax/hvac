@@ -143,7 +143,7 @@ class ComparisonPanel(QWidget):
                 cur=self.project.params.project_name or "—",
                 other=self._other.params.project_name or "—"))
 
-        warn = QColor(tokens()["warning"])
+        warn = QBrush(QColor(tokens()["warning"]))
         for row, (key, label_key, dec) in enumerate(_METRIC_ROWS):
             cv = cur[key]
             self._set(row, 0, _t(label_key), align_left=True)

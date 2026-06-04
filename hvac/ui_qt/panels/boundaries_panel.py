@@ -271,16 +271,18 @@ class BoundariesPanel(QWidget):
         combo.setEditable(True)
         combo.setInsertPolicy(QComboBox.NoInsert)
         le = combo.lineEdit()
-        le.setReadOnly(True)
-        le.setContextMenuPolicy(Qt.NoContextMenu)
-        le.installEventFilter(self)
+        if le is not None:
+            le.setReadOnly(True)
+            le.setContextMenuPolicy(Qt.NoContextMenu)
+            le.installEventFilter(self)
 
     def eventFilter(self, obj, event):
         # Клик по read-only полю комбобокса открывает выпадающий список.
+        parent = obj.parent()
         if (event.type() == QEvent.MouseButtonPress
                 and isinstance(obj, QLineEdit)
-                and isinstance(obj.parent(), QComboBox)):
-            obj.parent().showPopup()
+                and isinstance(parent, QComboBox)):
+            parent.showPopup()
             return True
         return super().eventFilter(obj, event)
 

@@ -232,7 +232,7 @@ class VentilationNormsDialog(QDialog):
     def _select_type(self, room_type: str) -> bool:
         for i in range(self.types_tree.topLevelItemCount()):
             item = self.types_tree.topLevelItem(i)
-            if item.text(0) == room_type:
+            if item is not None and item.text(0) == room_type:
                 self.types_tree.setCurrentItem(item)
                 return True
         return False
@@ -241,8 +241,9 @@ class VentilationNormsDialog(QDialog):
         wanted = initial_type if initial_type and self._type_exists(
             initial_type) else "Офис"  # i18n-allow (имя типа = ключ данных)
         if not self._select_type(wanted):
-            if self.types_tree.topLevelItemCount():
-                self.types_tree.setCurrentItem(self.types_tree.topLevelItem(0))
+            first = self.types_tree.topLevelItem(0)
+            if first is not None:
+                self.types_tree.setCurrentItem(first)
 
     def _type_exists(self, room_type: str) -> bool:
         return room_type in un.get_all_room_types()
@@ -322,10 +323,11 @@ class VentilationNormsDialog(QDialog):
 
     def _sync_button_state(self) -> None:
         t = self._current_type
-        is_custom = bool(t) and un.is_custom_type(t)
+        is_custom = t is not None and bool(t) and un.is_custom_type(t)
         self.btn_del.setEnabled(is_custom)
         self.btn_reset.setEnabled(
-            bool(t) and not is_custom and un.has_ventilation_override(t))
+            t is not None and bool(t) and not is_custom
+            and un.has_ventilation_override(t))
 
     # ------------------------------------------------------------------
     # Действия с типами

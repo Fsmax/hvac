@@ -174,6 +174,9 @@ class EquipmentDetailView(QWidget):
             self._on_changed()
 
     def _render_ventilation(self) -> None:
+        if self._vname is None:
+            self.body.clear()
+            return
         det = compute_equipment_detail(self.project, self._vname)
         if det is None:
             self.body.clear()
@@ -268,6 +271,9 @@ class EquipmentDetailView(QWidget):
             self._on_changed()
 
     def _render_source(self) -> None:
+        if self._sdomain is None or self._sname is None:
+            self.body.clear()
+            return
         from hvac.equipment_sizing import select_equipment
         sel = select_equipment(self.project)
         src = next((s for s in sel.sources(self._sdomain)
@@ -324,7 +330,7 @@ class EquipmentDetailView(QWidget):
             lbl.setText(_t(key))
         if self._vname:
             self._show_ventilation(self._vname)
-        elif self._sname:
+        elif self._sname and self._sdomain:
             self._show_source(self._sdomain, self._sname)
         else:
             self.header.setText(_t("panel.detail.none"))
