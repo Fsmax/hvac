@@ -141,11 +141,20 @@ class ShNK0802VentilationEngine(VentilationEngine):
         # 3. Обычный расчёт: max из 3-4 критериев
         candidates: List[tuple] = []
 
-        # По людям
+        # По людям (+ зрители для спортзалов/бассейнов/залов со зрит. местами)
         m3_pp = norms.get("m3_per_person", 0)
-        if m3_pp > 0 and space.occupancy_people > 0:
-            L = space.occupancy_people * m3_pp
-            candidates.append((L, f"По людям ({space.occupancy_people:.1f} чел × {m3_pp} м³/ч)"))
+        m3_spec = norms.get("m3_per_spectator", 0)
+        spectators = int(getattr(space, "spectator_count", 0) or 0)
+        spec_part = spectators * m3_spec if (m3_spec and spectators) else 0.0
+        if m3_pp > 0 and (space.occupancy_people > 0 or spec_part > 0):
+            L = space.occupancy_people * m3_pp + spec_part
+            if spec_part > 0:
+                desc = (f"По людям ({space.occupancy_people:.1f}×{m3_pp} + "
+                        f"{spectators} зрит.×{m3_spec} м³/ч)")
+            else:
+                desc = (f"По людям ({space.occupancy_people:.1f} чел × "
+                        f"{m3_pp} м³/ч)")
+            candidates.append((L, desc))
 
         # По площади
         m3_m2 = norms.get("m3_per_m2", 0)
@@ -174,6 +183,14 @@ class ShNK0802VentilationEngine(VentilationEngine):
             if L > 0:
                 candidates.append(
                     (L, f"По влагоудалению ({a_water:.0f} м² зеркала)"))
+
+        # По машино-местам (парковки) — если задано число мест и норма на место
+        m3_car = norms.get("m3_per_car", 0)
+        cars = int(getattr(space, "car_count", 0) or 0)
+        if m3_car > 0 and cars > 0:
+            L = cars * m3_car
+            candidates.append(
+                (L, f"По машино-местам ({cars} × {m3_car} м³/ч)"))
 
         if not candidates:
             result["warnings"].append("Нет данных для расчёта")
@@ -214,9 +231,11 @@ class ShNK0802VentilationEngine(VentilationEngine):
         # В модели нет числа машин, поэтому принят упрощённый расчёт по
         # площади — помечаем это предупреждением, чтобы инженер проверил.
         if norms.get("has_co_control"):
+            basis = ("по машино-местам" if (m3_car > 0 and cars > 0)
+                     else "по площади")
             result["warnings"].append(
-                "Парковка: проверьте расход по выбросу CO (СП 113 / ШНҚ); "
-                "упрощённо принято по площади."
+                f"Парковка: проверьте расход по выбросу CO (СП 113 / ШНҚ); "
+                f"упрощённо принято {basis}."
             )
 
         return result

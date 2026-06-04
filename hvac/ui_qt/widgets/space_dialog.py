@@ -119,6 +119,8 @@ class SpaceEditResult:
     urinal_count: int = 0
     water_surface_m2: float = 0.0
     water_temp_c: float = 0.0
+    spectator_count: int = 0
+    car_count: int = 0
 
 
 class SpaceEditDialog(QDialog):
@@ -228,6 +230,20 @@ class SpaceEditDialog(QDialog):
         pool_hint.setWordWrap(True)
         form.addRow("", pool_hint)
 
+        # Зрители (спортзалы/залы) и машино-места (парковки).
+        self.spectator_spin = QSpinBox()
+        self.spectator_spin.setRange(0, 1000000)
+        form.addRow(_t("dlg.space.spectator_count"), self.spectator_spin)
+
+        self.car_spin = QSpinBox()
+        self.car_spin.setRange(0, 1000000)
+        form.addRow(_t("dlg.space.car_count"), self.car_spin)
+
+        extra_hint = QLabel(_t("dlg.space.occupancy_hint"))
+        extra_hint.setProperty("role", "muted")
+        extra_hint.setWordWrap(True)
+        form.addRow("", extra_hint)
+
         # Префилл до подключения сигналов, чтобы сохранить исходный объём,
         # даже если он не равен площадь × высота (импорт из Revit и т.п.).
         if initial:
@@ -247,6 +263,9 @@ class SpaceEditDialog(QDialog):
                 float(getattr(initial, "water_surface_m2", 0.0) or 0.0))
             self.water_temp_spin.setValue(
                 float(getattr(initial, "water_temp_c", 0.0) or 0.0))
+            self.spectator_spin.setValue(
+                int(getattr(initial, "spectator_count", 0) or 0))
+            self.car_spin.setValue(int(getattr(initial, "car_count", 0) or 0))
 
         self.area_spin.valueChanged.connect(self._recompute_volume)
         self.height_spin.valueChanged.connect(self._recompute_volume)
@@ -295,6 +314,8 @@ class SpaceEditDialog(QDialog):
             urinal_count=int(self.urinal_spin.value()),
             water_surface_m2=float(self.water_area_spin.value()),
             water_temp_c=float(self.water_temp_spin.value()),
+            spectator_count=int(self.spectator_spin.value()),
+            car_count=int(self.car_spin.value()),
         )
 
 

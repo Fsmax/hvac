@@ -32,6 +32,8 @@ SAVED_SPACE_FIELDS = [
     "wc_count", "urinal_count",
     # Бассейны (влагоудаление)
     "water_surface_m2", "water_temp_c",
+    # Зрители (спорт) / машино-места (парковки)
+    "spectator_count", "car_count",
     # Зоны / системы
     "system_heating", "system_cooling", "system_ventilation",
     # Контуры внутри систем
@@ -54,6 +56,7 @@ FULL_SPACE_FIELDS = [
     "vent_user_modified",
     "wc_count", "urinal_count",
     "water_surface_m2", "water_temp_c",
+    "spectator_count", "car_count",
     "system_heating", "system_cooling", "system_ventilation",
     "circuit_heating", "circuit_cooling", "duct_zone",
     "air_heating", "air_cooling",
