@@ -189,6 +189,17 @@ class BoundariesPanel(QWidget):
             bar.addWidget(b)
             self._add_buttons.append((b, key))
         bar.addStretch(1)
+        # Массово пометить ограждения внутренними/наружными. Работает по
+        # выделенным строкам; если ничего не выделено — по всем стенам/проёмам
+        # помещения. «Внутренние» не участвуют в расчёте теплопотерь.
+        self._internal_btn = QPushButton(_t("panel.boundaries.btn_internal"))
+        self._internal_btn.clicked.connect(
+            lambda: self._set_exterior_selected(False))
+        bar.addWidget(self._internal_btn)
+        self._external_btn = QPushButton(_t("panel.boundaries.btn_external"))
+        self._external_btn.clicked.connect(
+            lambda: self._set_exterior_selected(True))
+        bar.addWidget(self._external_btn)
         self._del_btn = QPushButton(_t("panel.boundaries.btn_delete"))
         self._del_btn.clicked.connect(self._delete_selected)
         bar.addWidget(self._del_btn)
@@ -222,6 +233,8 @@ class BoundariesPanel(QWidget):
         self.table.setHorizontalHeaderLabels([_t(k) for k in _HEADER_KEYS])
         for btn, key in self._add_buttons:
             btn.setText(_t(key))
+        self._internal_btn.setText(_t("panel.boundaries.btn_internal"))
+        self._external_btn.setText(_t("panel.boundaries.btn_external"))
         self._del_btn.setText(_t("panel.boundaries.btn_delete"))
         self._reload()
 
@@ -233,17 +246,27 @@ class BoundariesPanel(QWidget):
         self.table.setRowCount(0)
         # Фильтруем служебные категории Revit (разделители помещений,
         # колонны и т. п.) — они не несут теплопередачи.
-        elements = [e for e in self.project.elements
-                    if e.space_id == self._space.space_id
-                    and not is_excluded_category(e.category)]
-        for el in elements:
+        for el in self._room_elements():
             self._append_row(el)
-        # Сводка
+        self._refresh_summary()
+        self._suppress_signal = False
+        self._fit_height()
+
+    def _room_elements(self) -> List[BoundaryElement]:
+        """Ограждения текущего помещения без служебных категорий Revit."""
+        if self._space is None:
+            return []
+        return [e for e in self.project.elements
+                if e.space_id == self._space.space_id
+                and not is_excluded_category(e.category)]
+
+    def _refresh_summary(self) -> None:
+        """Обновляет строку «N элем. · Σ наружн. площ.» без перестройки таблицы
+        (безопасно вызывать из обработчика комбобокса)."""
+        elements = self._room_elements()
         area_ext = sum(e.net_area_m2 or 0 for e in elements if e.is_exterior)
         self.summary_lbl.setText(_t("panel.boundaries.summary").format(
             n=len(elements), area=area_ext))
-        self._suppress_signal = False
-        self._fit_height()
 
     # Сколько строк показывать без прокрутки (дальше — внутренний скролл).
     _MAX_VISIBLE_ROWS = 12
@@ -375,8 +398,10 @@ class BoundariesPanel(QWidget):
         eid = self._element_id_at(item.row())
         if eid:
             self.project.update_element(
-                eid, approx_area_m2=new_area, element_area_m2=new_area,
+                eid, in_space=self._space.space_id,
+                approx_area_m2=new_area, element_area_m2=new_area,
                 net_area_m2=new_area)
+            self.project.recalculate()   # площадь меняет теплопотери
             self.bridge.dirtyChanged.emit(True)
             self._reload()
 
@@ -385,7 +410,9 @@ class BoundariesPanel(QWidget):
             return
         eid = self._element_id_at(row)
         if eid:
-            self.project.update_element(eid, orientation=text)
+            self.project.update_element(
+                eid, in_space=self._space.space_id, orientation=text)
+            self.project.recalculate()   # ориентация влияет на надбавки/радиацию
             self.bridge.dirtyChanged.emit(True)
 
     def _on_exterior_changed(self, row: int) -> None:
@@ -395,8 +422,11 @@ class BoundariesPanel(QWidget):
         combo = self.table.cellWidget(row, 5)
         if eid and combo:
             self.project.update_element(
-                eid, is_exterior=combo.currentText() == combo._yes_label)
+                eid, in_space=self._space.space_id,
+                is_exterior=combo.currentText() == combo._yes_label)
+            self.project.recalculate()   # «внутреннее/наружное» меняет теплопотери
             self.bridge.dirtyChanged.emit(True)
+            self._refresh_summary()      # обновить Σ наружн. площ.
 
     def _on_construction_changed(self, row: int) -> None:
         if self._space is None:
@@ -410,9 +440,11 @@ class BoundariesPanel(QWidget):
         if not con:
             return
         self.project.update_element(
-            eid, construction_key=new_key, u_value=con.u_value,
+            eid, in_space=self._space.space_id,
+            construction_key=new_key, u_value=con.u_value,
             family=con.family, type_name=con.type_name,
             category=con.category, thickness_mm=con.thickness_mm)
+        self.project.recalculate()   # смена конструкции (U) меняет теплопотери
         self.bridge.dirtyChanged.emit(True)
         self._reload()
 
@@ -484,3 +516,34 @@ class BoundariesPanel(QWidget):
         self.bridge.dirtyChanged.emit(True)
         self._reload()
         self.changed.emit()
+
+    def _set_exterior_selected(self, is_exterior: bool) -> None:
+        """Помечает ограждения внутренними (is_exterior=False — без теплопотерь
+        через них, только инфильтрация) или наружными (True). По умолчанию —
+        выделенные строки; если выделения нет — все стены/проёмы помещения."""
+        if self._space is None:
+            return
+        rows = sorted({i.row() for i in self.table.selectedIndexes()})
+        if not rows:
+            rows = list(range(self.table.rowCount()))
+        n = 0
+        for r in rows:
+            eid = self._element_id_at(r)
+            combo = self.table.cellWidget(r, 5)
+            # Текущее состояние берём из комбобокса колонки «Наружн.».
+            cur = (combo.currentText() == combo._yes_label) if combo else None
+            if eid and cur != is_exterior:
+                self.project.update_element(
+                    eid, in_space=self._space.space_id,
+                    is_exterior=is_exterior)
+                n += 1
+        if not n:
+            self.bridge.statusMessage.emit(
+                _t("panel.boundaries.status.ext_noop"), 3000)
+            return
+        self.project.recalculate()   # обновит «Результаты расчёта» и колонки Q
+        self.bridge.dirtyChanged.emit(True)
+        self._reload()
+        self.changed.emit()
+        self.bridge.statusMessage.emit(
+            _t("panel.boundaries.status.ext").format(n=n), 4000)

@@ -40,6 +40,8 @@ SAVED_SPACE_FIELDS = [
     "circuit_heating", "circuit_cooling", "duct_zone",
     # Воздушное отопление / охлаждение
     "air_heating", "air_cooling",
+    # Тепловой баланс (ручная классификация отапл./охлажд.)
+    "is_heated", "is_cooled",
     # Аварийные системы
     "smoke_system", "pressurization_system", "smoke_zone_index",
 ]
@@ -60,6 +62,7 @@ FULL_SPACE_FIELDS = [
     "system_heating", "system_cooling", "system_ventilation",
     "circuit_heating", "circuit_cooling", "duct_zone",
     "air_heating", "air_cooling",
+    "is_heated", "is_cooled",
     "smoke_system", "pressurization_system", "smoke_zone_index",
     "heat_loss_w", "heat_gain_w",
     "heat_gain_sensible_w", "heat_gain_latent_w",
@@ -72,7 +75,16 @@ FULL_ELEMENT_FIELDS = [
     "approx_area_m2", "element_area_m2", "thickness_mm", "function",
     "host_element_id", "boundary_space_count",
     "construction_key", "orientation_deg", "orientation",
-    "u_value", "net_area_m2", "manual_entry",
+    "u_value", "net_area_m2", "manual_entry", "user_modified",
+]
+
+# Поля ручных правок ограждения (панель «Ограждения»): сохраняются как
+# element_overrides в CSV-режиме и накладываются поверх элементов из CSV.
+# Покрывает «внутреннее/наружное», смену конструкции, ориентацию и площадь.
+SAVED_ELEMENT_FIELDS = [
+    "is_exterior", "orientation", "orientation_deg",
+    "construction_key", "u_value", "family", "type_name", "category",
+    "thickness_mm", "approx_area_m2", "element_area_m2", "net_area_m2",
 ]
 
 
@@ -195,8 +207,18 @@ def save_project(project: HVACProject, path: str,
             or sp.system_heating or sp.system_cooling or sp.system_ventilation
             or sp.circuit_heating or sp.circuit_cooling or sp.duct_zone
             or sp.air_heating or sp.air_cooling
+            or not sp.is_heated or not sp.is_cooled
             or sp.smoke_system or sp.pressurization_system
         }
+        # Ручные правки ограждений (внутреннее/наружное, конструкция,
+        # ориентация, площадь). Сохраняем списком записей с ключом
+        # (space_id, element_id) — element_id может повторяться у общих стен.
+        data["element_overrides"] = [
+            {"space_id": e.space_id, "element_id": e.element_id,
+             **{f: getattr(e, f) for f in SAVED_ELEMENT_FIELDS}}
+            for e in project.elements
+            if getattr(e, "user_modified", False) and e.element_id
+        ]
 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2, default=str)
@@ -812,6 +834,27 @@ def load_project(project: HVACProject, path: str) -> None:
                 for k, v in ov.items():
                     if hasattr(osp, k):
                         setattr(osp, k, v)
+
+        # Ручные правки ограждений (внутреннее/наружное и пр.) поверх CSV.
+        # Ключ — пара (space_id, element_id), т.к. element_id может
+        # повторяться у общих стен. Поддерживаем и старый dict-формат.
+        elem_overrides = data.get("element_overrides", [])
+        if isinstance(elem_overrides, dict):
+            elem_overrides = list(elem_overrides.values())
+        if elem_overrides:
+            by_key = {(o.get("space_id"), o.get("element_id")): o
+                      for o in elem_overrides}
+            for e in project.elements:
+                o = by_key.get((e.space_id, e.element_id))
+                if not o:
+                    continue
+                for k, v in o.items():
+                    if k in ("space_id", "element_id"):
+                        continue
+                    if hasattr(e, k):
+                        setattr(e, k, v)
+                e.user_modified = True
+            project._invalidate_elements_index()
 
     # ===== Восстанавливаем оборудование помещений (для ОБОИХ режимов) =====
     for sid, eq_data in data.get("room_equipment", {}).items():

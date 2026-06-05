@@ -33,6 +33,7 @@ RU: Dict[str, str] = {
     "sidebar.systems":       "Системы и оборудование",
     "sidebar.zones":         "Зоны и системы",
     "sidebar.equipment":     "Оборудование",
+    "sidebar.balance":       "Тепловой баланс",
     "sidebar.room_equipment":"Оборудование в помещениях",
     "sidebar.smoke":         "Дымоудаление",
     "sidebar.charts":        "Графики",
@@ -219,6 +220,22 @@ RU: Dict[str, str] = {
     "btn.import":            "Импорт…",
     "btn.template":          "Шаблон дома…",
     "btn.add_space":         "+ Помещение",
+    "btn.project_boundaries":"Ограждения проекта…",
+
+    # ===== Диалог: общепроектный редактор ограждений =====
+    "dlg.projbnd.title":     "Ограждения проекта",
+    "dlg.projbnd.hint":      ("Все стены и проёмы всех помещений. Отфильтруйте "
+                               "(этаж/тип/ориентация/наружн.), выделите строки и "
+                               "пометьте внутренними или наружными пачкой. "
+                               "Внутренние ограждения не теряют тепло — полезно, "
+                               "когда Revit ошибочно дал «наружные» стены."),
+    "dlg.projbnd.col.room":  "Помещение",
+    "dlg.projbnd.f.orient":  "Ориент.:",
+    "dlg.projbnd.f.ext":     "Граница:",
+    "dlg.projbnd.ext.only_ext":"Только наружные",
+    "dlg.projbnd.ext.only_int":"Только внутренние",
+    "dlg.projbnd.count":     "Показано: {n} из {total}",
+    "dlg.projbnd.no_selection":"Выделите строки в таблице",
 
     # ========== Panel: Data ==========
     "panel.data.title":      "Данные проекта",
@@ -352,6 +369,23 @@ RU: Dict[str, str] = {
     "panel.spaces.bulk.no_selection":   ("Не выделено ни одного помещения. "
                                           "Выделите строки (Ctrl/Shift) и повторите."),
     "panel.spaces.bulk.applied":        "Групповая правка: обновлено {n}",
+    # Ограждения выделенных помещений (внутренние / наружные)
+    "panel.spaces.env.menu":            "Ограждения выделенных помещений",
+    "panel.spaces.env.make_internal":   "🏠 Сделать внутренними",
+    "panel.spaces.env.make_external":   "🌤 Сделать наружными",
+    "panel.spaces.env.lbl_internal":    "внутренними",
+    "panel.spaces.env.lbl_external":    "наружными",
+    "panel.spaces.env.nothing":         ("У выделенных помещений ({n}) все стены "
+                                          "и проёмы уже помечены {label}."),
+    "panel.spaces.env.confirm.title":   "Подтверждение",
+    "panel.spaces.env.confirm.body":    ("Помещений выделено: {rooms}\n"
+                                          "Будет помечено элементов {label}: {elems}\n\n"
+                                          "Внутренние ограждения не участвуют в "
+                                          "расчёте теплопотерь (остаётся только "
+                                          "инфильтрация). После этого выполнится "
+                                          "пересчёт. Продолжить?"),
+    "panel.spaces.env.done":            ("Помечено элементов: {elems} "
+                                          "({rooms} помещ.). Пересчёт выполнен."),
     "panel.spaces.detail.title":        "Свойства помещения",
 
     # ========== Common ==========
@@ -1011,6 +1045,10 @@ RU: Dict[str, str] = {
     "panel.boundaries.btn_door":        "+ Дверь",
     "panel.boundaries.btn_roof":        "+ Кровля",
     "panel.boundaries.btn_floor":       "+ Пол",
+    "panel.boundaries.btn_internal":    "🏠 Внутренними",
+    "panel.boundaries.btn_external":    "🌤 Наружными",
+    "panel.boundaries.status.ext":      "Помечено ограждений: {n}. Пересчёт выполнен.",
+    "panel.boundaries.status.ext_noop": "Нечего менять: ограждения уже в нужном состоянии.",
     "panel.boundaries.btn_delete":     "Удалить",
     "panel.boundaries.dlg.title":       "Новое ограждение: {number} {name}",
     "panel.boundaries.dlg.category":    "Категория:",
@@ -1657,4 +1695,40 @@ RU: Dict[str, str] = {
     "panel.calc.summary.density":   "Удельные потери",
     "panel.calc.summary.supply":    "Σ приток",
     "panel.calc.summary.exhaust":   "Σ вытяжка",
+
+    # ===== Panel: Balance (раздел «Тепловой баланс») =====
+    "panel.balance.title":   "Тепловой баланс",
+    "panel.balance.hint":    ("Отметьте, какие помещения отапливаются и "
+                               "охлаждаются — итог суммирует нагрузки помещений "
+                               "и приточных установок. «О»/«Х» — помещение на "
+                               "воздушном отоплении/охлаждении: его нагрузку "
+                               "несёт калорифер/охладитель AHU, поэтому галочку "
+                               "обычно снимают, чтобы не задвоить. «Авто» "
+                               "расставляет галочки по нагрузке."),
+    "panel.balance.btn.auto":     "Авто (по нагрузке)",
+    "panel.balance.btn.compute":  "Посчитать AHU",
+    "panel.balance.btn.heat_on":  "Отапл. ✓",
+    "panel.balance.btn.heat_off": "Отапл. ✗",
+    "panel.balance.btn.cool_on":  "Охл. ✓",
+    "panel.balance.btn.cool_off": "Охл. ✗",
+    "panel.balance.col.qh":       "Qотоп, кВт",
+    "panel.balance.col.heated":   "Отапл.",
+    "panel.balance.col.qc":       "Qохл, кВт",
+    "panel.balance.col.cooled":   "Охл.",
+    "panel.balance.ahu.title":    "Приточные установки",
+    "panel.balance.ahu.name":     "Установка",
+    "panel.balance.ahu.spaces":   "Помещ.",
+    "panel.balance.ahu.flow":     "Расход, м³/ч",
+    "panel.balance.ahu.heater":   "Калорифер, кВт",
+    "panel.balance.ahu.cooler":   "Охладитель, кВт",
+    "panel.balance.totals.title":   "Итог",
+    "panel.balance.totals.heating": "Отопление",
+    "panel.balance.totals.cooling": "Охлаждение",
+    "panel.balance.totals.rooms":   "Помещения: {q} кВт  ({n} помещ.)",
+    "panel.balance.totals.ahu":     "Приточные установки: {q} кВт  ({n} шт.)",
+    "panel.balance.totals.total":   "Итого: {q} кВт",
+    "panel.balance.status.auto":    "Классифицировано по нагрузке: {n} помещ.",
+    "panel.balance.status.bulk":    "Изменено помещений: {n}",
+    "panel.balance.status.computed":"Нагрузки приточных установок пересчитаны",
+    "panel.balance.status.no_selection": "Выделите помещения в таблице",
 }

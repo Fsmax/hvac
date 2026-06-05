@@ -240,8 +240,21 @@ def load_thermal(path: str, spaces: List[Space] = None
         #    санузел от ложно-наружных стен в коридор-OFC.
         flag_yes = row.get("is_exterior_wall", "").strip().lower() == "yes"
         fam_lower = row.get("family", "").strip().lower()
+        type_lower = row.get("type", "").strip().lower()
         func_lower = row.get("function", "").strip().lower()
         is_curtain = "витраж" in fam_lower or "curtain" in fam_lower
+        # Витраж, тип которого ЯВНО внутренний/не-фасадный (по имени типа из
+        # Revit): стеклянная перегородка (Interior Partition), разделитель
+        # (Separator) или пустой curtain wall. Такой витраж НЕ считается
+        # фасадным остеклением — он внутренний, даже если общий с отапл.
+        # помещением. Фасад/балкон (Exterior Glazing, Balcony, Storefront)
+        # под это правило НЕ попадает и остаётся наружным.
+        _glz = fam_lower + " " + type_lower
+        interior_glazing = is_curtain and any(
+            kw in _glz for kw in (
+                "interior", "partition", "перегород", "внутрен",
+                "separator", "разделит", "empty",
+            ))
         # ВНИМАНИЕ: is_exterior_function — это сигнал ТИПА конструкции
         # (из какого материала собрана стена), а НЕ геометрический факт
         # того, что эта конкретная стена реально граничит с улицей.
@@ -291,24 +304,40 @@ def load_thermal(path: str, spaces: List[Space] = None
                 # Доверяем Dynamo + сигналам типа конструкции.
                 is_exterior_flag = (flag_yes or is_curtain
                                     or is_exterior_function)
+            elif interior_glazing:
+                # Витраж с явно внутренним типом (Interior Partition /
+                # Separator / Empty) — стеклянная перегородка, не фасад.
+                is_exterior_flag = False
             elif bsc_effective <= 1:
-                # Один сосед в пространстве — стена граничит с улицей.
-                is_exterior_flag = True
-            elif spaces and sid:
-                # bsc>=2: стена общая с другим пространством.
-                # Решаем по геометрии, а НЕ по типу конструкции.
-                if conditioned_neighbors(eid, sid) == 0:
-                    # Все остальные соседи — истинные балконы / шахты,
-                    # т.е. не отапливаемые. Стена наружная.
-                    is_exterior_flag = True
-                elif is_curtain:
-                    # Фасадный витраж между секциями одной квартиры —
-                    # стекло смотрит на улицу, тепло уходит наружу.
-                    is_exterior_flag = True
-                else:
-                    # Есть отапливаемый сосед — стена ВНУТРЕННЯЯ,
-                    # независимо от того, что function="Наружные слои".
+                # Геометрия: элемент касается лишь ОДНОГО помещения → кандидат
+                # в «наружные». Но часто это перегородка, выходящая в шахту,
+                # нишу или коридор без Room Bounding (другая сторона — не Space,
+                # поэтому bsc=1). Без переопределения такие стены массово
+                # становятся «наружными» (типичная ошибка выгрузки из Revit).
+                # Переопределяем на ВНУТРЕННЮЮ при явном сигнале, что это не
+                # фасад:
+                #   - Dynamo пометил is_exterior_wall=no (flag_yes=False), ИЛИ
+                #   - тип стены внутренний (function = «Внутренние слои»).
+                # Витраж — исключение: его панели (bsc=1) реально смотрят на
+                # улицу, поэтому остаются наружными.
+                interior_type = "внутренн" in func_lower
+                if not is_curtain and (not flag_yes or interior_type):
                     is_exterior_flag = False
+                else:
+                    is_exterior_flag = True
+            elif spaces and sid:
+                # bsc>=2: элемент общий с другим пространством. Если хотя бы
+                # один сосед — ОТАПЛИВАЕМОЕ помещение, это межкомнатная
+                # перегородка (обе стороны тёплые) → ВНУТРЕННЯЯ. Касается и
+                # витража: имя типа НЕнадёжно (в модели «M_Exterior Glazing»
+                # используется и для фасада, и для стеклянных перегородок
+                # между комнатами, напр. 6763672 между HTL-602.a и 602.b).
+                # Геометрия (общий с отапл. помещением) — надёжный признак
+                # перегородки. Если ВСЕ соседи неотапливаемые (балкон/шахта),
+                # элемент граничит с улицей → наружный. Настоящее фасадное
+                # остекление выгружается отдельным элементом с bsc=1 (ветка
+                # выше) и остаётся наружным.
+                is_exterior_flag = conditioned_neighbors(eid, sid) == 0
             else:
                 # Список spaces не передан — соседей проверить нельзя.
                 # Доверяем флагу Dynamo, но не «улучшаем» его наверх.

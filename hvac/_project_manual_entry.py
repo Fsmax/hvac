@@ -186,24 +186,110 @@ class ManualEntryMixin:
         self.emit("elements_changed")
         return True
 
-    def update_element(self, element_id: str, **fields) -> bool:
-        """Изменяет поля граничного элемента."""
+    def update_element(self, element_id: str, *,
+                       in_space: Optional[str] = None, **fields) -> bool:
+        """Изменяет поля граничного элемента.
+
+        in_space: если задан space_id — правится элемент именно ЭТОГО
+        помещения. Это важно для общих стен/витражей: один и тот же
+        element_id присутствует у нескольких помещений (одна запись на
+        помещение), и без скоупа обновился бы первый совпавший глобально —
+        т.е. ограждение ЧУЖОГО помещения, а текущее осталось бы без правки
+        (например, пометка «внутреннее» не влияла бы на расчёт).
+
+        Без in_space — старое поведение (первый совпавший по element_id).
+        Возвращает True, если хоть один элемент изменён.
+        """
+        found = False
+        need_net = False
+        moved = False
         for e in self.elements:
-            if e.element_id == element_id:
-                for k, v in fields.items():
-                    if hasattr(e, k):
-                        setattr(e, k, v)
-                if "orientation" in fields:
-                    e.orientation_deg = _ORIENT_DEG_MAP.get(
-                        e.orientation, e.orientation_deg)
-                if "approx_area_m2" in fields or "element_area_m2" in fields:
-                    self._recompute_net_areas()
-                # Изменение space_id ломает индекс
-                if "space_id" in fields:
-                    self._invalidate_elements_index()
-                self.emit("elements_changed")
-                return True
-        return False
+            if e.element_id != element_id:
+                continue
+            if in_space is not None and e.space_id != in_space:
+                continue
+            for k, v in fields.items():
+                if hasattr(e, k):
+                    setattr(e, k, v)
+            e.user_modified = True   # для сохранения как element_overrides
+            if "orientation" in fields:
+                e.orientation_deg = _ORIENT_DEG_MAP.get(
+                    e.orientation, e.orientation_deg)
+            if "approx_area_m2" in fields or "element_area_m2" in fields:
+                need_net = True
+            if "space_id" in fields:
+                moved = True
+            found = True
+            if in_space is None:
+                break   # совместимость: только первый совпавший
+        if need_net:
+            self._recompute_net_areas()
+        if moved:
+            self._invalidate_elements_index()
+        if found:
+            self.emit("elements_changed")
+        return found
+
+    def set_rooms_exterior(self, space_ids, is_exterior: bool) -> int:
+        """Массово помечает все наружные стены и проёмы указанных помещений
+        как наружные (is_exterior=True) или внутренние (False).
+
+        «Внутреннее» помещение не теряет тепло через ограждения — в расчёте
+        теплопотерь остаётся только инфильтрация. Полезно, когда Revit
+        ошибочно дал «наружные» стены помещению, полностью окружённому
+        другими (коридор, санузел, кладовая в ядре здания).
+
+        Затрагивает только стены/проёмы (row_type external_wall/opening);
+        пол по грунту и покрытие (флаги помещения has_floor_to_ground/has_roof)
+        не трогаются. Помещения помечаются user_modified. Пересчёт теплопотерь —
+        на стороне вызывающего (project.recalculate()).
+
+        Возвращает число фактически изменённых элементов.
+        """
+        ids = set(space_ids)
+        changed = 0
+        for e in self.elements:
+            if (e.space_id in ids
+                    and e.row_type in ("external_wall", "opening")
+                    and e.is_exterior != is_exterior):
+                e.is_exterior = is_exterior
+                e.user_modified = True   # для сохранения как element_overrides
+                changed += 1
+        if changed:
+            for sid in ids:
+                sp = self._space_by_id.get(sid)
+                if sp is not None:
+                    sp.user_modified = True
+            self.emit("elements_changed")
+        return changed
+
+    def set_elements_exterior(self, pairs, is_exterior: bool) -> int:
+        """Массово помечает конкретные ограждения наружными/внутренними.
+
+        pairs: итерируемое из (space_id, element_id) — точечный выбор
+        элементов (для общепроектного редактора ограждений, где видно
+        сразу все стены/проёмы со всех помещений). Затрагивает только
+        стены/проёмы. Возвращает число изменённых элементов; пересчёт —
+        на стороне вызывающего.
+        """
+        want = {(s, e) for s, e in pairs}
+        changed = 0
+        touched_spaces = set()
+        for el in self.elements:
+            if ((el.space_id, el.element_id) in want
+                    and el.row_type in ("external_wall", "opening")
+                    and el.is_exterior != is_exterior):
+                el.is_exterior = is_exterior
+                el.user_modified = True
+                touched_spaces.add(el.space_id)
+                changed += 1
+        if changed:
+            for sid in touched_spaces:
+                sp = self._space_by_id.get(sid)
+                if sp is not None:
+                    sp.user_modified = True
+            self.emit("elements_changed")
+        return changed
 
     # ---------- Конструкции (каталог) ----------
     def create_construction(self, category: str, family: str = "",

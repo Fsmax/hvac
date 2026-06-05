@@ -36,6 +36,7 @@ UZ: Dict[str, str] = {
     "sidebar.systems":       "Tizimlar va jihozlar",
     "sidebar.zones":         "Zonalar va tizimlar",
     "sidebar.equipment":     "Jihozlar",
+    "sidebar.balance":       "Issiqlik balansi",
     "sidebar.room_equipment":"Xonalardagi jihozlar",
     "sidebar.smoke":         "Tutun chiqarish",
     "sidebar.charts":        "Grafiklar",
@@ -222,6 +223,22 @@ UZ: Dict[str, str] = {
     "btn.import":            "Import…",
     "btn.template":          "Bino shabloni…",
     "btn.add_space":         "+ Xona",
+    "btn.project_boundaries":"Loyiha to‘siqlari…",
+
+    # ===== Dialog: loyiha bo‘yicha to‘siqlar muharriri =====
+    "dlg.projbnd.title":     "Loyiha to‘siqlari",
+    "dlg.projbnd.hint":      ("Barcha xonalarning devor va o‘yiqlari. Filtrlang "
+                               "(qavat/tur/yo‘nalish/tashqi), qatorlarni tanlang "
+                               "va to‘da bilan ichki yoki tashqi deb belgilang. "
+                               "Ichki to‘siqlar issiqlik yo‘qotmaydi — Revit "
+                               "noto‘g‘ri «tashqi» devor bergan holatda foydali."),
+    "dlg.projbnd.col.room":  "Xona",
+    "dlg.projbnd.f.orient":  "Yo‘nalish:",
+    "dlg.projbnd.f.ext":     "Chegara:",
+    "dlg.projbnd.ext.only_ext":"Faqat tashqi",
+    "dlg.projbnd.ext.only_int":"Faqat ichki",
+    "dlg.projbnd.count":     "Ko‘rsatildi: {n} / {total}",
+    "dlg.projbnd.no_selection":"Jadvalda qatorlarni belgilang",
 
     # ========== Panel: Data ==========
     "panel.data.title":      "Loyiha ma'lumotlari",
@@ -357,6 +374,24 @@ UZ: Dict[str, str] = {
     "panel.spaces.bulk.no_selection":   ("Hech qanday xona tanlanmagan. "
                                           "Qatorlarni (Ctrl/Shift) tanlab, qayta urinib ko‘ring."),
     "panel.spaces.bulk.applied":        "Guruhli tahrir: {n} ta yangilandi",
+    # Tanlangan xonalar to‘sig‘i (ichki / tashqi)
+    "panel.spaces.env.menu":            "Tanlangan xonalar to‘sig‘i",
+    "panel.spaces.env.make_internal":   "🏠 Ichki qilish",
+    "panel.spaces.env.make_external":   "🌤 Tashqi qilish",
+    "panel.spaces.env.lbl_internal":    "ichki",
+    "panel.spaces.env.lbl_external":    "tashqi",
+    "panel.spaces.env.nothing":         ("Tanlangan xonalarning ({n}) barcha "
+                                          "devor va o‘yiqlari allaqachon {label} "
+                                          "deb belgilangan."),
+    "panel.spaces.env.confirm.title":   "Tasdiqlash",
+    "panel.spaces.env.confirm.body":    ("Tanlangan xonalar: {rooms}\n"
+                                          "{label} deb belgilanadigan elementlar: {elems}\n\n"
+                                          "Ichki to‘siqlar issiqlik yo‘qotish "
+                                          "hisobida qatnashmaydi (faqat "
+                                          "infiltratsiya qoladi). So‘ng qayta "
+                                          "hisob bajariladi. Davom etilsinmi?"),
+    "panel.spaces.env.done":            ("Belgilangan elementlar: {elems} "
+                                          "({rooms} xona). Qayta hisob bajarildi."),
     "panel.spaces.detail.title":        "Xona xususiyatlari",
 
     # ========== Common ==========
@@ -1020,6 +1055,10 @@ UZ: Dict[str, str] = {
     "panel.boundaries.btn_door":        "+ Eshik",
     "panel.boundaries.btn_roof":        "+ Tom",
     "panel.boundaries.btn_floor":       "+ Pol",
+    "panel.boundaries.btn_internal":    "🏠 Ichki qilish",
+    "panel.boundaries.btn_external":    "🌤 Tashqi qilish",
+    "panel.boundaries.status.ext":      "Belgilangan to‘siqlar: {n}. Qayta hisob bajarildi.",
+    "panel.boundaries.status.ext_noop": "O‘zgartirishga hojat yo‘q: to‘siqlar allaqachon kerakli holatda.",
     "panel.boundaries.btn_delete":     "O‘chirish",
     "panel.boundaries.dlg.title":       "Yangi to‘siq: {number} {name}",
     "panel.boundaries.dlg.category":    "Kategoriya:",
@@ -1667,4 +1706,40 @@ UZ: Dict[str, str] = {
     "panel.calc.summary.density":   "Solishtirma yo‘qotish",
     "panel.calc.summary.supply":    "Σ kelish",
     "panel.calc.summary.exhaust":   "Σ so‘rish",
+
+    # ===== Panel: Balance («Issiqlik balansi» bo‘limi) =====
+    "panel.balance.title":   "Issiqlik balansi",
+    "panel.balance.hint":    ("Qaysi xonalar isitiladi va sovutilishini "
+                               "belgilang — yakun xonalar va kelish "
+                               "qurilmalari yuklamalarini jamlaydi. «О»/«Х» — "
+                               "xona havoli isitish/sovutishda: uning yuklamasi "
+                               "AHU kaloriferi/sovutgichida hisobga olingan, "
+                               "shuning uchun belgi odatda olib tashlanadi. "
+                               "«Avto» belgilarni yuklama bo‘yicha qo‘yadi."),
+    "panel.balance.btn.auto":     "Avto (yuklama bo‘yicha)",
+    "panel.balance.btn.compute":  "AHU ni hisoblash",
+    "panel.balance.btn.heat_on":  "Isit. ✓",
+    "panel.balance.btn.heat_off": "Isit. ✗",
+    "panel.balance.btn.cool_on":  "Sovut. ✓",
+    "panel.balance.btn.cool_off": "Sovut. ✗",
+    "panel.balance.col.qh":       "Qisit, kVt",
+    "panel.balance.col.heated":   "Isit.",
+    "panel.balance.col.qc":       "Qsovut, kVt",
+    "panel.balance.col.cooled":   "Sovut.",
+    "panel.balance.ahu.title":    "Kelish qurilmalari",
+    "panel.balance.ahu.name":     "Qurilma",
+    "panel.balance.ahu.spaces":   "Xona",
+    "panel.balance.ahu.flow":     "Sarf, m³/soat",
+    "panel.balance.ahu.heater":   "Kalorifer, kVt",
+    "panel.balance.ahu.cooler":   "Sovutgich, kVt",
+    "panel.balance.totals.title":   "Yakun",
+    "panel.balance.totals.heating": "Isitish",
+    "panel.balance.totals.cooling": "Sovutish",
+    "panel.balance.totals.rooms":   "Xonalar: {q} kVt  ({n} xona)",
+    "panel.balance.totals.ahu":     "Kelish qurilmalari: {q} kVt  ({n} dona)",
+    "panel.balance.totals.total":   "Jami: {q} kVt",
+    "panel.balance.status.auto":    "Yuklama bo‘yicha tasniflandi: {n} xona",
+    "panel.balance.status.bulk":    "O‘zgartirilgan xonalar: {n}",
+    "panel.balance.status.computed":"Kelish qurilmalari yuklamasi qayta hisoblandi",
+    "panel.balance.status.no_selection": "Jadvalda xonalarni belgilang",
 }
