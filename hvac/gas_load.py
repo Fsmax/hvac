@@ -30,7 +30,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 
@@ -275,9 +275,6 @@ def export_gas_load_pdf(
     style_body = ParagraphStyle(
         "GasBody", parent=styles["Normal"], fontName=font_name,
         fontSize=12, leading=18, alignment=TA_JUSTIFY, spaceAfter=4,
-    )
-    style_bold = ParagraphStyle(
-        "GasBold", parent=style_body, fontName=font_bold,
     )
     style_item = ParagraphStyle(
         "GasItem", parent=style_body, leftIndent=0.8 * cm, spaceAfter=2,
