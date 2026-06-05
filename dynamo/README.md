@@ -1,4 +1,49 @@
-# Dynamo: Аудит остекления по уровням
+# Dynamo: выгрузка помещений и ограждений (`export_spaces_thermal`)
+
+Основной скрипт пайплайна: формирует `spaces.csv` + `thermal_all.csv`, которые
+грузит приложение (`hvac/data_loader.py`). Два файла в репозитории:
+
+- **`export_spaces_thermal.py`** — читаемый исходник (его же содержит .dyn);
+- **`export_spaces_thermal.dyn`** — готовый граф Dynamo (Python-нода + два
+  string-входа). У пользователя локально это `Documents/Home.dyn`.
+
+## Запуск
+1. Revit → **Manage → Dynamo → Open** → `export_spaces_thermal.dyn`.
+2. Входы: `IN[0]` = папка вывода (напр. `D:\HVAC`), `IN[1]` = `all`.
+3. **Run** → запишет `spaces.csv` и `thermal_all.csv` в папку.
+
+CPython3 / Revit 2026 (тестировалось). Собирает помещения (MEP Spaces или
+Rooms) и их ограждения, включая витражи из связанных арх-моделей.
+
+## Колонки `thermal_all.csv`
+`space_id, space_number, space_name, space_level, row_type` (external_wall/
+opening)`, is_exterior_wall` (yes/no — эвристика Dynamo)`, element_id,
+link_model, category, family, type, element_level, boundary_length_m,
+space_height_m, approx_area_m2, element_area, thickness, function,
+thermal_value, host_element_id, boundary_space_count` (bsc — сколько Space
+касается элемента)`, orientation_deg`.
+
+Признак «наружное» уточняется на стороне приложения (`data_loader`) по
+геометрии (bsc + соседи) — Dynamo даёт лишь предварительный `is_exterior_wall`.
+
+## Известные тонкости (исправлены)
+- **`type` был пустой у всех строк** — `safe_name()` читала `element.Name`,
+  что не работает в CPython3 (pythonnet). Фикс: `clr.GetClrType(Element).
+  GetProperty("Name").GetValue(element, None)`. Теперь `type` = имя типа
+  (`M_Exterior Glazing`, `CHR_Balcony`, тип стены/двери/окна).
+- **Витраж-перегородка маскировала фасад.** Orphan-сборщик
+  (`collect_orphan_curtain_rows`) подбирает фасадное остекление с выключенным
+  Room Bounding, но пропускал помещения, у которых «уже есть витраж». Так
+  стеклянная перегородка между комнатами (bsc≥2) блокировала привязку
+  настоящего фасада. Фикс: в `_spaces_with_existing_glazing` считать «фасад
+  есть» только по витражу с **bsc=1**.
+- **Имя типа НЕнадёжно для фасад/перегородка**: `M_Exterior Glazing`
+  встречается и у фасада, и у перегородок между комнатами. Приложение решает
+  по геометрии (витраж, общий с отапл. помещением → перегородка → внутренний).
+
+---
+
+# Dynamo: Аудит остекления по уровням (`WindowAuditByLevel.py`)
 
 ## Что делает
 Считает по каждому уровню:
