@@ -292,8 +292,22 @@ def load_thermal(path: str, spaces: List[Space] = None
                 is_exterior_flag = (flag_yes or is_curtain
                                     or is_exterior_function)
             elif bsc_effective <= 1:
-                # Один сосед в пространстве — стена граничит с улицей.
-                is_exterior_flag = True
+                # Геометрия: элемент касается лишь ОДНОГО помещения → кандидат
+                # в «наружные». Но часто это перегородка, выходящая в шахту,
+                # нишу или коридор без Room Bounding (другая сторона — не Space,
+                # поэтому bsc=1). Без переопределения такие стены массово
+                # становятся «наружными» (типичная ошибка выгрузки из Revit).
+                # Переопределяем на ВНУТРЕННЮЮ при явном сигнале, что это не
+                # фасад:
+                #   - Dynamo пометил is_exterior_wall=no (flag_yes=False), ИЛИ
+                #   - тип стены внутренний (function = «Внутренние слои»).
+                # Витраж — исключение: его панели (bsc=1) реально смотрят на
+                # улицу, поэтому остаются наружными.
+                interior_type = "внутренн" in func_lower
+                if not is_curtain and (not flag_yes or interior_type):
+                    is_exterior_flag = False
+                else:
+                    is_exterior_flag = True
             elif spaces and sid:
                 # bsc>=2: стена общая с другим пространством.
                 # Решаем по геометрии, а НЕ по типу конструкции.
