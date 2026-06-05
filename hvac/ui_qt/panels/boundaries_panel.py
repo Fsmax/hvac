@@ -189,6 +189,17 @@ class BoundariesPanel(QWidget):
             bar.addWidget(b)
             self._add_buttons.append((b, key))
         bar.addStretch(1)
+        # Массово пометить ограждения внутренними/наружными. Работает по
+        # выделенным строкам; если ничего не выделено — по всем стенам/проёмам
+        # помещения. «Внутренние» не участвуют в расчёте теплопотерь.
+        self._internal_btn = QPushButton(_t("panel.boundaries.btn_internal"))
+        self._internal_btn.clicked.connect(
+            lambda: self._set_exterior_selected(False))
+        bar.addWidget(self._internal_btn)
+        self._external_btn = QPushButton(_t("panel.boundaries.btn_external"))
+        self._external_btn.clicked.connect(
+            lambda: self._set_exterior_selected(True))
+        bar.addWidget(self._external_btn)
         self._del_btn = QPushButton(_t("panel.boundaries.btn_delete"))
         self._del_btn.clicked.connect(self._delete_selected)
         bar.addWidget(self._del_btn)
@@ -222,6 +233,8 @@ class BoundariesPanel(QWidget):
         self.table.setHorizontalHeaderLabels([_t(k) for k in _HEADER_KEYS])
         for btn, key in self._add_buttons:
             btn.setText(_t(key))
+        self._internal_btn.setText(_t("panel.boundaries.btn_internal"))
+        self._external_btn.setText(_t("panel.boundaries.btn_external"))
         self._del_btn.setText(_t("panel.boundaries.btn_delete"))
         self._reload()
 
@@ -484,3 +497,32 @@ class BoundariesPanel(QWidget):
         self.bridge.dirtyChanged.emit(True)
         self._reload()
         self.changed.emit()
+
+    def _set_exterior_selected(self, is_exterior: bool) -> None:
+        """Помечает ограждения внутренними (is_exterior=False — без теплопотерь
+        через них, только инфильтрация) или наружными (True). По умолчанию —
+        выделенные строки; если выделения нет — все стены/проёмы помещения."""
+        if self._space is None:
+            return
+        rows = sorted({i.row() for i in self.table.selectedIndexes()})
+        if not rows:
+            rows = list(range(self.table.rowCount()))
+        n = 0
+        for r in rows:
+            eid = self._element_id_at(r)
+            combo = self.table.cellWidget(r, 5)
+            # Текущее состояние берём из комбобокса колонки «Наружн.».
+            cur = (combo.currentText() == combo._yes_label) if combo else None
+            if eid and cur != is_exterior:
+                self.project.update_element(eid, is_exterior=is_exterior)
+                n += 1
+        if not n:
+            self.bridge.statusMessage.emit(
+                _t("panel.boundaries.status.ext_noop"), 3000)
+            return
+        self.project.recalculate()   # обновит «Результаты расчёта» и колонки Q
+        self.bridge.dirtyChanged.emit(True)
+        self._reload()
+        self.changed.emit()
+        self.bridge.statusMessage.emit(
+            _t("panel.boundaries.status.ext").format(n=n), 4000)

@@ -865,6 +865,40 @@ class SpacesPanel(QWidget):
         self.bridge.statusMessage.emit(
             _t("panel.spaces.bulk.applied").format(n=n), 4000)
 
+    def _set_rooms_exterior(self, is_exterior: bool) -> None:
+        """Помечает все стены/проёмы выделенных помещений внутренними
+        (is_exterior=False — теплопотери только от инфильтрации) или
+        наружными (True — полный расчёт через ограждения). Восстанавливает
+        действие «🏠 Сделать внутренними» из старого интерфейса."""
+        rows = self._selected_source_rows()
+        if not rows:
+            QMessageBox.information(self, _t("panel.spaces.env.menu"),
+                                    _t("panel.spaces.bulk.no_selection"))
+            return
+        ids = {self.project.spaces[r].space_id for r in rows}
+        label = (_t("panel.spaces.env.lbl_external") if is_exterior
+                 else _t("panel.spaces.env.lbl_internal"))
+        target = [e for sid in ids for e in self.project.elements_for(sid)
+                  if e.row_type in ("external_wall", "opening")
+                  and e.is_exterior != is_exterior]
+        if not target:
+            QMessageBox.information(
+                self, _t("panel.spaces.env.menu"),
+                _t("panel.spaces.env.nothing").format(n=len(ids), label=label))
+            return
+        ans = QMessageBox.question(
+            self, _t("panel.spaces.env.confirm.title"),
+            _t("panel.spaces.env.confirm.body").format(
+                rooms=len(ids), elems=len(target), label=label),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if ans != QMessageBox.Yes:
+            return
+        n = self.project.set_rooms_exterior(ids, is_exterior)
+        self.project.recalculate()   # обновит колонки Q (calculationDone)
+        self.bridge.dirtyChanged.emit(True)
+        self.bridge.statusMessage.emit(
+            _t("panel.spaces.env.done").format(elems=n, rooms=len(ids)), 5000)
+
     def _show_context_menu(self, pos) -> None:
         if not self.project.spaces:
             return
@@ -873,6 +907,13 @@ class SpacesPanel(QWidget):
         has_sel = bool(sel and sel.selectedIndexes())
         menu = QMenu(self)
         act_bulk = menu.addAction(_t("panel.spaces.bulk.menu"))
+        menu.addSeparator()
+        # Ограждения выделенных помещений: массово «внутренние»/«наружные».
+        env_menu = menu.addMenu(_t("panel.spaces.env.menu"))
+        act_internal = env_menu.addAction(_t("panel.spaces.env.make_internal"))
+        act_external = env_menu.addAction(_t("panel.spaces.env.make_external"))
+        act_internal.setEnabled(bool(rows))
+        act_external.setEnabled(bool(rows))
         menu.addSeparator()
         act_copy = menu.addAction(_t("tableedit.ctx.copy"))
         act_paste = menu.addAction(_t("tableedit.ctx.paste"))
@@ -890,6 +931,10 @@ class SpacesPanel(QWidget):
             return
         if chosen is act_bulk:
             self._bulk_edit()
+        elif chosen is act_internal:
+            self._set_rooms_exterior(False)
+        elif chosen is act_external:
+            self._set_rooms_exterior(True)
         elif chosen is act_copy:
             from hvac.ui_qt.widgets.table_clipboard import (
                 copy_selection_to_clipboard,

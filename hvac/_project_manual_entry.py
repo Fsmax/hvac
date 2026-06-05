@@ -193,6 +193,7 @@ class ManualEntryMixin:
                 for k, v in fields.items():
                     if hasattr(e, k):
                         setattr(e, k, v)
+                e.user_modified = True   # для сохранения как element_overrides
                 if "orientation" in fields:
                     e.orientation_deg = _ORIENT_DEG_MAP.get(
                         e.orientation, e.orientation_deg)
@@ -204,6 +205,39 @@ class ManualEntryMixin:
                 self.emit("elements_changed")
                 return True
         return False
+
+    def set_rooms_exterior(self, space_ids, is_exterior: bool) -> int:
+        """Массово помечает все наружные стены и проёмы указанных помещений
+        как наружные (is_exterior=True) или внутренние (False).
+
+        «Внутреннее» помещение не теряет тепло через ограждения — в расчёте
+        теплопотерь остаётся только инфильтрация. Полезно, когда Revit
+        ошибочно дал «наружные» стены помещению, полностью окружённому
+        другими (коридор, санузел, кладовая в ядре здания).
+
+        Затрагивает только стены/проёмы (row_type external_wall/opening);
+        пол по грунту и покрытие (флаги помещения has_floor_to_ground/has_roof)
+        не трогаются. Помещения помечаются user_modified. Пересчёт теплопотерь —
+        на стороне вызывающего (project.recalculate()).
+
+        Возвращает число фактически изменённых элементов.
+        """
+        ids = set(space_ids)
+        changed = 0
+        for e in self.elements:
+            if (e.space_id in ids
+                    and e.row_type in ("external_wall", "opening")
+                    and e.is_exterior != is_exterior):
+                e.is_exterior = is_exterior
+                e.user_modified = True   # для сохранения как element_overrides
+                changed += 1
+        if changed:
+            for sid in ids:
+                sp = self._space_by_id.get(sid)
+                if sp is not None:
+                    sp.user_modified = True
+            self.emit("elements_changed")
+        return changed
 
     # ---------- Конструкции (каталог) ----------
     def create_construction(self, category: str, family: str = "",
