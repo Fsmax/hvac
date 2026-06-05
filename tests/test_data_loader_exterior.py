@@ -95,12 +95,22 @@ def _row2(space_id, space_number, eid, family, function, bsc):
     return r
 
 
-def test_curtain_shared_with_heated_room_stays_exterior():
-    """Витраж, общий между двумя отапливаемыми комнатами (bsc=2), остаётся
-    НАРУЖНЫМ. Отличить фасадное остекление через две комнаты (реальный фасад,
-    напр. HTL-602.a/602.b) от стеклянной перегородки (HTL-223.a/223.c) по
-    выгрузке Revit невозможно — оба дают одинаковые признаки. Консервативный
-    выбор для отопления: наружный (перегородки правятся вручную)."""
+def _load_with_spaces(rows, spaces):
+    path = _write_csv(rows)
+    try:
+        els = load_thermal(path, spaces)
+    finally:
+        os.remove(path)
+    return {e.element_id: e for e in els}
+
+
+def test_curtain_shared_with_heated_room_is_internal():
+    """Витраж, общий между двумя ОТАПЛИВАЕМЫМИ комнатами (bsc=2), —
+    стеклянная перегородка между ними → ВНУТРЕННЯЯ. Имя типа («M_Exterior
+    Glazing») ненадёжно: в модели его используют и для фасада, и для
+    перегородок (напр. 6763672 между HTL-602.a и 602.b). Надёжный признак —
+    геометрия (общий с отапл. соседом). Реальный фасад выгружается отдельным
+    элементом с bsc=1 и остаётся наружным (см. тест ниже)."""
     from hvac.models import Space
     spaces = [
         Space(space_id="A", number="HTL-1.a", name="LIVING ROOM",
@@ -112,16 +122,31 @@ def test_curtain_shared_with_heated_room_stays_exterior():
         _row2("A", "HTL-1.a", "CURT", "Витраж", "Наружные слои", bsc=2),
         _row2("B", "HTL-1.b", "CURT", "Витраж", "Наружные слои", bsc=2),
     ]
-    path = _write_csv(rows)
-    try:
-        els = load_thermal(path, spaces)
-    finally:
-        os.remove(path)
-    curt = [e for e in els if e.element_id == "CURT"]
-    assert curt and all(e.is_exterior is True for e in curt)
+    els = _load_with_spaces(rows, spaces)
+    assert els["CURT"].is_exterior is False
+
+
+def test_curtain_facade_bsc1_stays_exterior():
+    """Настоящий фасадный витраж выгружается с bsc=1 (касается одного
+    помещения) и остаётся НАРУЖНЫМ."""
+    from hvac.models import Space
+    spaces = [Space(space_id="A", number="HTL-1.a", name="ROOM",
+                    level="L02", area_m2=20.0, volume_m3=60.0)]
+    rows = [_row2("A", "HTL-1.a", "FAC", "Витраж", "Наружные слои", bsc=1)]
+    els = _load_with_spaces(rows, spaces)
+    assert els["FAC"].is_exterior is True
 
 
 def test_curtain_orphan_bsc1_stays_exterior():
     """Одиночный фасадный витраж (bsc=1) остаётся наружным."""
     els = _load([_row("CURT2", "yes", "Витраж", "curtain (orphan)", bsc=1)])
     assert els["CURT2"].is_exterior is True
+
+
+def test_interior_partition_type_is_internal():
+    """Витраж с явно внутренним типом («CHR_Interior Partition») —
+    внутренний даже при bsc=1 (имя типа в interior-направлении надёжно)."""
+    r = _row("PART", "yes", "Витраж", "Наружные слои", bsc=1)
+    r["type"] = "CHR_Interior Partition"
+    els = _load([r])
+    assert els["PART"].is_exterior is False
