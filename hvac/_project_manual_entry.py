@@ -186,25 +186,49 @@ class ManualEntryMixin:
         self.emit("elements_changed")
         return True
 
-    def update_element(self, element_id: str, **fields) -> bool:
-        """Изменяет поля граничного элемента."""
+    def update_element(self, element_id: str, *,
+                       in_space: Optional[str] = None, **fields) -> bool:
+        """Изменяет поля граничного элемента.
+
+        in_space: если задан space_id — правится элемент именно ЭТОГО
+        помещения. Это важно для общих стен/витражей: один и тот же
+        element_id присутствует у нескольких помещений (одна запись на
+        помещение), и без скоупа обновился бы первый совпавший глобально —
+        т.е. ограждение ЧУЖОГО помещения, а текущее осталось бы без правки
+        (например, пометка «внутреннее» не влияла бы на расчёт).
+
+        Без in_space — старое поведение (первый совпавший по element_id).
+        Возвращает True, если хоть один элемент изменён.
+        """
+        found = False
+        need_net = False
+        moved = False
         for e in self.elements:
-            if e.element_id == element_id:
-                for k, v in fields.items():
-                    if hasattr(e, k):
-                        setattr(e, k, v)
-                e.user_modified = True   # для сохранения как element_overrides
-                if "orientation" in fields:
-                    e.orientation_deg = _ORIENT_DEG_MAP.get(
-                        e.orientation, e.orientation_deg)
-                if "approx_area_m2" in fields or "element_area_m2" in fields:
-                    self._recompute_net_areas()
-                # Изменение space_id ломает индекс
-                if "space_id" in fields:
-                    self._invalidate_elements_index()
-                self.emit("elements_changed")
-                return True
-        return False
+            if e.element_id != element_id:
+                continue
+            if in_space is not None and e.space_id != in_space:
+                continue
+            for k, v in fields.items():
+                if hasattr(e, k):
+                    setattr(e, k, v)
+            e.user_modified = True   # для сохранения как element_overrides
+            if "orientation" in fields:
+                e.orientation_deg = _ORIENT_DEG_MAP.get(
+                    e.orientation, e.orientation_deg)
+            if "approx_area_m2" in fields or "element_area_m2" in fields:
+                need_net = True
+            if "space_id" in fields:
+                moved = True
+            found = True
+            if in_space is None:
+                break   # совместимость: только первый совпавший
+        if need_net:
+            self._recompute_net_areas()
+        if moved:
+            self._invalidate_elements_index()
+        if found:
+            self.emit("elements_changed")
+        return found
 
     def set_rooms_exterior(self, space_ids, is_exterior: bool) -> int:
         """Массово помечает все наружные стены и проёмы указанных помещений

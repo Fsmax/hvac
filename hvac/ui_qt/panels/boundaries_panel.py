@@ -246,17 +246,27 @@ class BoundariesPanel(QWidget):
         self.table.setRowCount(0)
         # Фильтруем служебные категории Revit (разделители помещений,
         # колонны и т. п.) — они не несут теплопередачи.
-        elements = [e for e in self.project.elements
-                    if e.space_id == self._space.space_id
-                    and not is_excluded_category(e.category)]
-        for el in elements:
+        for el in self._room_elements():
             self._append_row(el)
-        # Сводка
+        self._refresh_summary()
+        self._suppress_signal = False
+        self._fit_height()
+
+    def _room_elements(self) -> List[BoundaryElement]:
+        """Ограждения текущего помещения без служебных категорий Revit."""
+        if self._space is None:
+            return []
+        return [e for e in self.project.elements
+                if e.space_id == self._space.space_id
+                and not is_excluded_category(e.category)]
+
+    def _refresh_summary(self) -> None:
+        """Обновляет строку «N элем. · Σ наружн. площ.» без перестройки таблицы
+        (безопасно вызывать из обработчика комбобокса)."""
+        elements = self._room_elements()
         area_ext = sum(e.net_area_m2 or 0 for e in elements if e.is_exterior)
         self.summary_lbl.setText(_t("panel.boundaries.summary").format(
             n=len(elements), area=area_ext))
-        self._suppress_signal = False
-        self._fit_height()
 
     # Сколько строк показывать без прокрутки (дальше — внутренний скролл).
     _MAX_VISIBLE_ROWS = 12
@@ -388,8 +398,10 @@ class BoundariesPanel(QWidget):
         eid = self._element_id_at(item.row())
         if eid:
             self.project.update_element(
-                eid, approx_area_m2=new_area, element_area_m2=new_area,
+                eid, in_space=self._space.space_id,
+                approx_area_m2=new_area, element_area_m2=new_area,
                 net_area_m2=new_area)
+            self.project.recalculate()   # площадь меняет теплопотери
             self.bridge.dirtyChanged.emit(True)
             self._reload()
 
@@ -398,7 +410,9 @@ class BoundariesPanel(QWidget):
             return
         eid = self._element_id_at(row)
         if eid:
-            self.project.update_element(eid, orientation=text)
+            self.project.update_element(
+                eid, in_space=self._space.space_id, orientation=text)
+            self.project.recalculate()   # ориентация влияет на надбавки/радиацию
             self.bridge.dirtyChanged.emit(True)
 
     def _on_exterior_changed(self, row: int) -> None:
@@ -408,8 +422,11 @@ class BoundariesPanel(QWidget):
         combo = self.table.cellWidget(row, 5)
         if eid and combo:
             self.project.update_element(
-                eid, is_exterior=combo.currentText() == combo._yes_label)
+                eid, in_space=self._space.space_id,
+                is_exterior=combo.currentText() == combo._yes_label)
+            self.project.recalculate()   # «внутреннее/наружное» меняет теплопотери
             self.bridge.dirtyChanged.emit(True)
+            self._refresh_summary()      # обновить Σ наружн. площ.
 
     def _on_construction_changed(self, row: int) -> None:
         if self._space is None:
@@ -423,9 +440,11 @@ class BoundariesPanel(QWidget):
         if not con:
             return
         self.project.update_element(
-            eid, construction_key=new_key, u_value=con.u_value,
+            eid, in_space=self._space.space_id,
+            construction_key=new_key, u_value=con.u_value,
             family=con.family, type_name=con.type_name,
             category=con.category, thickness_mm=con.thickness_mm)
+        self.project.recalculate()   # смена конструкции (U) меняет теплопотери
         self.bridge.dirtyChanged.emit(True)
         self._reload()
 
@@ -514,7 +533,9 @@ class BoundariesPanel(QWidget):
             # Текущее состояние берём из комбобокса колонки «Наружн.».
             cur = (combo.currentText() == combo._yes_label) if combo else None
             if eid and cur != is_exterior:
-                self.project.update_element(eid, is_exterior=is_exterior)
+                self.project.update_element(
+                    eid, in_space=self._space.space_id,
+                    is_exterior=is_exterior)
                 n += 1
         if not n:
             self.bridge.statusMessage.emit(
