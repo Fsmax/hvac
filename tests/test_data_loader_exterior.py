@@ -95,10 +95,12 @@ def _row2(space_id, space_number, eid, family, function, bsc):
     return r
 
 
-def test_curtain_between_two_heated_rooms_is_internal():
-    """Витраж, общий между двумя отапливаемыми комнатами (bsc=2), —
-    стеклянная перегородка номера, а НЕ фасад → внутренняя.
-    Реальный фасадный витраж выгружается с bsc=1 и остаётся наружным."""
+def test_curtain_shared_with_heated_room_stays_exterior():
+    """Витраж, общий между двумя отапливаемыми комнатами (bsc=2), остаётся
+    НАРУЖНЫМ. Отличить фасадное остекление через две комнаты (реальный фасад,
+    напр. HTL-602.a/602.b) от стеклянной перегородки (HTL-223.a/223.c) по
+    выгрузке Revit невозможно — оба дают одинаковые признаки. Консервативный
+    выбор для отопления: наружный (перегородки правятся вручную)."""
     from hvac.models import Space
     spaces = [
         Space(space_id="A", number="HTL-1.a", name="LIVING ROOM",
@@ -106,7 +108,6 @@ def test_curtain_between_two_heated_rooms_is_internal():
         Space(space_id="B", number="HTL-1.b", name="ROOM",
               level="L02", area_m2=18.0, volume_m3=54.0),
     ]
-    # Один и тот же витраж CURT присутствует у обоих помещений (bsc=2).
     rows = [
         _row2("A", "HTL-1.a", "CURT", "Витраж", "Наружные слои", bsc=2),
         _row2("B", "HTL-1.b", "CURT", "Витраж", "Наружные слои", bsc=2),
@@ -117,7 +118,7 @@ def test_curtain_between_two_heated_rooms_is_internal():
     finally:
         os.remove(path)
     curt = [e for e in els if e.element_id == "CURT"]
-    assert curt and all(e.is_exterior is False for e in curt)
+    assert curt and all(e.is_exterior is True for e in curt)
 
 
 def test_curtain_orphan_bsc1_stays_exterior():
