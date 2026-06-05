@@ -86,3 +86,41 @@ def test_bsc1_exterior_yes_no_function_stays_exterior():
     """yes + пустая function + bsc=1 → нет сигнала «внутренняя», наружная."""
     els = _load([_row("EW4", "yes", "Базовая стена", "")])
     assert els["EW4"].is_exterior is True
+
+
+def _row2(space_id, space_number, eid, family, function, bsc):
+    r = _row(eid, "yes", family, function, bsc=bsc)
+    r["space_id"] = space_id
+    r["space_number"] = space_number
+    return r
+
+
+def test_curtain_between_two_heated_rooms_is_internal():
+    """Витраж, общий между двумя отапливаемыми комнатами (bsc=2), —
+    стеклянная перегородка номера, а НЕ фасад → внутренняя.
+    Реальный фасадный витраж выгружается с bsc=1 и остаётся наружным."""
+    from hvac.models import Space
+    spaces = [
+        Space(space_id="A", number="HTL-1.a", name="LIVING ROOM",
+              level="L02", area_m2=20.0, volume_m3=60.0),
+        Space(space_id="B", number="HTL-1.b", name="ROOM",
+              level="L02", area_m2=18.0, volume_m3=54.0),
+    ]
+    # Один и тот же витраж CURT присутствует у обоих помещений (bsc=2).
+    rows = [
+        _row2("A", "HTL-1.a", "CURT", "Витраж", "Наружные слои", bsc=2),
+        _row2("B", "HTL-1.b", "CURT", "Витраж", "Наружные слои", bsc=2),
+    ]
+    path = _write_csv(rows)
+    try:
+        els = load_thermal(path, spaces)
+    finally:
+        os.remove(path)
+    curt = [e for e in els if e.element_id == "CURT"]
+    assert curt and all(e.is_exterior is False for e in curt)
+
+
+def test_curtain_orphan_bsc1_stays_exterior():
+    """Одиночный фасадный витраж (bsc=1) остаётся наружным."""
+    els = _load([_row("CURT2", "yes", "Витраж", "curtain (orphan)", bsc=1)])
+    assert els["CURT2"].is_exterior is True
