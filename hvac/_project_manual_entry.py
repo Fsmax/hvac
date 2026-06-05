@@ -263,6 +263,34 @@ class ManualEntryMixin:
             self.emit("elements_changed")
         return changed
 
+    def set_elements_exterior(self, pairs, is_exterior: bool) -> int:
+        """Массово помечает конкретные ограждения наружными/внутренними.
+
+        pairs: итерируемое из (space_id, element_id) — точечный выбор
+        элементов (для общепроектного редактора ограждений, где видно
+        сразу все стены/проёмы со всех помещений). Затрагивает только
+        стены/проёмы. Возвращает число изменённых элементов; пересчёт —
+        на стороне вызывающего.
+        """
+        want = {(s, e) for s, e in pairs}
+        changed = 0
+        touched_spaces = set()
+        for el in self.elements:
+            if ((el.space_id, el.element_id) in want
+                    and el.row_type in ("external_wall", "opening")
+                    and el.is_exterior != is_exterior):
+                el.is_exterior = is_exterior
+                el.user_modified = True
+                touched_spaces.add(el.space_id)
+                changed += 1
+        if changed:
+            for sid in touched_spaces:
+                sp = self._space_by_id.get(sid)
+                if sp is not None:
+                    sp.user_modified = True
+            self.emit("elements_changed")
+        return changed
+
     # ---------- Конструкции (каталог) ----------
     def create_construction(self, category: str, family: str = "",
                             type_name: str = "", thickness_mm: float = 0.0,

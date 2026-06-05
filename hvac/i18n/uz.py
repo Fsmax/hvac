@@ -223,6 +223,22 @@ UZ: Dict[str, str] = {
     "btn.import":            "Import…",
     "btn.template":          "Bino shabloni…",
     "btn.add_space":         "+ Xona",
+    "btn.project_boundaries":"Loyiha to‘siqlari…",
+
+    # ===== Dialog: loyiha bo‘yicha to‘siqlar muharriri =====
+    "dlg.projbnd.title":     "Loyiha to‘siqlari",
+    "dlg.projbnd.hint":      ("Barcha xonalarning devor va o‘yiqlari. Filtrlang "
+                               "(qavat/tur/yo‘nalish/tashqi), qatorlarni tanlang "
+                               "va to‘da bilan ichki yoki tashqi deb belgilang. "
+                               "Ichki to‘siqlar issiqlik yo‘qotmaydi — Revit "
+                               "noto‘g‘ri «tashqi» devor bergan holatda foydali."),
+    "dlg.projbnd.col.room":  "Xona",
+    "dlg.projbnd.f.orient":  "Yo‘nalish:",
+    "dlg.projbnd.f.ext":     "Chegara:",
+    "dlg.projbnd.ext.only_ext":"Faqat tashqi",
+    "dlg.projbnd.ext.only_int":"Faqat ichki",
+    "dlg.projbnd.count":     "Ko‘rsatildi: {n} / {total}",
+    "dlg.projbnd.no_selection":"Jadvalda qatorlarni belgilang",
 
     # ========== Panel: Data ==========
     "panel.data.title":      "Loyiha ma'lumotlari",

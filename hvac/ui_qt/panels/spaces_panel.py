@@ -681,6 +681,11 @@ class SpacesPanel(QWidget):
         self.b_template.clicked.connect(self._on_template)
         toolbar.addWidget(self.b_template)
 
+        # Общепроектный редактор ограждений (массовая пометка внутр./наружн.).
+        self.b_boundaries = QPushButton(_t("btn.project_boundaries"))
+        self.b_boundaries.clicked.connect(self._open_project_boundaries)
+        toolbar.addWidget(self.b_boundaries)
+
         outer.addLayout(toolbar)
 
         # Splitter: таблица | свойства
@@ -962,6 +967,27 @@ class SpacesPanel(QWidget):
             self.detail.show_space(sp)
         self.spaceSelected.emit(sp)
 
+    def _open_project_boundaries(self) -> None:
+        """Открывает общепроектный редактор ограждений (массовая пометка
+        внутренними/наружными по фильтрам)."""
+        if not self.project.spaces:
+            QMessageBox.information(self, _t("btn.project_boundaries"),
+                                    _t("dialog.no_data.body"))
+            return
+        dlg = getattr(self, "_boundaries_dlg", None)
+        if dlg is None:
+            from hvac.ui_qt.panels.project_boundaries_dialog import (
+                ProjectBoundariesDialog,
+            )
+            dlg = ProjectBoundariesDialog(self.project, self.bridge, self)
+            self._boundaries_dlg = dlg
+        else:
+            dlg._refresh_filter_options()
+            dlg._reload()
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
+
     def _open_detail(self) -> None:
         """Открывает (или поднимает на передний план) окно «Свойства +
         Ограждения» для текущего помещения."""
@@ -1168,6 +1194,7 @@ class SpacesPanel(QWidget):
         self.b_dup.setText(_t("btn.duplicate"))
         self.b_import.setText(_t("btn.import"))
         self.b_template.setText(_t("btn.template"))
+        self.b_boundaries.setText(_t("btn.project_boundaries"))
         # Заголовки колонок таблицы — модель отдаёт их через _t() в headerData;
         # сообщаем Qt, что header-секции стоит перерисовать.
         self.model.headerDataChanged.emit(
