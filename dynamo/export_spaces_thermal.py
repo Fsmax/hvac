@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # Dynamo CPython3 script for Revit 2026.
-# Р Р°СЃС€РёСЂРµРЅРЅР°СЏ РІС‹РіСЂСѓР·РєР°: spaces.csv + thermal_all.csv СЃ Р°Р·РёРјСѓС‚РѕРј (orientation_deg).
+# Расширенная выгрузка: spaces.csv + thermal_all.csv с азимутом (orientation_deg).
 #
-# РСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ РІ Dynamo:
-#   IN[0] : РїСѓС‚СЊ Рє РїР°РїРєРµ (РЅР°РїСЂРёРјРµСЂ, "D:\HVAC")
-#   IN[1] : СЂРµР¶РёРј вЂ” "all" (РІС‹РіСЂСѓР¶Р°РµС‚ РѕР±Р° С„Р°Р№Р»Р°)
+# Использование в Dynamo:
+#   IN[0] : путь к папке (например, "D:\HVAC")
+#   IN[1] : режим — "all" (выгружает оба файла)
 
 import clr
 import math
@@ -37,7 +37,7 @@ from System.Text import UTF8Encoding
 doc = DocumentManager.Instance.CurrentDBDocument
 
 
-# ----------- СѓС‚РёР»РёС‚С‹ -----------
+# ----------- утилиты -----------
 
 def id_value(element_id):
     try:
@@ -80,8 +80,8 @@ def safe_name(element):
     if element is None:
         return ""
     try:
-        # CPython3 (Revit 2026): element.Name РЅР°РїСЂСЏРјСѓСЋ РЅРµ С‡РёС‚Р°РµС‚СЃСЏ
-        # (РёР·РІРµСЃС‚РЅР°СЏ РѕСЃРѕР±РµРЅРЅРѕСЃС‚СЊ pythonnet) вЂ” Р±РµСЂС‘Рј С‡РµСЂРµР· РґРµСЃРєСЂРёРїС‚РѕСЂ.
+        # CPython3 (Revit 2026): element.Name напрямую не читается
+        # (известная особенность pythonnet) — берём через дескриптор.
         name = clr.GetClrType(Element).GetProperty("Name").GetValue(element, None)
         if name:
             return name
@@ -172,17 +172,17 @@ def level_name(element):
         return builtin(element, BuiltInParameter.LEVEL_PARAM)
 
 
-# РљСЌС€ С‚РёРїРѕРІ СЌР»РµРјРµРЅС‚РѕРІ: (doc_hash, type_id_int) -> Type Element
-# РћРіСЂРѕРјРЅС‹Р№ РІС‹РёРіСЂС‹С€: type_element() РІС‹Р·С‹РІР°РµС‚СЃСЏ 6-8 СЂР°Р· РЅР° РєР°Р¶РґСѓСЋ СЃС‚СЂРѕРєСѓ.
+# Кэш типов элементов: (doc_hash, type_id_int) -> Type Element
+# Огромный выигрыш: type_element() вызывается 6-8 раз на каждую строку.
 _TYPE_ELEM_CACHE = {}
 
-# РљСЌС€ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРє С‚РёРїР°: (doc_hash, type_id) -> dict СЃ РіРѕС‚РѕРІС‹РјРё Р·РЅР°С‡РµРЅРёСЏРјРё
+# Кэш характеристик типа: (doc_hash, type_id) -> dict с готовыми значениями
 # family_name, type_name, function, kind, thermal_value, thickness
 _TYPE_INFO_CACHE = {}
 
 
 def _doc_key(d):
-    """РЎС‚Р°Р±РёР»СЊРЅС‹Р№ РєР»СЋС‡ РґР»СЏ РґРѕРєСѓРјРµРЅС‚Р° (РЅР° СЃР»СѓС‡Р°Р№ СЃРІСЏР·Р°РЅРЅС‹С… РјРѕРґРµР»РµР№)."""
+    """Стабильный ключ для документа (на случай связанных моделей)."""
     if d is None:
         return 0
     try:
@@ -215,7 +215,7 @@ def type_element(element):
 
 
 def _type_info(element):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ РєСЌС€РёСЂРѕРІР°РЅРЅС‹Р№ dict СЃ С…Р°СЂР°РєС‚РµСЂРёСЃС‚РёРєР°РјРё С‚РёРїР°."""
+    """Возвращает кэшированный dict с характеристиками типа."""
     te = type_element(element)
     if te is None:
         return {}
@@ -285,38 +285,38 @@ def thermal_value(element):
 
 
 def is_curtain_wall(element):
-    """Р’РёС‚СЂР°Р¶РЅР°СЏ СЃС‚РµРЅР°: Р»РёР±Рѕ WallKind.Curtain, Р»РёР±Рѕ РёРјСЏ СЃРѕРґРµСЂР¶РёС‚ curtain/РІРёС‚СЂР°Р¶.
-    РСЃРїРѕР»СЊР·СѓРµС‚ РєСЌС€ С‚РёРїР° вЂ” Р±С‹СЃС‚СЂРѕ РїСЂРё РјРЅРѕРіРѕРєСЂР°С‚РЅС‹С… РІС‹Р·РѕРІР°С… РґР»СЏ РѕРґРЅРѕРіРѕ С‚РёРїР°."""
+    """Витражная стена: либо WallKind.Curtain, либо имя содержит curtain/витраж.
+    Использует кэш типа — быстро при многократных вызовах для одного типа."""
     if not is_category(element, BuiltInCategory.OST_Walls):
         return False
     info = _type_info(element)
     kind = info.get("kind")
     if kind is not None and kind == WallKind.Curtain:
         return True
-    # Р—Р°РїР°СЃРЅРѕР№ РІР°СЂРёР°РЅС‚ вЂ” РїРѕ РёРјРµРЅРё СЃРµРјРµР№СЃС‚РІР°/С‚РёРїР°
+    # Запасной вариант — по имени семейства/типа
     full = (info.get("family_name", "") + " " +
             info.get("type_name", "")).lower()
-    for kw in ("curtain", "РІРёС‚СЂР°Р¶", "СЃС‚РµРєР»", "glaz"):
+    for kw in ("curtain", "витраж", "стекл", "glaz"):
         if kw in full:
             return True
     return False
 
 
 def is_exterior_by_function(element):
-    """РЎС‚РµРЅР° РїРѕРјРµС‡РµРЅР° 'РќР°СЂСѓР¶РЅР°СЏ'/'Exterior' РІ РїР°СЂР°РјРµС‚СЂРµ Function С‚РёРїР°."""
+    """Стена помечена 'Наружная'/'Exterior' в параметре Function типа."""
     if not is_category(element, BuiltInCategory.OST_Walls):
         return False
     function = wall_function(element).lower()
-    return "exterior" in function or "РЅР°СЂСѓР¶" in function
+    return "exterior" in function or "наруж" in function
 
 
 def is_exterior_wall(element):
-    """Р‘Р°Р·РѕРІР°СЏ РїСЂРѕРІРµСЂРєР° РїРѕ С‚РёРїСѓ СЃС‚РµРЅС‹ (Р±РµР· СѓС‡С‘С‚Р° РіРµРѕРјРµС‚СЂРёРё).
-    РќРµ РѕРїСЂРµРґРµР»СЏРµС‚, СЂРµР°Р»СЊРЅРѕ Р»Рё СЃС‚РµРЅР° РІС‹С…РѕРґРёС‚ РЅР°СЂСѓР¶Сѓ вЂ” РґР»СЏ СЌС‚РѕРіРѕ
-    СЃРјРѕС‚СЂРё РµС‰С‘ shared_count РІ boundary_counts."""
+    """Базовая проверка по типу стены (без учёта геометрии).
+    Не определяет, реально ли стена выходит наружу — для этого
+    смотри ещё shared_count в boundary_counts."""
     if not is_category(element, BuiltInCategory.OST_Walls):
         return False
-    # Р’РёС‚СЂР°Р¶РЅС‹Рµ СЃС‚РµРЅС‹ РІСЃРµРіРґР° СЃС‡РёС‚Р°СЋС‚СЃСЏ РЅР°СЂСѓР¶РЅС‹РјРё (СЌС‚Рѕ С„Р°СЃР°РґРЅРѕРµ РѕСЃС‚РµРєР»РµРЅРёРµ)
+    # Витражные стены всегда считаются наружными (это фасадное остекление)
     if is_curtain_wall(element):
         return True
     return is_exterior_by_function(element)
@@ -330,7 +330,7 @@ def element_area(element):
     value = builtin(element, BuiltInParameter.HOST_AREA_COMPUTED)
     if value:
         return value
-    return lookup(element, ["Area", "РџР»РѕС‰Р°РґСЊ"])
+    return lookup(element, ["Area", "Площадь"])
 
 
 def element_height_m(space):
@@ -345,10 +345,35 @@ def element_height_m(space):
     return round(height * 0.3048, 3)
 
 
-# --------- РќРћР’РћР•: РїРѕР»СѓС‡РµРЅРёРµ Р°Р·РёРјСѓС‚Р° СЃС‚РµРЅС‹ ---------
+# --------- НОВОЕ: получение азимута стены ---------
+
+# Истинный север относительно проектного. Азимут для солнечных
+# теплопоступлений должен отсчитываться от ИСТИННОГО севера.
+# Если азимуты вышли зеркально — поменяйте TRUE_NORTH_SIGN на -1,
+# либо выставьте APPLY_TRUE_NORTH = False (тогда берётся проектный север).
+APPLY_TRUE_NORTH = True
+TRUE_NORTH_SIGN = 1
+_TRUE_NORTH_RAD = None
+
+
+def true_north_rad():
+    """Угол истинного севера (рад) из ActiveProjectLocation. 0 при ошибке."""
+    global _TRUE_NORTH_RAD
+    if _TRUE_NORTH_RAD is not None:
+        return _TRUE_NORTH_RAD
+    val = 0.0
+    try:
+        pos = doc.ActiveProjectLocation.GetProjectPosition(XYZ.Zero)
+        if pos is not None:
+            val = float(pos.Angle)
+    except Exception:
+        val = 0.0
+    _TRUE_NORTH_RAD = val
+    return val
+
 
 def vector_to_azimuth_deg(vec):
-    """РљРѕРЅРІРµСЂС‚РёСЂСѓРµС‚ РіРѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅС‹Р№ РІРµРєС‚РѕСЂ РІ Р°Р·РёРјСѓС‚ (0..360В°), 0=N, 90=E."""
+    """Конвертирует горизонтальный вектор в азимут (0..360°), 0=N, 90=E."""
     try:
         x = float(vec.X)
         y = float(vec.Y)
@@ -356,51 +381,66 @@ def vector_to_azimuth_deg(vec):
         return ""
     if abs(x) < 1e-9 and abs(y) < 1e-9:
         return ""
-    # atan2(X, Y): 0 = +Y (СЃРµРІРµСЂ), pi/2 = +X (РІРѕСЃС‚РѕРє)
+    # Перевод в систему истинного севера (поворот вектора на -a).
+    if APPLY_TRUE_NORTH:
+        a = true_north_rad() * TRUE_NORTH_SIGN
+        if a:
+            ca = math.cos(a)
+            sa = math.sin(a)
+            x, y = x * ca + y * sa, -x * sa + y * ca
+    # atan2(X, Y): 0 = +Y (север), pi/2 = +X (восток)
     angle = math.degrees(math.atan2(x, y))
     if angle < 0:
         angle += 360.0
     return round(angle, 1)
 
 
-def wall_orientation_deg(wall):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ Р°Р·РёРјСѓС‚ РЅР°СЂСѓР¶РЅРѕР№ СЃС‚РѕСЂРѕРЅС‹ СЃС‚РµРЅС‹, РёР»Рё ''."""
+def wall_orientation_deg(wall, transform=None):
+    """Возвращает азимут наружной стороны стены, или ''."""
     try:
-        normal = wall.Orientation  # XYZ, РЅР°СЂСѓР¶Сѓ
+        normal = wall.Orientation  # XYZ, наружу
     except Exception:
         normal = None
 
     if normal is None:
-        # Fallback С‡РµСЂРµР· РіРµРѕРјРµС‚СЂРёСЋ LocationCurve
+        # Fallback через геометрию LocationCurve
         try:
             loc = wall.Location
             curve = loc.Curve
             if isinstance(curve, Line):
                 d = curve.Direction
             else:
-                # Р”Р»СЏ РґСѓРіРё вЂ” РєР°СЃР°С‚РµР»СЊРЅР°СЏ РІ СЃРµСЂРµРґРёРЅРµ
+                # Для дуги — касательная в середине
                 p0 = curve.GetEndParameter(0)
                 p1 = curve.GetEndParameter(1)
                 t = curve.ComputeDerivatives((p0 + p1) * 0.5, True).BasisX
                 d = t
-            # РџРѕРІРѕСЂРѕС‚ РЅР° -90В° РґР°С‘С‚ РЅРѕСЂРјР°Р»СЊ РІРїСЂР°РІРѕ РѕС‚ РЅР°РїСЂР°РІР»РµРЅРёСЏ СЃС‚РµРЅС‹
+            # Поворот на -90° даёт нормаль вправо от направления стены
             normal = XYZ(d.Y, -d.X, 0)
             if getattr(wall, "Flipped", False):
                 normal = XYZ(-normal.X, -normal.Y, 0)
         except Exception:
             return ""
+    # Стена из связанной модели: нормаль в координатах связи —
+    # переводим в координаты основного документа (только направление).
+    if (normal is not None and transform is not None
+            and transform != Transform.Identity):
+        try:
+            normal = transform.OfVector(normal)
+        except Exception:
+            pass
     return vector_to_azimuth_deg(normal)
 
 
 def segment_direction_azimuth(segment):
-    """РђР·РёРјСѓС‚ РЅР°СЂСѓР¶Сѓ РґР»СЏ СЃРµРіРјРµРЅС‚Р° РіСЂР°РЅРёС†С‹ РїРѕРјРµС‰РµРЅРёСЏ."""
+    """Азимут наружу для сегмента границы помещения."""
     try:
         curve = segment.GetCurve()
         d = curve.Direction if isinstance(curve, Line) else None
         if d is None:
             return ""
-        # Р“СЂР°РЅРёС‡РЅС‹Р№ СЃРµРіРјРµРЅС‚ РёРґС‘С‚ РїСЂРѕС‚РёРІ С‡Р°СЃРѕРІРѕР№ СЃС‚СЂРµР»РєРё РІРѕРєСЂСѓРі РїРѕРјРµС‰РµРЅРёСЏ,
-        # Р·РЅР°С‡РёС‚ РЅРѕСЂРјР°Р»СЊ РЅР°СЂСѓР¶Сѓ = (Dy, -Dx)
+        # Граничный сегмент идёт против часовой стрелки вокруг помещения,
+        # значит нормаль наружу = (Dy, -Dx)
         normal = XYZ(d.Y, -d.X, 0)
         return vector_to_azimuth_deg(normal)
     except Exception:
@@ -423,6 +463,7 @@ def element_inserts(element):
 def boundary_element_from_segment(segment):
     host_element = doc.GetElement(segment.ElementId)
     link_name = ""
+    link_transform = Transform.Identity
 
     try:
         link_id = segment.LinkElementId
@@ -434,12 +475,16 @@ def boundary_element_from_segment(segment):
             link_doc = host_element.GetLinkDocument()
             linked_element = link_doc.GetElement(link_id)
             link_name = safe_name(host_element)
+            try:
+                link_transform = host_element.GetTotalTransform()
+            except Exception:
+                link_transform = Transform.Identity
             if linked_element:
-                return linked_element, link_name
+                return linked_element, link_name, link_transform
         except Exception:
             pass
 
-    return host_element, link_name
+    return host_element, link_name, Transform.Identity
 
 
 def boundary_key(element, link_name):
@@ -448,21 +493,22 @@ def boundary_key(element, link_name):
     return text(link_name) + "|" + text(element_id(element))
 
 
-# РџСЂРµС„РёРєСЃС‹ РЅРѕРјРµСЂРѕРІ/РёРјС‘РЅ РЅРµРѕС‚Р°РїР»РёРІР°РµРјС‹С… РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІ (Р±Р°Р»РєРѕРЅС‹, С‚РµСЂСЂР°СЃС‹,
-# РѕС‚РєСЂС‹С‚С‹Рµ РїР»РѕС‰Р°РґРєРё, С€Р°С…С‚С‹). РЎС‚РµРЅС‹, РіСЂР°РЅРёС‡Р°С‰РёРµ С‚РѕР»СЊРєРѕ СЃ С‚Р°РєРёРјРё
-# РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР°РјРё, СЃС‡РёС‚Р°СЋС‚СЃСЏ РЅР°СЂСѓР¶РЅС‹РјРё.
-UNCONDITIONED_PREFIXES = ("OFC-", "BAL-", "TER-", "SHAFT", "РЁРђРҐРў")
-UNCONDITIONED_KEYWORDS = ("Р±Р°Р»РєРѕРЅ", "С‚РµСЂСЂР°СЃР°", "Р»РѕРґР¶РёСЏ", "balcony",
-                          "terrace", "loggia", "shaft", "open air")
+# Префиксы номеров/имён неотапливаемых пространств (балконы, террасы,
+# открытые площадки, шахты). Стены, граничащие только с такими
+# пространствами, считаются наружными.
+UNCONDITIONED_PREFIXES = ("OFC-", "BAL-", "TER-", "SHAFT", "ШАХТ")
+UNCONDITIONED_KEYWORDS = ("балкон", "терраса", "лоджия", "balcony",
+                          "terrace", "loggia", "shaft", "open air",
+                          "veranda", "porch", "веранда", "крыльцо")
 
 
-# РљСЌС€ СЂРµР·СѓР»СЊС‚Р°С‚Р° is_unconditioned_space РїРѕ Id
+# Кэш результата is_unconditioned_space по Id
 _UNCONDITIONED_CACHE = {}
 
 
 def is_unconditioned_space(space):
-    """True РµСЃР»Рё РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ вЂ” Р±Р°Р»РєРѕРЅ/С‚РµСЂСЂР°СЃР°/С€Р°С…С‚Р°/РЅРµРѕС‚Р°РїР». РїРѕРјРµС‰РµРЅРёРµ.
-    Р РµР·СѓР»СЊС‚Р°С‚ РєСЌС€РёСЂСѓРµС‚СЃСЏ РїРѕ Id РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР°."""
+    """True если пространство — балкон/терраса/шахта/неотапл. помещение.
+    Результат кэшируется по Id пространства."""
     try:
         sid = space.Id.IntegerValue
     except Exception:
@@ -470,15 +516,20 @@ def is_unconditioned_space(space):
             sid = space.Id.Value
         except Exception:
             sid = None
-    if sid is not None and sid in _UNCONDITIONED_CACHE:
-        return _UNCONDITIONED_CACHE[sid]
+    # Ключ кэша с документом: id из разных моделей (хост/линки) совпадают.
+    try:
+        ck = (_doc_key(space.Document), sid)
+    except Exception:
+        ck = (None, sid)
+    if sid is not None and ck in _UNCONDITIONED_CACHE:
+        return _UNCONDITIONED_CACHE[ck]
 
     try:
         number = (builtin(space, BuiltInParameter.ROOM_NUMBER) or "").strip()
         name = (builtin(space, BuiltInParameter.ROOM_NAME) or "").strip()
     except Exception:
         if sid is not None:
-            _UNCONDITIONED_CACHE[sid] = False
+            _UNCONDITIONED_CACHE[ck] = False
         return False
 
     result = False
@@ -496,7 +547,7 @@ def is_unconditioned_space(space):
                     break
 
     if sid is not None:
-        _UNCONDITIONED_CACHE[sid] = result
+        _UNCONDITIONED_CACHE[ck] = result
     return result
 
 
@@ -505,9 +556,9 @@ def shared_boundary_map(spatial_elements):
     options = SpatialElementBoundaryOptions()
 
     for space in spatial_elements:
-        # РќРµРѕС‚Р°РїР»РёРІР°РµРјС‹Рµ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР° РЅРµ РІРєР»Р°РґС‹РІР°СЋС‚СЃСЏ РІ РїРѕРґСЃС‡С‘С‚ bsc вЂ”
-        # С‚РѕРіРґР° СЃС‚РµРЅР° РјРµР¶РґСѓ Р¶РёР»РѕР№ РєРѕРјРЅР°С‚РѕР№ Рё Р±Р°Р»РєРѕРЅРѕРј РїРѕР»СѓС‡РёС‚ bsc=1
-        # Рё Р±СѓРґРµС‚ РїСЂР°РІРёР»СЊРЅРѕ РєР»Р°СЃСЃРёС„РёС†РёСЂРѕРІР°РЅР° РєР°Рє РЅР°СЂСѓР¶РЅР°СЏ.
+        # Неотапливаемые пространства не вкладываются в подсчёт bsc —
+        # тогда стена между жилой комнатой и балконом получит bsc=1
+        # и будет правильно классифицирована как наружная.
         if is_unconditioned_space(space):
             continue
         space_key = text(element_id(space))
@@ -521,7 +572,7 @@ def shared_boundary_map(spatial_elements):
         seen_in_space = set()
         for loop in loops:
             for segment in loop:
-                element, link_name = boundary_element_from_segment(segment)
+                element, link_name, _ = boundary_element_from_segment(segment)
                 key = boundary_key(element, link_name)
                 if key:
                     seen_in_space.add(key)
@@ -538,7 +589,6 @@ def shared_boundary_map(spatial_elements):
 
 
 def has_area(element):
-    value = builtin(element, BuiltInParameter.ROOM_AREA)
     try:
         return float(parameter_double(element, BuiltInParameter.ROOM_AREA) or 0) > 0
     except Exception:
@@ -565,7 +615,7 @@ def write_csv(file_path, rows):
     folder = Path.GetDirectoryName(file_path)
     if folder and not Directory.Exists(folder):
         Directory.CreateDirectory(folder)
-    encoding = UTF8Encoding(True)  # СЃ BOM, СѓРґРѕР±РЅРѕ РґР»СЏ Excel
+    encoding = UTF8Encoding(True)  # с BOM, удобно для Excel
     writer = StreamWriter(file_path, False, encoding)
     try:
         for row in rows:
@@ -605,6 +655,79 @@ def space_row(space):
     ]
 
 
+# ---- Классификация наружн./внутр. по ARC-комнатам ----
+# Надёжный двусторонний счётчик: Revit Rooms в связанных моделях
+# покрывают ВСЕ зоны (вкл. коридоры/ядра/лестницы), где нет MEP-
+# пространств и потому bsc=1 врёт. Стена между двумя отапл. комнатами
+# -> внутренняя; стена комната|улица/балкон -> наружная.
+USE_ROOM_BASED_CLASSIFICATION = True
+_ROOM_SHARE = {}   # (doc_path, wall_id) -> set(room_id) отапл. комнат
+
+
+def build_room_share():
+    """Считает отапливаемые Rooms из связанных моделей, касающиеся каждой
+    стены. Балконы/террасы/шахты исключаются (не 'внутри')."""
+    share = {}
+    if not USE_ROOM_BASED_CLASSIFICATION:
+        return share
+    opts = SpatialElementBoundaryOptions()
+    try:
+        links = (FilteredElementCollector(doc)
+                 .OfClass(RevitLinkInstance).ToElements())
+    except Exception:
+        links = []
+    seen_docs = set()
+    for li in links:
+        try:
+            ld = li.GetLinkDocument()
+        except Exception:
+            ld = None
+        if ld is None:
+            continue
+        try:
+            dpath = ld.PathName or safe_name(li)
+        except Exception:
+            dpath = safe_name(li)
+        if dpath in seen_docs:
+            continue
+        seen_docs.add(dpath)
+        for bic in (BuiltInCategory.OST_Rooms,
+                    BuiltInCategory.OST_MEPSpaces):
+            try:
+                areas = (FilteredElementCollector(ld).OfCategory(bic)
+                         .WhereElementIsNotElementType().ToElements())
+            except Exception:
+                areas = []
+            for rm in areas:
+                try:
+                    if not has_area(rm):
+                        continue
+                    if is_unconditioned_space(rm):
+                        continue
+                    rid = id_value(rm.Id)
+                    loops = rm.GetBoundarySegments(opts)
+                except Exception:
+                    continue
+                if not loops:
+                    continue
+                for loop in loops:
+                    for seg in loop:
+                        try:
+                            w = ld.GetElement(seg.ElementId)
+                            if w is None:
+                                continue
+                            wid = id_value(w.Id)
+                        except Exception:
+                            continue
+                        k = (dpath, wid)
+                        st = share.get(k)
+                        if st is None:
+                            st = set()
+                            share[k] = st
+                        st.add(rid)
+    return share
+
+
 def thermal_rows(space, exterior_only, boundary_counts):
     rows = []
     options = SpatialElementBoundaryOptions()
@@ -616,18 +739,18 @@ def thermal_rows(space, exterior_only, boundary_counts):
     if not loops:
         return rows
 
-    # РџРѕСЂРѕРі РґР»СЏ РѕС‚СЃРµРІР° corner-Р°СЂС‚РµС„Р°РєС‚РѕРІ: С„СЂР°РіРјРµРЅС‚С‹ СЃС‚РµРЅС‹ РєРѕСЂРѕС‡Рµ 0.5 Рј
-    # (РїР»РѕС‰Р°РґСЊСЋ < ~0.3..0.5 РјВІ РїСЂРё РІС‹СЃРѕС‚Рµ 3 Рј) РїРѕС‡С‚Рё РІСЃРµРіРґР° вЂ” РїРѕР±РѕС‡РЅС‹Р№
-    # СЌС„С„РµРєС‚ СЂР°Р·Р±РёРµРЅРёСЏ РіСЂР°РЅРёС†С‹ РІ СѓРіР»Сѓ РїРѕРјРµС‰РµРЅРёСЏ.
-    CORNER_ARTIFACT_LEN_M = 0.5
+    # Порог для отсева corner-артефактов: фрагменты стены короче 0.5 м
+    # (площадью < ~0.3..0.5 м² при высоте 3 м) почти всегда — побочный
+    # эффект разбиения границы в углу помещения.
+    CORNER_ARTIFACT_LEN_M = 0.35
 
     space_height = element_height_m(space)
     for loop in loops:
         for segment in loop:
-            element, link_name = boundary_element_from_segment(segment)
+            element, link_name, link_transform = boundary_element_from_segment(segment)
             if element is None:
                 continue
-            # Р”Р»РёРЅР° СЃРµРіРјРµРЅС‚Р° вЂ” РґР»СЏ РѕС‚СЃРµРІР° СѓРіР»РѕРІС‹С… Р°СЂС‚РµС„Р°РєС‚РѕРІ
+            # Длина сегмента — для отсева угловых артефактов
             try:
                 seg_len_m = segment.GetCurve().Length * 0.3048
             except Exception:
@@ -635,45 +758,59 @@ def thermal_rows(space, exterior_only, boundary_counts):
             if (seg_len_m is not None
                     and seg_len_m < CORNER_ARTIFACT_LEN_M
                     and is_category(element, BuiltInCategory.OST_Walls)):
-                # corner-С„СЂР°РіРјРµРЅС‚ СЃС‚РµРЅС‹ вЂ” РїСЂРѕРїСѓСЃРєР°РµРј
+                # corner-фрагмент стены — пропускаем
                 continue
             shared_count = 1
             key = boundary_key(element, link_name)
             if key in boundary_counts:
                 shared_count = boundary_counts[key]
-            # РЎС‚РµРЅР° СЃС‡РёС‚Р°РµС‚СЃСЏ СЂРµР°Р»СЊРЅРѕ РЅР°СЂСѓР¶РЅРѕР№, РµСЃР»Рё:
-            # (1) РІРёС‚СЂР°Р¶РЅР°СЏ (РІСЃРµРіРґР° С„Р°СЃР°Рґ), РР›Р
-            # (2) РµС‘ Function = Exterior/РќР°СЂСѓР¶РЅР°СЏ, РР›Р
-            # (3) СЃ РїСЂРѕС‚РёРІРѕРїРѕР»РѕР¶РЅРѕР№ СЃС‚РѕСЂРѕРЅС‹ РЅРµС‚ РЅРё РѕРґРЅРѕРіРѕ РїРѕРјРµС‰РµРЅРёСЏ
-            #     (shared_count == 1) вЂ” РіРµРѕРјРµС‚СЂРёС‡РµСЃРєРёР№ РїСЂРёР·РЅР°Рє, СЂР°Р±РѕС‚Р°РµС‚
-            #     РґР»СЏ РЅРµСЃСѓС‰РёС… Р¶/Р± СЃС‚РµРЅ, Сѓ РєРѕС‚РѕСЂС‹С… Function РїСѓСЃС‚/Bearing.
-            # Р’РЅСѓС‚СЂРµРЅРЅРёРµ СЃС‚РµРЅС‹ (shared_count >= 2) РёСЃРєР»СЋС‡РµРЅС‹ РґР°Р¶Рµ РµСЃР»Рё
-            # РїРѕРјРµС‡РµРЅС‹ РєР°Рє Exterior вЂ” СЌС‚Рѕ РѕС€РёР±РєР° РІ РјРѕРґРµР»Рё.
+            # Стена считается реально наружной, если:
+            # (1) витражная (всегда фасад), ИЛИ
+            # (2) её Function = Exterior/Наружная, ИЛИ
+            # (3) с противоположной стороны нет ни одного помещения
+            #     (shared_count == 1) — геометрический признак, работает
+            #     для несущих ж/б стен, у которых Function пуст/Bearing.
+            # Внутренние стены (shared_count >= 2) исключены даже если
+            # помечены как Exterior — это ошибка в модели.
             is_wall = is_category(element, BuiltInCategory.OST_Walls)
+            # Сколько отапл. ARC-комнат касается стены (обе стороны).
+            room_cnt = 0
+            if is_wall and USE_ROOM_BASED_CLASSIFICATION:
+                try:
+                    rkey = (element_document(element).PathName or "",
+                            element_id(element))
+                    room_cnt = len(_ROOM_SHARE.get(rkey, ()))
+                except Exception:
+                    room_cnt = 0
             if is_wall:
                 if is_curtain_wall(element):
                     real_exterior = True
+                elif room_cnt >= 1:
+                    # ARC-комнаты знают обе стороны: >=2 -> ВНУТРЕННЯЯ,
+                    # ровно 1 -> с другой стороны улица/балкон -> наружная.
+                    # Перекрывает ненадёжные bsc и Function.
+                    real_exterior = room_cnt < 2
                 elif shared_count >= 2:
                     real_exterior = False
                 else:
-                    # shared_count == 1: СЃС‚РµРЅР° РіСЂР°РЅРёС‡РёС‚ С‚РѕР»СЊРєРѕ СЃ РѕРґРЅРёРј
-                    # РїРѕРјРµС‰РµРЅРёРµРј в†’ СЃ РґСЂСѓРіРѕР№ СЃС‚РѕСЂРѕРЅС‹ СѓР»РёС†Р°/РЅРµРѕС‚Р°РїР»РёРІР°РµРјРѕРµ
+                    # нет данных по комнатам и одно MEP-пространство →
+                    # с другой стороны улица/неотапливаемое
                     real_exterior = True
             else:
                 real_exterior = False
-            exterior = real_exterior  # РґР»СЏ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё РІ РІС‹РІРѕРґРµ
+            exterior = real_exterior  # для обратной совместимости в выводе
             if exterior_only and not real_exterior:
                 continue
 
-            # length_m СѓР¶Рµ РїРѕСЃС‡РёС‚Р°РЅ РІС‹С€Рµ (seg_len_m) вЂ” РїРµСЂРµРёСЃРїРѕР»СЊР·СѓРµРј
+            # length_m уже посчитан выше (seg_len_m) — переиспользуем
             length_m = seg_len_m
 
             approx_area = ""
             if length_m is not None and space_height != "":
                 approx_area = round(length_m * space_height, 3)
 
-            # РђР·РёРјСѓС‚: СЃРЅР°С‡Р°Р»Р° РёР· СЃС‚РµРЅС‹, РїРѕС‚РѕРј РёР· СЃРµРіРјРµРЅС‚Р°
-            orient = wall_orientation_deg(element) if is_category(element, BuiltInCategory.OST_Walls) else ""
+            # Азимут: сначала из стены, потом из сегмента
+            orient = wall_orientation_deg(element, link_transform) if is_category(element, BuiltInCategory.OST_Walls) else ""
             if orient == "":
                 orient = segment_direction_azimuth(segment)
 
@@ -699,7 +836,8 @@ def thermal_rows(space, exterior_only, boundary_counts):
                 thermal_value(element),
                 "",
                 shared_count,
-                orient,    # РќРћР’РћР•: orientation_deg
+                orient,    # НОВОЕ: orientation_deg
+                room_cnt,  # room_boundary_count (ARC-комнат у стены)
             ])
 
             for insert in element_inserts(element):
@@ -725,35 +863,36 @@ def thermal_rows(space, exterior_only, boundary_counts):
                     thermal_value(insert),
                     element_id(element),
                     shared_count,
-                    orient,   # РїСЂРѕС‘РјС‹ РЅР°СЃР»РµРґСѓСЋС‚ Р°Р·РёРјСѓС‚ СЃС‚РµРЅС‹-С…РѕР·СЏРёРЅР°
+                    orient,   # проёмы наследуют азимут стены-хозяина
+                    room_cnt,  # room_boundary_count хозяина
                 ])
     return rows
 
 
-# ----------- СЃР±РѕСЂ В«Р±РµСЃС…РѕР·РЅС‹С…В» РІРёС‚СЂР°Р¶РµР№ (РІРЅРµ Room Bounding) -----------
+# ----------- сбор «бесхозных» витражей (вне Room Bounding) -----------
 #
-# Curtain Walls c РІС‹РєР»СЋС‡РµРЅРЅС‹Рј С„Р»Р°РіРѕРј В«Room BoundingВ» (С‡Р°СЃС‚Рѕ РІСЃС‚СЂРµС‡Р°РµС‚СЃСЏ Сѓ
-# С„Р°СЃР°РґРЅС‹С… РІРёС‚СЂР°Р¶РµР№ РЅР° Р±Р°Р»РєРѕРЅР°С…) РќР• РїРѕРїР°РґР°СЋС‚ РІ GetBoundarySegments(),
-# РїРѕСЌС‚РѕРјСѓ Q_СЃРѕР»РЅС†Р° Сѓ Р±РµРґСЂСѓРјРѕРІ РїРѕР»СѓС‡Р°РµС‚СЃСЏ = 0. Р­С‚РѕС‚ Р±Р»РѕРє СЃРѕР±РёСЂР°РµС‚ РІСЃРµ
-# Curtain Walls (РІРєР»СЋС‡Р°СЏ СЃРІСЏР·Р°РЅРЅС‹Рµ Р°СЂС…-РјРѕРґРµР»Рё) Рё РїСЂРёРїРёСЃС‹РІР°РµС‚ РєР°Р¶РґС‹Р№ Рє
-# Р±Р»РёР¶Р°Р№С€РµРјСѓ РћРўРђРџР›РР’РђР•РњРћРњРЈ РїРѕРјРµС‰РµРЅРёСЋ РїРѕ РіРµРѕРјРµС‚СЂРёРё.
+# Curtain Walls c выключенным флагом «Room Bounding» (часто встречается у
+# фасадных витражей на балконах) НЕ попадают в GetBoundarySegments(),
+# поэтому Q_солнца у бедрумов получается = 0. Этот блок собирает все
+# Curtain Walls (включая связанные арх-модели) и приписывает каждый к
+# ближайшему ОТАПЛИВАЕМОМУ помещению по геометрии.
 
 
 def collect_all_curtain_walls():
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє (wall, transform, link_doc, link_name).
+    """Возвращает список (wall, transform, link_doc, link_name).
 
-    РЎРѕР±РёСЂР°РµС‚ РІРёС‚СЂР°Р¶Рё РёР· РѕСЃРЅРѕРІРЅРѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р° Рё РІСЃРµС… СЃРІСЏР·Р°РЅРЅС‹С… РјРѕРґРµР»РµР№.
-    transform вЂ” РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РєРѕРѕСЂРґРёРЅР°С‚ РёР· РјРѕРґРµР»Рё СЃС‚РµРЅС‹ РІ РєРѕРѕСЂРґРёРЅР°С‚С‹
-    РѕСЃРЅРѕРІРЅРѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р° (РґР»СЏ СЃРІСЏР·Р°РЅРЅС‹С… РјРѕРґРµР»РµР№).
+    Собирает витражи из основного документа и всех связанных моделей.
+    transform — преобразование координат из модели стены в координаты
+    основного документа (для связанных моделей).
 
-    Р’РђР–РќРћ: РµСЃР»Рё Р°СЂС…-РјРѕРґРµР»СЊ РїСЂРёР»РёРЅРєРѕРІР°РЅР° РЅРµСЃРєРѕР»СЊРєРёРјРё RevitLinkInstance,
-    РєР°Р¶РґС‹Р№ РІРёС‚СЂР°Р¶ Р±РµСЂС‘С‚СЃСЏ РўРћР›Р¬РљРћ РћР”РРќ Р РђР— (РїРѕ РїРµСЂРІРѕРјСѓ СЌРєР·РµРјРїР»СЏСЂСѓ),
-    С‡С‚РѕР±С‹ РёР·Р±РµР¶Р°С‚СЊ РґСѓР±Р»РёСЂРѕРІР°РЅРёСЏ СЃС‚СЂРѕРє РІ CSV.
+    ВАЖНО: если арх-модель прилинкована несколькими RevitLinkInstance,
+    каждый витраж берётся ТОЛЬКО ОДИН РАЗ (по первому экземпляру),
+    чтобы избежать дублирования строк в CSV.
     """
     results = []
-    seen_docs = set()  # PathName СѓР¶Рµ РѕР±СЂР°Р±РѕС‚Р°РЅРЅС‹С… РґРѕРєСѓРјРµРЅС‚РѕРІ
+    seen_docs = set()  # PathName уже обработанных документов
 
-    # РћСЃРЅРѕРІРЅРѕР№ РґРѕРєСѓРјРµРЅС‚
+    # Основной документ
     main_path = ""
     try:
         main_path = doc.PathName or "MAIN"
@@ -772,7 +911,7 @@ def collect_all_curtain_walls():
         except Exception:
             pass
 
-    # РЎРІСЏР·Р°РЅРЅС‹Рµ РјРѕРґРµР»Рё вЂ” РєР°Р¶РґС‹Р№ РРЎРҐРћР”РќР«Р™ РґРѕРєСѓРјРµРЅС‚ РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј РѕРґРёРЅ СЂР°Р·
+    # Связанные модели — каждый ИСХОДНЫЙ документ обрабатываем один раз
     try:
         link_instances = (FilteredElementCollector(doc)
                           .OfClass(RevitLinkInstance)
@@ -791,7 +930,7 @@ def collect_all_curtain_walls():
             except Exception:
                 link_path = safe_name(link_inst)
             if link_path in seen_docs:
-                continue  # СЌС‚РѕС‚ РґРѕРєСѓРјРµРЅС‚ СѓР¶Рµ РѕР±СЂР°Р±РѕС‚Р°РЅ РґСЂСѓРіРёРј СЌРєР·РµРјРїР»СЏСЂРѕРј
+                continue  # этот документ уже обработан другим экземпляром
             seen_docs.add(link_path)
 
             link_transform = link_inst.GetTotalTransform()
@@ -814,8 +953,8 @@ def collect_all_curtain_walls():
 
 
 def wall_midpoint_global(wall, transform):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРµСЂРµРґРёРЅСѓ С†РµРЅС‚СЂР°Р»СЊРЅРѕР№ Р»РёРЅРёРё СЃС‚РµРЅС‹ РІ РіР»РѕР±Р°Р»СЊРЅС‹С… РєРѕРѕСЂРґРёРЅР°С‚Р°С…
-    РѕСЃРЅРѕРІРЅРѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р°. None РµСЃР»Рё РЅРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ."""
+    """Возвращает середину центральной линии стены в глобальных координатах
+    основного документа. None если не удалось получить."""
     try:
         loc = wall.Location
         curve = loc.Curve
@@ -834,14 +973,14 @@ def wall_midpoint_global(wall, transform):
         return None
 
 
-# РљСЌС€ bounding box Рё Z-РґРёР°РїР°Р·РѕРЅР° РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІ РґР»СЏ Р±С‹СЃС‚СЂРѕРіРѕ РїСЂРµС„РёР»СЊС‚СЂР°.
-# {space.Id.IntegerValue: (xmin, ymin, zmin, xmax, ymax, zmax)} вЂ” РІСЃРµ РІ С„СѓС‚Р°С….
+# Кэш bounding box и Z-диапазона пространств для быстрого префильтра.
+# {space.Id.IntegerValue: (xmin, ymin, zmin, xmax, ymax, zmax)} — все в футах.
 _SPACE_BBOX_CACHE = {}
 
 
 def _space_bbox(space):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ (xmin, ymin, zmin, xmax, ymax, zmax) РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР° РІ С„СѓС‚Р°С….
-    РљСЌС€РёСЂСѓРµС‚СЃСЏ РїРѕ Id."""
+    """Возвращает (xmin, ymin, zmin, xmax, ymax, zmax) пространства в футах.
+    Кэшируется по Id."""
     try:
         sid = space.Id.IntegerValue
     except Exception:
@@ -865,9 +1004,9 @@ def _space_bbox(space):
 
 
 def _point_in_bbox(point, bbox, tol_ft=1.6):
-    """Р‘С‹СЃС‚СЂР°СЏ РїСЂРѕРІРµСЂРєР°: С‚РѕС‡РєР° РІ bbox СЃ РґРѕРїСѓСЃРєРѕРј (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 0.5 Рј)."""
+    """Быстрая проверка: точка в bbox с допуском (по умолчанию 0.5 м)."""
     if bbox is None or point is None:
-        return True   # Р±РµР· bbox вЂ” РїСЂРѕРїСѓСЃРєР°РµРј РґР°Р»СЊС€Рµ, РЅРµ РѕС‚СЃРµРёРІР°РµРј
+        return True   # без bbox — пропускаем дальше, не отсеиваем
     try:
         x, y, z = float(point.X), float(point.Y), float(point.Z)
     except Exception:
@@ -879,13 +1018,13 @@ def _point_in_bbox(point, bbox, tol_ft=1.6):
 
 
 def find_space_for_point(point, spaces, level_z=None):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ, Р’РќРЈРўР Р РєРѕС‚РѕСЂРѕРіРѕ РЅР°С…РѕРґРёС‚СЃСЏ С‚РѕС‡РєР°.
-    РўРѕР»СЊРєРѕ СЃС‚СЂРѕРіРѕРµ РїРѕРїР°РґР°РЅРёРµ вЂ” Р±РµР· fallback РЅР° В«Р±Р»РёР¶Р°Р№С€РёР№ С†РµРЅС‚СЂВ»
-    (СЃС‚Р°СЂС‹Р№ fallback РґР°РІР°Р» Р»РѕР¶РЅС‹Рµ РїСЂРёРІСЏР·РєРё РІРёС‚СЂР°Р¶РµР№).
+    """Возвращает пространство, ВНУТРИ которого находится точка.
+    Только строгое попадание — без fallback на «ближайший центр»
+    (старый fallback давал ложные привязки витражей).
 
-    РџСЂРµС„РёР»СЊС‚СЂ РїРѕ bounding box РґР°С‘С‚ РѕРіСЂРѕРјРЅС‹Р№ РІС‹РёРіСЂС‹С€ РЅР° РїСЂРѕРµРєС‚Р°С… СЃ
-    СЃРѕС‚РЅСЏРјРё РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІ вЂ” IsPointInSpace РґРѕСЂРѕРіРѕР№, Р° bbox-РїСЂРѕРІРµСЂРєР°
-    С‚СЂРёРІРёР°Р»СЊРЅР°СЏ.
+    Префильтр по bounding box даёт огромный выигрыш на проектах с
+    сотнями пространств — IsPointInSpace дорогой, а bbox-проверка
+    тривиальная.
     """
     if point is None:
         return None
@@ -906,22 +1045,22 @@ def find_space_for_point(point, spaces, level_z=None):
 
 
 def curtain_wall_touches_space(wall, transform, space, tolerance_ft=1.6):
-    """РџСЂРѕРІРµСЂРєР°: РІРёС‚СЂР°Р¶ РіРµРѕРјРµС‚СЂРёС‡РµСЃРєРё РєР°СЃР°РµС‚СЃСЏ РіСЂР°РЅРёС†С‹ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР°.
+    """Проверка: витраж геометрически касается границы пространства.
 
-    tolerance_ft в‰€ 0.5 Рј. РЎСЌРјРїР»РёСЂСѓРµРј 5 С‚РѕС‡РµРє РІРґРѕР»СЊ С†РµРЅС‚СЂР°Р»СЊРЅРѕР№ Р»РёРЅРёРё
-    РІРёС‚СЂР°Р¶Р° Рё РїСЂРѕРІРµСЂСЏРµРј, РµСЃС‚СЊ Р»Рё С…РѕС‚СЏ Р±С‹ РѕРґРЅР°, РєРѕС‚РѕСЂР°СЏ Р»РµР¶РёС‚
-    РІ РѕРєСЂРµСЃС‚РЅРѕСЃС‚Рё РіСЂР°РЅРёС†С‹ space (С‡РµСЂРµР· IsPointInSpace СЃ РЅРµР±РѕР»СЊС€РёРј
-    СЃРјРµС‰РµРЅРёРµРј Рє С†РµРЅС‚СЂСѓ РїРѕРјРµС‰РµРЅРёСЏ).
+    tolerance_ft ≈ 0.5 м. Сэмплируем 5 точек вдоль центральной линии
+    витража и проверяем, есть ли хотя бы одна, которая лежит
+    в окрестности границы space (через IsPointInSpace с небольшим
+    смещением к центру помещения).
 
-    Р‘С‹СЃС‚СЂР°СЏ РѕС‚СЃРµС‡РєР°: РµСЃР»Рё bbox РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР° РЅРµ РїРµСЂРµСЃРµРєР°РµС‚СЃСЏ СЃ
-    СЃРµСЂРµРґРёРЅРѕР№ РІРёС‚СЂР°Р¶Р° РґР°Р¶Рµ СЃ РґРѕРїСѓСЃРєРѕРј вЂ” РїСЂРѕРїСѓСЃРєР°РµРј Р±РµР· РґРѕСЂРѕРіРѕСЃС‚РѕСЏС‰РёС…
+    Быстрая отсечка: если bbox пространства не пересекается с
+    серединой витража даже с допуском — пропускаем без дорогостоящих
     IsPointInSpace.
     """
     try:
         curve = wall.Location.Curve
     except Exception:
         return False
-    # Р‘С‹СЃС‚СЂР°СЏ bbox-РѕС‚СЃРµС‡РєР° РїРѕ СЃРµСЂРµРґРёРЅРµ РІРёС‚СЂР°Р¶Р°
+    # Быстрая bbox-отсечка по середине витража
     try:
         mid_local = curve.Evaluate(0.5, True)
         if transform is not None and transform != Transform.Identity:
@@ -929,16 +1068,16 @@ def curtain_wall_touches_space(wall, transform, space, tolerance_ft=1.6):
         else:
             mid_global = mid_local
         bbox = _space_bbox(space)
-        if not _point_in_bbox(mid_global, bbox, tol_ft=3.3):  # ~1 Рј
+        if not _point_in_bbox(mid_global, bbox, tol_ft=3.3):  # ~1 м
             return False
     except Exception:
         pass
     try:
-        # РќРѕСЂРјР°Р»СЊ РІРёС‚СЂР°Р¶Р°
+        # Нормаль витража
         normal = wall.Orientation
     except Exception:
         return False
-    # РџСЂРµРѕР±СЂР°Р·СѓРµРј РЅРѕСЂРјР°Р»СЊ РІ РіР»РѕР±Р°Р»СЊРЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
+    # Преобразуем нормаль в глобальные координаты
     try:
         if transform is not None and transform != Transform.Identity:
             normal_global = transform.OfVector(normal)
@@ -947,8 +1086,8 @@ def curtain_wall_touches_space(wall, transform, space, tolerance_ft=1.6):
     except Exception:
         normal_global = normal
 
-    # 5 С‚РѕС‡РµРє РІРґРѕР»СЊ РєСЂРёРІРѕР№
-    test_dirs = (-1.0, 1.0)  # СЃ РѕР±РµРёС… СЃС‚РѕСЂРѕРЅ СЃС‚РµРЅС‹
+    # 5 точек вдоль кривой
+    test_dirs = (-1.0, 1.0)  # с обеих сторон стены
     for t in (0.1, 0.3, 0.5, 0.7, 0.9):
         try:
             param = curve.GetEndParameter(0) * (1 - t) + curve.GetEndParameter(1) * t
@@ -962,7 +1101,7 @@ def curtain_wall_touches_space(wall, transform, space, tolerance_ft=1.6):
                 p_global = p_local
         except Exception:
             p_global = p_local
-        # РџСЂРѕР±СѓРµРј РїРѕ РѕР±Рµ СЃС‚РѕСЂРѕРЅС‹ СЃС‚РµРЅС‹
+        # Пробуем по обе стороны стены
         for sign in test_dirs:
             try:
                 offset_pt = XYZ(
@@ -980,8 +1119,8 @@ def curtain_wall_touches_space(wall, transform, space, tolerance_ft=1.6):
 
 
 def find_conditioned_neighbor(unconditioned_space, all_spaces):
-    """Р”Р»СЏ РЅРµРѕС‚Р°РїР»РёРІР°РµРјРѕРіРѕ РїРѕРјРµС‰РµРЅРёСЏ (Р±Р°Р»РєРѕРЅР°) РЅР°С…РѕРґРёС‚ Р±Р»РёР¶Р°Р№С€РµРµ
-    РѕС‚Р°РїР»РёРІР°РµРјРѕРµ вЂ” РїРѕ РіРѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅРѕРјСѓ СЂР°СЃСЃС‚РѕСЏРЅРёСЋ РјРµР¶РґСѓ Location.Point."""
+    """Для неотапливаемого помещения (балкона) находит ближайшее
+    отапливаемое — по горизонтальному расстоянию между Location.Point."""
     try:
         pt0 = unconditioned_space.Location.Point
     except Exception:
@@ -1012,31 +1151,31 @@ def find_conditioned_neighbor(unconditioned_space, all_spaces):
 
 def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
                                  spaces_with_glazing=None):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ СЃС‚СЂРѕРєРё РґР»СЏ thermal_all.csv: РІРёС‚СЂР°Р¶Рё,
-    РєРѕС‚РѕСЂС‹Рµ РЅРµ РІРѕС€Р»Рё РІ СЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ boundary loops.
+    """Возвращает дополнительные строки для thermal_all.csv: витражи,
+    которые не вошли в стандартные boundary loops.
 
-    РљР›Р®Р§Р•Р’РћР• РћР“Р РђРќРР§Р•РќРР•:
-    Р•СЃР»Рё Сѓ РїРѕРјРµС‰РµРЅРёСЏ РЈР–Р• РµСЃС‚СЊ СЃРІРѕР№ РІРёС‚СЂР°Р¶ РІ СЃС‚Р°РЅРґР°СЂС‚РЅРѕР№ РІС‹РіСЂСѓР·РєРµ
-    (spaces_with_glazing), РЅРѕРІС‹Рµ РІРёС‚СЂР°Р¶Рё Рє РЅРµРјСѓ РќР• РґРѕР±Р°РІР»СЏСЋС‚СЃСЏ.
-    Р­С‚Рѕ СЃС‚СЂР°С…СѓРµС‚ РѕС‚ Р»РѕР¶РЅС‹С… РїСЂРёРІСЏР·РѕРє: РЅР°РїСЂРёРјРµСЂ, РјР°Р»РµРЅСЊРєР°СЏ РІР°РЅРЅР°СЏ,
-    Сѓ РєРѕС‚РѕСЂРѕР№ С‡РµСЂРµР· СЃС‚Р°РЅРґР°СЂС‚РЅС‹Р№ РѕР±С…РѕРґ СѓР¶Рµ РЅР°Р№РґРµРЅ РµС‘ РІРёС‚СЂР°Р¶ РІ СЃС‚РѕСЂРѕРЅСѓ
-    Р±Р°Р»РєРѕРЅР°, РЅРµ РґРѕР»Р¶РЅР° РїРѕР»СѓС‡Р°С‚СЊ РµС‰С‘ 3-4 РІРёС‚СЂР°Р¶Р° РёР· СЃРѕСЃРµРґРЅРёС… Р±РµРґСЂСѓРјРѕРІ.
+    КЛЮЧЕВОЕ ОГРАНИЧЕНИЕ:
+    Если у помещения УЖЕ есть свой витраж в стандартной выгрузке
+    (spaces_with_glazing), новые витражи к нему НЕ добавляются.
+    Это страхует от ложных привязок: например, маленькая ванная,
+    у которой через стандартный обход уже найден её витраж в сторону
+    балкона, не должна получать ещё 3-4 витража из соседних бедрумов.
 
-    РџСЂРёРІСЏР·РєР° СЃС‚СЂРѕРіР°СЏ:
-    (1) РµСЃР»Рё СЃРµСЂРµРґРёРЅР° РІРёС‚СЂР°Р¶Р° РїРѕРїР°РґР°РµС‚ Р’РќРЈРўР Р¬ space РїРѕ IsPointInSpace вЂ”
-        СЌС‚РѕС‚ space Р±РµСЂС‘С‚СЃСЏ (Р° РµСЃР»Рё РѕРЅ Р±Р°Р»РєРѕРЅ, С‚Рѕ РµРіРѕ РѕС‚Р°РїР». СЃРѕСЃРµРґ);
-    (2) РёРЅР°С‡Рµ вЂ” РїСЂРѕР±СѓРµРј РіРµРѕРјРµС‚СЂРёС‡РµСЃРєРё: РІРёС‚СЂР°Р¶ РєР°СЃР°РµС‚СЃСЏ РіСЂР°РЅРёС†С‹ space
-        (curtain_wall_touches_space); РµСЃР»Рё РєР°СЃР°РµС‚СЃСЏ РѕС‚Р°РїР»РёРІР°РµРјРѕРіРѕ
-        space вЂ” Р±РµСЂС‘Рј РµРіРѕ, РµСЃР»Рё РєР°СЃР°РµС‚СЃСЏ Р±Р°Р»РєРѕРЅР° вЂ” Р±РµСЂС‘Рј СЃРѕСЃРµРґР°.
-    Р•СЃР»Рё РЅРёС‡РµРіРѕ РЅРµ РЅР°С€Р»РѕСЃСЊ вЂ” РІРёС‚СЂР°Р¶ РїСЂРѕРїСѓСЃРєР°РµС‚СЃСЏ.
+    Привязка строгая:
+    (1) если середина витража попадает ВНУТРЬ space по IsPointInSpace —
+        этот space берётся (а если он балкон, то его отапл. сосед);
+    (2) иначе — пробуем геометрически: витраж касается границы space
+        (curtain_wall_touches_space); если касается отапливаемого
+        space — берём его, если касается балкона — берём соседа.
+    Если ничего не нашлось — витраж пропускается.
 
-    РўР°РєР¶Рµ С„РёР»СЊС‚СЂСѓРµРј РІРёС‚СЂР°Р¶Рё РїР»РѕС‰Р°РґСЊСЋ < 0.5 РјВІ (РјРµР»РєРёРµ С„СЂР°РіРјРµРЅС‚С‹ вЂ”
-    РґРµРєРѕСЂР°С‚РёРІРЅС‹Рµ РїР°РЅРµР»Рё/СѓРіР»РѕРІС‹Рµ РєСѓСЃРєРё, РЅРµ Р·РЅР°С‡РёРјС‹Рµ РґР»СЏ СЂР°СЃС‡С‘С‚Р°).
+    Также фильтруем витражи площадью < 0.5 м² (мелкие фрагменты —
+    декоративные панели/угловые куски, не значимые для расчёта).
 
-    already_seen_element_ids вЂ” РјРЅРѕР¶РµСЃС‚РІРѕ (link_name, element_id) СѓР¶Рµ
-    РІС‹РІРµРґРµРЅРЅС‹С… СЌР»РµРјРµРЅС‚РѕРІ, С‡С‚РѕР±С‹ РёР·Р±РµР¶Р°С‚СЊ РґСѓР±Р»РёРєР°С‚РѕРІ.
-    spaces_with_glazing вЂ” РјРЅРѕР¶РµСЃС‚РІРѕ space_id, Сѓ РєРѕС‚РѕСЂС‹С… СѓР¶Рµ РµСЃС‚СЊ СЃРІРѕРё
-    РІРёС‚СЂР°Р¶Рё. РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РїСѓСЃС‚Рѕ.
+    already_seen_element_ids — множество (link_name, element_id) уже
+    выведенных элементов, чтобы избежать дубликатов.
+    spaces_with_glazing — множество space_id, у которых уже есть свои
+    витражи. По умолчанию пусто.
     """
     rows = []
     seen_in_this_pass = set()
@@ -1059,7 +1198,7 @@ def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
         if key in already_seen_element_ids or key in seen_in_this_pass:
             continue
 
-        # Р¤РёР»СЊС‚СЂ РјРµР»РєРёС… С„СЂР°РіРјРµРЅС‚РѕРІ
+        # Фильтр мелких фрагментов
         try:
             area_str = element_area(wall)
             area_val = float(parameter_double(wall, BuiltInParameter.HOST_AREA_COMPUTED) or 0)
@@ -1068,7 +1207,7 @@ def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
         except Exception:
             pass
 
-        # РЎС‚СЂР°С‚РµРіРёСЏ 1: СЃРµСЂРµРґРёРЅР° РІРёС‚СЂР°Р¶Р° РїРѕРїР°Р»Р° РІРЅСѓС‚СЂСЊ РєР°РєРѕРіРѕ-С‚Рѕ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР°
+        # Стратегия 1: середина витража попала внутрь какого-то пространства
         mid = wall_midpoint_global(wall, transform)
         host_space = find_space_for_point(mid, spatial_elements)
 
@@ -1083,11 +1222,11 @@ def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
             else:
                 target_space = host_space
         else:
-            # РЎС‚СЂР°С‚РµРіРёСЏ 2: С‚РѕС‡РєР° РЅРµ РїРѕРїР°Р»Р° РЅРё РІ РѕРґРЅРѕ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІРѕ вЂ”
-            # РёС‰РµРј space, С‡СЊРµР№ РіСЂР°РЅРёС†С‹ РІРёС‚СЂР°Р¶ СЂРµР°Р»СЊРЅРѕ РєР°СЃР°РµС‚СЃСЏ.
-            # РџСЂРµС„РёР»СЊС‚СЂ РїРѕ bbox: РїСЂРѕРІРµСЂСЏРµРј С‚РѕР»СЊРєРѕ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР°, Сѓ РєРѕС‚РѕСЂС‹С…
-            # bbox СЃРѕРґРµСЂР¶РёС‚ СЃРµСЂРµРґРёРЅСѓ РІРёС‚СЂР°Р¶Р° (СЃ РґРѕРїСѓСЃРєРѕРј). Р­С‚Рѕ СЂРµР¶РµС‚
-            # РїРµСЂРµР±РѕСЂ СЃ С‚С‹СЃСЏС‡ РґРѕ РґРµСЃСЏС‚РєРѕРІ.
+            # Стратегия 2: точка не попала ни в одно пространство —
+            # ищем space, чьей границы витраж реально касается.
+            # Префильтр по bbox: проверяем только пространства, у которых
+            # bbox содержит середину витража (с допуском). Это режет
+            # перебор с тысяч до десятков.
             for sp in spatial_elements:
                 if is_unconditioned_space(sp):
                     continue
@@ -1100,14 +1239,14 @@ def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
             if target_space is None:
                 continue
 
-        # РљР›Р®Р§Р•Р’РђРЇ РџР РћР’Р•Р РљРђ: РµСЃР»Рё Сѓ РїРѕРјРµС‰РµРЅРёСЏ СѓР¶Рµ РµСЃС‚СЊ СЃРІРѕРё РІРёС‚СЂР°Р¶Рё,
-        # Р·РЅР°С‡РёС‚ СЃС‚Р°РЅРґР°СЂС‚РЅС‹Р№ РѕР±С…РѕРґ СЃРїСЂР°РІРёР»СЃСЏ СЃР°Рј вЂ” orphan РЅРµ Р»РµР·РµС‚.
+        # КЛЮЧЕВАЯ ПРОВЕРКА: если у помещения уже есть свои витражи,
+        # значит стандартный обход справился сам — orphan не лезет.
         target_sid = text(element_id(target_space))
         if target_sid in spaces_with_glazing:
             continue
 
         seen_in_this_pass.add(key)
-        # РџР»РѕС‰Р°РґСЊ Рё РїР°СЂР°РјРµС‚СЂС‹
+        # Площадь и параметры
         area_str = element_area(wall)
         u_val = thermal_value(wall)
         family = ""
@@ -1119,18 +1258,18 @@ def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
                 type_n = safe_name(wt) or ""
         except Exception:
             pass
-        # РўРѕР»С‰РёРЅР° Сѓ РІРёС‚СЂР°Р¶Р° РѕР±С‹С‡РЅРѕ 0, РѕСЃС‚Р°РІР»СЏРµРј РїСѓСЃС‚Рѕ
+        # Толщина у витража обычно 0, оставляем пусто
         try:
             thickness = wall.get_Parameter(BuiltInParameter.WALL_ATTR_WIDTH_PARAM)
             thickness_val = parameter_value(thickness) if thickness else ""
         except Exception:
             thickness_val = ""
-        # Р”Р»РёРЅР° Рё РѕСЂРёРµРЅС‚Р°С†РёСЏ
+        # Длина и ориентация
         try:
             length_m = wall.Location.Curve.Length * 0.3048
         except Exception:
             length_m = ""
-        orient = wall_orientation_deg(wall)
+        orient = wall_orientation_deg(wall, transform)
 
         rows.append([
             element_id(target_space),
@@ -1138,7 +1277,7 @@ def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
             builtin(target_space, BuiltInParameter.ROOM_NAME),
             level_name(target_space),
             "external_wall",
-            "yes",                 # РІРёС‚СЂР°Р¶ вЂ” РІСЃРµРіРґР° РЅР°СЂСѓР¶РЅС‹Р№
+            "yes",                 # витраж — всегда наружный
             eid,
             link_name,
             category_name(wall),
@@ -1150,20 +1289,21 @@ def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
             area_str,
             area_str,
             thickness_val,
-            "curtain (orphan)",   # РїРѕРјРµС‡Р°РµРј РёСЃС‚РѕС‡РЅРёРє РґР»СЏ РѕС‚Р»Р°РґРєРё
+            "curtain (orphan)",   # помечаем источник для отладки
             u_val,
             "",
-            1,                     # bsc=1 (С‚СЂР°РєС‚СѓРµРј РєР°Рє В«СЂРµР°Р»СЊРЅРѕ РЅР°СЂСѓР¶РЅС‹Р№В»)
+            1,                     # bsc=1 (трактуем как «реально наружный»)
             orient,
+            0,                     # room_boundary_count (orphan вне Room Bounding)
         ])
     return rows
 
 
-# ----------- РѕСЃРЅРѕРІРЅРѕР№ Р·Р°РїСѓСЃРє -----------
+# ----------- основной запуск -----------
 
-output_path = r"D:\HVAC\spaces.csv"
+output_path = r"D:\HVAC"
 output_table = "all"
-collect_orphans = True   # IN[2] вЂ” "fast"/"false"/"no" С‡С‚РѕР±С‹ РІС‹РєР»СЋС‡РёС‚СЊ
+collect_orphans = True   # IN[2] — "fast"/"false"/"no" чтобы выключить
 
 try:
     if len(IN) > 0 and IN[0]:
@@ -1178,13 +1318,20 @@ except Exception:
     pass
 
 spatial_elements, source_name = collect_spatial_elements()
-# РџСЂРѕРіСЂРµРІР°РµРј bbox-РєСЌС€ РѕРґРЅРёРј РїСЂРѕС…РѕРґРѕРј вЂ” РїРѕС‚РѕРј IsPointInSpace
-# РѕС‚СЃРµРєР°РµС‚СЃСЏ Р±РµР· РґРѕСЂРѕРіРёС… РіРµРѕРјРµС‚СЂРёС‡РµСЃРєРёС… РІС‹Р·РѕРІРѕРІ.
+# Прогреваем bbox-кэш одним проходом — потом IsPointInSpace
+# отсекается без дорогих геометрических вызовов.
 for _sp in spatial_elements:
     _space_bbox(_sp)
 boundary_counts = shared_boundary_map(spatial_elements)
+_ROOM_SHARE = build_room_share()
 
-# Р Р°СЃС€РёСЂРµРЅРЅС‹Р№ Р·Р°РіРѕР»РѕРІРѕРє thermal_all.csv СЃ РЅРѕРІРѕР№ РєРѕР»РѕРЅРєРѕР№ orientation_deg
+# Расширенный заголовок thermal_all.csv с новой колонкой orientation_deg
+# ВНИМАНИЕ (контракт с hvac/data_loader.py):
+# Колонка is_exterior_wall здесь — СЫРОЙ эвристический сигнал выгрузки
+# (витраж всегда "yes", прочие стены — по bsc/геометрии). Окончательное
+# решение «наружная/внутренняя» принимает data_loader.py по совокупности
+# колонок boundary_space_count, family/type, function и геометрии соседей.
+# Не дублируйте здесь его логику — единственный источник истины там.
 THERMAL_HEADER = [
     "space_id",
     "space_number",
@@ -1207,7 +1354,8 @@ THERMAL_HEADER = [
     "thermal_value",
     "host_element_id",
     "boundary_space_count",
-    "orientation_deg",   # РќРћР’РђРЇ РљРћР›РћРќРљРђ
+    "orientation_deg",   # НОВАЯ КОЛОНКА
+    "room_boundary_count",   # авторитетный счётчик ARC-комнат у стены
 ]
 
 SPACES_HEADER = [
@@ -1216,10 +1364,10 @@ SPACES_HEADER = [
 ]
 
 def _seen_set(rows):
-    """РњРЅРѕР¶РµСЃС‚РІРѕ (link_name, element_id) РґР»СЏ СЃС‚СЂРѕРє, СѓР¶Рµ РІС‹РІРµРґРµРЅРЅС‹С…
-    С‡РµСЂРµР· СЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ РіСЂР°РЅРёС†С‹ РїРѕРјРµС‰РµРЅРёР№."""
+    """Множество (link_name, element_id) для строк, уже выведенных
+    через стандартные границы помещений."""
     seen = set()
-    for r in rows[1:]:  # Р±РµР· Р·Р°РіРѕР»РѕРІРєР°
+    for r in rows[1:]:  # без заголовка
         try:
             link = text(r[7])   # link_model
             eid = text(r[6])    # element_id
@@ -1230,10 +1378,10 @@ def _seen_set(rows):
 
 
 def _spaces_with_existing_glazing(rows):
-    """РњРЅРѕР¶РµСЃС‚РІРѕ space_id, Сѓ РєРѕС‚РѕСЂС‹С… РЈР–Р• РµСЃС‚СЊ РІРёС‚СЂР°Р¶Рё (Curtain Walls)
-    РІ СЃС‚Р°РЅРґР°СЂС‚РЅРѕР№ РІС‹РіСЂСѓР·РєРµ. Orphan-СЃР±РѕСЂС‰РёРє РЅРµ РґРѕР»Р¶РµРЅ РґРѕР±Р°РІР»СЏС‚СЊ РёРј
-    РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ РІРёС‚СЂР°Р¶Рё вЂ” Сѓ РЅРёС… СЃРІРѕС‘ РѕСЃС‚РµРєР»РµРЅРёРµ СѓР¶Рµ СѓС‡С‚РµРЅРѕ.
-    РћРїСЂРµРґРµР»СЏРµРј В«РІРёС‚СЂР°Р¶В» РїРѕ СЃРµРјРµР№СЃС‚РІСѓ: СЃРѕРґРµСЂР¶РёС‚ 'РІРёС‚СЂР°Р¶'/'curtain'/'balcony'.
+    """Множество space_id, у которых УЖЕ есть витражи (Curtain Walls)
+    в стандартной выгрузке. Orphan-сборщик не должен добавлять им
+    дополнительные витражи — у них своё остекление уже учтено.
+    Определяем «витраж» по семейству: содержит 'витраж'/'curtain'/'balcony'.
     """
     result = set()
     for r in rows[1:]:
@@ -1242,11 +1390,11 @@ def _spaces_with_existing_glazing(rows):
             family = text(r[9]).lower()    # family
             type_n = text(r[10]).lower()   # type
             combined = family + " " + type_n
-            for kw in ("РІРёС‚СЂР°Р¶", "curtain", "balcony", "chr_balcony"):
-                # РўРћР›Р¬РљРћ С„Р°СЃР°РґРЅС‹Р№ РІРёС‚СЂР°Р¶ (bsc=1) СЃС‡РёС‚Р°РµС‚СЃСЏ В«РѕСЃС‚РµРєР»РµРЅРёРµРј СѓР¶Рµ
-                # РµСЃС‚СЊВ». Р’РёС‚СЂР°Р¶ СЃ bsc>=2 вЂ” РїРµСЂРµРіРѕСЂРѕРґРєР° РјРµР¶РґСѓ РєРѕРјРЅР°С‚Р°РјРё
-                # (РЅР°РїСЂ. 602.a/602.b): РѕРЅ РќР• РґРѕР»Р¶РµРЅ Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ РїСЂРёРІСЏР·РєСѓ
-                # РЅР°СЃС‚РѕСЏС‰РµРіРѕ С„Р°СЃР°РґР° orphan-СЃР±РѕСЂС‰РёРєРѕРј.
+            for kw in ("витраж", "curtain", "balcony", "chr_balcony", "glaz", "стекл"):
+                # ТОЛЬКО фасадный витраж (bsc=1) считается «остеклением уже
+                # есть». Витраж с bsc>=2 — перегородка между комнатами
+                # (напр. 602.a/602.b): он НЕ должен блокировать привязку
+                # настоящего фасада orphan-сборщиком.
                 if kw in combined and text(r[20]).strip() == "1":
                     result.add(sid)
                     break
@@ -1264,9 +1412,9 @@ if output_table == "all":
     for spatial_element in spatial_elements:
         thermal_rows_all.extend(thermal_rows(spatial_element, False, boundary_counts))
 
-    # Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Р№ РїСЂРѕС…РѕРґ: РІРёС‚СЂР°Р¶Рё Р±РµР· Room Bounding (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ).
-    # РџРѕРјРµС‰РµРЅРёСЏ, Сѓ РєРѕС‚РѕСЂС‹С… СѓР¶Рµ РµСЃС‚СЊ СЃРІРѕРё РІРёС‚СЂР°Р¶Рё РІ СЃС‚Р°РЅРґР°СЂС‚РЅРѕР№ РІС‹РіСЂСѓР·РєРµ,
-    # РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹С… РЅРµ РїРѕР»СѓС‡Р°СЋС‚.
+    # Дополнительный проход: витражи без Room Bounding (опционально).
+    # Помещения, у которых уже есть свои витражи в стандартной выгрузке,
+    # дополнительных не получают.
     if collect_orphans:
         orphan_rows = collect_orphan_curtain_rows(
             spatial_elements,
@@ -1288,6 +1436,11 @@ if output_table == "all":
         thermal_path,
         "Thermal rows: " + str(len(thermal_rows_all) - 1),
         "Orphan curtain walls added: " + str(len(orphan_rows)),
+        "ARC-rooms walls (>=2 internal / ==1 exterior): "
+        + str(sum(1 for v in _ROOM_SHARE.values() if len(v) >= 2))
+        + " / " + str(sum(1 for v in _ROOM_SHARE.values() if len(v) == 1)),
+        "True North applied: " + str(APPLY_TRUE_NORTH)
+        + " (angle deg=" + str(round(math.degrees(true_north_rad()), 2)) + ")",
         "Source: " + source_name,
     ]
 elif output_table == "thermal" or output_table == "thermal_all":
@@ -1295,7 +1448,7 @@ elif output_table == "thermal" or output_table == "thermal_all":
     exterior_only = output_table == "thermal"
     for spatial_element in spatial_elements:
         result_rows.extend(thermal_rows(spatial_element, exterior_only, boundary_counts))
-    # Р”РѕР±Р°РІР»СЏРµРј В«orphanВ» РІРёС‚СЂР°Р¶Рё С‚РѕР»СЊРєРѕ РґР»СЏ РїРѕР»РЅРѕР№ РІС‹РіСЂСѓР·РєРё Рё РµСЃР»Рё РЅРµ fast
+    # Добавляем «orphan» витражи только для полной выгрузки и если не fast
     if output_table == "thermal_all" and collect_orphans:
         orphan_rows = collect_orphan_curtain_rows(
             spatial_elements,
