@@ -21,11 +21,12 @@ _HEADER = [
     "type", "element_level", "boundary_length_m", "space_height_m",
     "approx_area_m2", "element_area", "thickness", "function", "thermal_value",
     "host_element_id", "boundary_space_count", "orientation_deg",
+    "room_boundary_count",
 ]
 
 
 def _row(eid, flag, family, function, bsc=1, cat="Стены",
-         row_type="external_wall"):
+         row_type="external_wall", rbc=""):
     return {
         "space_id": "R1", "space_number": "101", "space_name": "ROOM",
         "space_level": "L02", "row_type": row_type, "is_exterior_wall": flag,
@@ -35,6 +36,7 @@ def _row(eid, flag, family, function, bsc=1, cat="Стены",
         "approx_area_m2": "9.0", "element_area": "9.0 м²", "thickness": "125",
         "function": function, "thermal_value": "", "host_element_id": "",
         "boundary_space_count": str(bsc), "orientation_deg": "180",
+        "room_boundary_count": "" if rbc == "" else str(rbc),
     }
 
 
@@ -150,3 +152,29 @@ def test_interior_partition_type_is_internal():
     r["type"] = "CHR_Interior Partition"
     els = _load([r])
     assert els["PART"].is_exterior is False
+
+
+def test_room_count_two_overrides_to_internal():
+    """room_boundary_count=2 (две отапл. ARC-комнаты у стены) → ВНУТРЕННЯЯ,
+    даже если тип «Наружные слои» и Dynamo пометил yes при bsc=1.
+    Это закрывает главный пробел: внутренние стены к коридорам/ядрам без
+    MEP-пространств больше не становятся ложно-наружными."""
+    els = _load([_row("RC1", "yes", "Базовая стена", "Наружные слои",
+                      bsc=1, rbc=2)])
+    assert els["RC1"].is_exterior is False
+
+
+def test_room_count_one_overrides_to_exterior():
+    """room_boundary_count=1 (одна комната у стены, другая сторона —
+    улица/балкон) → НАРУЖНАЯ, даже если тип «Внутренние слои»."""
+    els = _load([_row("RC2", "yes", "Базовая стена", "Внутренние слои",
+                      bsc=1, rbc=1)])
+    assert els["RC2"].is_exterior is True
+
+
+def test_room_count_does_not_touch_curtain():
+    """Витраж не попадает под room_boundary_count: фасадный витраж bsc=1
+    остаётся НАРУЖНЫМ, даже если формально у стены 2 комнаты."""
+    els = _load([_row("RC3", "yes", "Витраж", "curtain (orphan)",
+                      bsc=1, rbc=2)])
+    assert els["RC3"].is_exterior is True

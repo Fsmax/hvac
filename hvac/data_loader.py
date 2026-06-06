@@ -215,6 +215,15 @@ def load_thermal(path: str, spaces: List[Space] = None
         except Exception:
             bsc = 1
         orient_deg = parse_number(row.get("orientation_deg"))
+        # room_boundary_count — авторитетный двусторонний счётчик отапл.
+        # комнат у стены (из ARC-линков, Dynamo). None для старых CSV.
+        rbc = None
+        _rbc_raw = row.get("room_boundary_count")
+        if _rbc_raw is not None and str(_rbc_raw).strip() != "":
+            try:
+                rbc = int(parse_number(_rbc_raw) or 0)
+            except Exception:
+                rbc = None
         row_type = row.get("row_type", "").strip()
         eid = row.get("element_id", "").strip()
         sid = row.get("space_id", "").strip()
@@ -308,6 +317,12 @@ def load_thermal(path: str, spaces: List[Space] = None
                 # Витраж с явно внутренним типом (Interior Partition /
                 # Separator / Empty) — стеклянная перегородка, не фасад.
                 is_exterior_flag = False
+            elif (not is_curtain) and (rbc is not None) and (rbc >= 1):
+                # Авторитетный счётчик ARC-комнат (room_boundary_count): >=2
+                # отапл. комнат у стены → ВНУТРЕННЯЯ (обе стороны тёплые).
+                # Подстраховка bsc_effective>=2. Иначе (одна зона/улица/
+                # балкон) → наружная. Перекрывает ненадёжные bsc/Function.
+                is_exterior_flag = not (rbc >= 2 or bsc_effective >= 2)
             elif bsc_effective <= 1:
                 # Геометрия: элемент касается лишь ОДНОГО помещения → кандидат
                 # в «наружные». Но часто это перегородка, выходящая в шахту,
