@@ -28,6 +28,7 @@ EXPORT/
 *.pdf
 spaces.csv
 thermal_all.csv
+*_for_revit.csv
 
 # ---- OS ----
 Thumbs.db
