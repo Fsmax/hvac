@@ -613,7 +613,7 @@ class TestEquipmentImport:
 # ============================================================================
 
 def _boundary(space_id, eid, row_type="external_wall", is_exterior=True,
-              host=""):
+              host="", orientation=""):
     from hvac.models import BoundaryElement
     return BoundaryElement(
         space_id=space_id, row_type=row_type, is_exterior=is_exterior,
@@ -621,7 +621,7 @@ def _boundary(space_id, eid, row_type="external_wall", is_exterior=True,
         type_name="BL150", boundary_length_m=3.0, space_height_m=3.0,
         approx_area_m2=9.0, element_area_m2=9.0, thickness_mm=160.0,
         function="Наружные слои", host_element_id=host,
-        boundary_space_count=1)
+        boundary_space_count=1, orientation=orientation, net_area_m2=9.0)
 
 
 def _facade_project() -> HVACProject:
@@ -634,12 +634,14 @@ def _facade_project() -> HVACProject:
         p.spaces.append(sp)
         p._space_by_id[sid] = sp
     p.elements.extend([
-        _boundary("A", "W1"),                          # к шахте → INTERIOR
+        _boundary("A", "W1", orientation="N"),         # к шахте → INTERIOR
         _boundary("A", "D1", row_type="opening", host="W1"),  # дверь в W1
-        _boundary("B", "W2"),                          # настоящий фасад
-        _boundary("A", "W3"),                          # NOSPACE — не трогаем
+        _boundary("B", "W2", orientation="S"),         # настоящий фасад
+        _boundary("A", "W3", orientation="E"),         # NOSPACE — не трогаем
         _boundary("A", "W4", is_exterior=False),       # уже внутренняя
     ])
+    # Ложные фасады W1 (N) + W3 (E) дали FIRE HALL признак «угловое»
+    p.spaces[0].is_corner = True
     return p
 
 
@@ -706,6 +708,8 @@ class TestFacadeCheck:
         assert by_eid[("A", "D1")].is_exterior is False
         assert by_eid[("B", "W2")].is_exterior is True     # фасад не тронут
         assert by_eid[("A", "W3")].is_exterior is True     # NOSPACE не тронут
+        # После снятия W1 у A осталась одна ориентация (E) — «угловое» снято
+        assert p.spaces[0].is_corner is False
 
     def test_plan_empty_project(self):
         p = HVACProject()

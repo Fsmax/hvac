@@ -1350,11 +1350,31 @@ def apply_facade_check(project: "HVACProject", plan: FacadeCheckPlan) -> int:
     """Переводит ложные «фасады» во внутренние и пересчитывает проект.
 
     Использует set_elements_exterior — изменения сохраняются в проект
-    как element_overrides и переживают сохранение/открытие.
+    как element_overrides и переживают сохранение/открытие. У затронутых
+    помещений заново выводится признак «угловое»: ложные фасады давали
+    ≥2 ориентации наружных стен почти каждому помещению. Флаг только
+    снимается (снятие стен не может сделать помещение угловым).
     """
     n = project.set_elements_exterior(plan.pairs, False)
-    if n:
-        project.recalculate()
+    if not n:
+        return 0
+    affected = {sid for sid, _eid in plan.pairs}
+    # Критерии зеркалят project._mark_corner_rooms()
+    ext_by_space: Dict[str, list] = {}
+    for e in project.elements:
+        if (e.space_id in affected and e.row_type == "external_wall"
+                and e.is_exterior and e.net_area_m2 > 1.0):
+            ext_by_space.setdefault(e.space_id, []).append(e)
+    for sp in project.spaces:
+        if sp.space_id not in affected or not sp.is_corner:
+            continue
+        ext = ext_by_space.get(sp.space_id, [])
+        oris = {e.orientation for e in ext if e.orientation}
+        still_corner = (len(oris) >= 2
+                        or (len(ext) >= 2 and not oris))
+        if not still_corner:
+            sp.is_corner = False
+    project.recalculate()
     return n
 
 
