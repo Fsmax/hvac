@@ -1785,6 +1785,11 @@ UZ: Dict[str, str] = {
                                         "radiatorlar, fankoyl, VRF, nasoslar, baklar, shovqin pasaytirgich, "
                                         "mis, issiq pol quvurlari. GOST 21.110-2013 bo‘limlari bo‘yicha guruhlanadi."),
     "export.fmt.spec.name":          "Spetsifikatsiya_{name}.xlsx",
+    "export.fmt.passport.title":     "Shamollatish tizimlari pasportlari (DOCX)",
+    "export.fmt.passport.desc":      ("Har bir shamollatish qurilmasiga pasport: hisobiy sarflar, "
+                                        "kalorifer/sovutgich, ventilyator va tarmoq, xizmat "
+                                        "ko‘rsatiladigan xonalar. «Fakt» ustuni — sozlovchi uchun."),
+    "export.fmt.passport.name":      "Pasportlar_shamollatish_{name}.docx",
     "export.fmt.gas.title":          "PDF: gaz hisobi (TSh uchun xat)",
     "export.fmt.gas.desc":           ("Loyiha gaz qozonlari quvvatidan kelib chiqib gazga ehtiyoj "
                                         "hisobi: soatlik / sutkalik / oylik / yillik sarf."),

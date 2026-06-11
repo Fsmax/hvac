@@ -80,6 +80,11 @@ def _equipment_xlsx(project: HVACProject, path: str) -> None:
     export_equipment_summary(project, path)
 
 
+def _passports(project: HVACProject, path: str) -> None:
+    from hvac.io_passport import export_ventilation_passports
+    export_ventilation_passports(project, path)
+
+
 def _specification(project: HVACProject, path: str) -> None:
     from hvac.specification import build_specification, export_specification_xlsx
     spec = build_specification(project)
@@ -155,6 +160,10 @@ FORMATS = [
     ExportFormat(
         "spec_gost", "export.fmt.spec.title", "export.fmt.spec.desc",
         ".xlsx", "export.fmt.spec.name", _specification,
+    ),
+    ExportFormat(
+        "passports", "export.fmt.passport.title", "export.fmt.passport.desc",
+        ".docx", "export.fmt.passport.name", _passports,
     ),
     ExportFormat(
         "gas_load", "export.fmt.gas.title", "export.fmt.gas.desc",
