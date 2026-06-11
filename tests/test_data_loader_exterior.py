@@ -224,6 +224,16 @@ def test_shower_cabin_curtain_is_internal():
     assert els["SH1"].is_exterior is False
 
 
+def test_core_curtain_is_internal():
+    """Витраж «Core Curtain Wall» — остекление ядра здания (лифтовые
+    холлы, пожарные зоны), не фасад. Кейс FIRE HALL: 16.7 м² ложного
+    «фасада» на каждый холл."""
+    r = _row("CO1", "yes", "Витраж", "curtain (orphan)", bsc=1)
+    r["type"] = "CHR_Core_Curtain Wall"
+    els = _load([r])
+    assert els["CO1"].is_exterior is False
+
+
 def test_meters_encoded_thickness_not_thin():
     """Толщина, случайно выгруженная в метрах (0.25), не считается
     «тонкой» — нижняя граница правдоподобности 5 мм."""

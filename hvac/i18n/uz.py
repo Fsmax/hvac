@@ -338,6 +338,22 @@ UZ: Dict[str, str] = {
     "panel.data.revit.equip.val.flow": " · {v} m³/soat donasiga",
     "panel.data.revit.equip.val.power": " · {v} Vt donasiga",
     "panel.data.revit.equip.done": "Revit'dan uskunalar: yangilangan xonalar — {spaces}",
+    "panel.data.revit.act_facades": "Fasadlarni model bo‘yicha tekshirish",
+    "panel.data.status.revit_facades": "Revit'da fasadlarni nur bilan tekshirish…",
+    "panel.data.revit.fac.none": "Loyihada tekshirish uchun tashqi devorlar yo‘q.",
+    "panel.data.revit.fac.all_ok": ("Barcha tashqi devorlar fasad ekani tasdiqlandi: {n} ta "
+                                  "(geometriyasiz o‘tkazildi: {skip})."),
+    "panel.data.revit.fac.summary": ("Nur bilan tekshirilgan devorlar: {checked}\n"
+                                  "Fasad ekani tasdiqlandi: {facades}\n"
+                                  "Ichkiga o‘tkazildi: {rooms} ta xonada {fixed} ta element\n"
+                                  "Geometriyasiz (o‘tkazildi): {skip}\n\n"
+                                  "Issiqlik yo‘qotishlari qayta hisoblandi; o‘zgarishlar "
+                                  "loyihada qo‘lda tuzatish sifatida saqlanadi."),
+    "panel.data.revit.fac.h_fixed": "— Ichkiga o‘tkazildi —",
+    "panel.data.revit.fac.line": ("  {number} {name}: {family} {type} {area} m² — "
+                                  "devor ortida {hit} ({dist} m)"),
+    "panel.data.revit.fac.done": ("Fasadlar tekshirildi: {rooms} ta xonada {fixed} ta "
+                                  "element ichki bo‘ldi"),
     "panel.data.summary_loaded": ("✓ Yuklandi: {sp} ta xona · "
                                    "{el} ta devor · {co} ta tip konstruksiya"),
     "panel.data.actions.title": "Loyiha",

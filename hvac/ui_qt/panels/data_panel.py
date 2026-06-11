@@ -411,6 +411,8 @@ class DataPanel(QWidget):
         self._act_diff.triggered.connect(self._revit_diff)
         self._act_equip = menu.addAction("")
         self._act_equip.triggered.connect(self._revit_equip)
+        self._act_facades = menu.addAction("")
+        self._act_facades.triggered.connect(self._revit_facades)
         menu.addSeparator()
         self._act_color_heat = menu.addAction("")
         self._act_color_heat.triggered.connect(
@@ -428,6 +430,7 @@ class DataPanel(QWidget):
         def _tr_menu():
             self._act_diff.setText(_t("panel.data.revit.act_diff"))
             self._act_equip.setText(_t("panel.data.revit.act_equip"))
+            self._act_facades.setText(_t("panel.data.revit.act_facades"))
             self._act_color_heat.setText(_t("panel.data.revit.act_color_heat"))
             self._act_color_cool.setText(_t("panel.data.revit.act_color_cool"))
             self._act_color_ach.setText(_t("panel.data.revit.act_color_ach"))
@@ -892,6 +895,57 @@ class DataPanel(QWidget):
         m.exec()
         self.bridge.statusMessage.emit(
             _t("panel.data.revit.equip.done").format(spaces=n), 8000)
+
+    def _revit_facades(self) -> None:
+        """Лучевая проверка «наружных» стен по живой модели Revit."""
+        if not self.project.spaces:
+            QMessageBox.information(
+                self, _t("panel.data.revit.act_facades"),
+                _t("panel.data.revit.diff.no_project"))
+            return
+        if not self._revit_ready():
+            return
+        from hvac.revit_link import plan_facade_check
+        # Проба геометрии — в фоне; правка проекта — в _apply (главный
+        # поток: recalculate и подписчики elements_changed трогают UI).
+        self._run_revit_task(
+            lambda: plan_facade_check(self.project),
+            self._apply_revit_facades, "panel.data.status.revit_facades")
+
+    def _apply_revit_facades(self, plan) -> None:
+        from hvac.revit_link import apply_facade_check
+        if plan.checked == 0:
+            QMessageBox.information(
+                self, _t("panel.data.revit.act_facades"),
+                _t("panel.data.revit.fac.none"))
+            return
+        if not plan.has_updates:
+            QMessageBox.information(
+                self, _t("panel.data.revit.act_facades"),
+                _t("panel.data.revit.fac.all_ok").format(
+                    n=plan.facades, skip=plan.no_geometry))
+            return
+        n = apply_facade_check(self.project, plan)
+        self.bridge.dirtyChanged.emit(True)
+        rooms = len({p[0] for p in plan.pairs})
+        summary = _t("panel.data.revit.fac.summary").format(
+            checked=plan.checked, facades=plan.facades,
+            fixed=n, rooms=rooms, skip=plan.no_geometry)
+        details: list[str] = [_t("panel.data.revit.fac.h_fixed")]
+        for r in plan.to_interior[:300]:
+            details.append(_t("panel.data.revit.fac.line").format(
+                number=r["number"], name=r["name"], family=r["family"],
+                type=r["type"], area=round(r["area_m2"], 1),
+                hit=r["hit"] or "—", dist=r["dist_m"]))
+        m = QMessageBox(self)
+        m.setIcon(QMessageBox.Information)
+        m.setWindowTitle(_t("panel.data.revit.act_facades"))
+        m.setText(summary)
+        m.setDetailedText("\n".join(details))
+        m.exec()
+        self.bridge.statusMessage.emit(
+            _t("panel.data.revit.fac.done").format(fixed=n, rooms=rooms),
+            8000)
 
     def _revit_color(self, metric: str) -> None:
         """Раскраска помещений активного вида Revit по метрике."""

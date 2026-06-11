@@ -333,6 +333,23 @@ RU: Dict[str, str] = {
     "panel.data.revit.equip.val.flow": " · {v} м³/ч на шт.",
     "panel.data.revit.equip.val.power": " · {v} Вт на шт.",
     "panel.data.revit.equip.done": "Оборудование из Revit: обновлено помещений — {spaces}",
+    "panel.data.revit.act_facades": "Проверить фасады по модели",
+    "panel.data.status.revit_facades": "Лучевая проверка фасадов в Revit…",
+    "panel.data.revit.fac.none": "В проекте нет наружных стен для проверки.",
+    "panel.data.revit.fac.all_ok": ("Все наружные стены подтверждены фасадами: {n} шт. "
+                                  "(без геометрии, пропущено: {skip})."),
+    "panel.data.revit.fac.summary": ("Проверено стен лучом: {checked}\n"
+                                  "Подтверждены фасадами: {facades}\n"
+                                  "Переведено во внутренние: {fixed} элементов "
+                                  "в {rooms} помещениях\n"
+                                  "Без геометрии (пропущено): {skip}\n\n"
+                                  "Теплопотери пересчитаны; изменения сохранятся "
+                                  "в проекте как ручные правки."),
+    "panel.data.revit.fac.h_fixed": "— Переведены во внутренние —",
+    "panel.data.revit.fac.line": ("  {number} {name}: {family} {type} {area} м² — "
+                                  "за стеной {hit} ({dist} м)"),
+    "panel.data.revit.fac.done": ("Фасады проверены: {fixed} элементов в {rooms} "
+                                  "помещениях стали внутренними"),
     "panel.data.summary_loaded": ("✓ Загружено: {sp} помещений · "
                                    "{el} ограждений · {co} типов конструкций"),
     "panel.data.actions.title": "Проект",

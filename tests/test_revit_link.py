@@ -216,7 +216,7 @@ _EXPORT_TEMPLATES = ("EXPORT_CS_SPACES", "EXPORT_CS_THERMAL",
                      "EXPORT_CS_ORPHANS")
 _ALL_TEMPLATES = _EXPORT_TEMPLATES + (
     "WRITEBACK_CS", "SNAPSHOT_CS", "COLOR_CS", "CLEAR_COLOR_CS",
-    "EQUIPMENT_CS")
+    "EQUIPMENT_CS", "FACADE_PROBE_CS")
 
 
 class TestCSharpTemplates:
@@ -606,6 +606,117 @@ class TestEquipmentImport:
         plan = revit_link.plan_equipment_import(_equip_project(), rows=[])
         assert not plan.has_updates
         assert revit_link.apply_equipment_import(_equip_project(), plan) == 0
+
+
+# ============================================================================
+# Лучевая проверка фасадов
+# ============================================================================
+
+def _boundary(space_id, eid, row_type="external_wall", is_exterior=True,
+              host="", orientation=""):
+    from hvac.models import BoundaryElement
+    return BoundaryElement(
+        space_id=space_id, row_type=row_type, is_exterior=is_exterior,
+        element_id=eid, category="Стены", family="Базовая стена",
+        type_name="BL150", boundary_length_m=3.0, space_height_m=3.0,
+        approx_area_m2=9.0, element_area_m2=9.0, thickness_mm=160.0,
+        function="Наружные слои", host_element_id=host,
+        boundary_space_count=1, orientation=orientation, net_area_m2=9.0)
+
+
+def _facade_project() -> HVACProject:
+    p = HVACProject()
+    p.params.apply_city("Ташкент")
+    for sid, num, name in (("A", "HTL-1128", "FIRE HALL"),
+                           ("B", "HTL-101", "ROOM")):
+        sp = Space(space_id=sid, number=num, name=name, level="L1",
+                   area_m2=10, volume_m3=30, height_m=3)
+        p.spaces.append(sp)
+        p._space_by_id[sid] = sp
+    p.elements.extend([
+        _boundary("A", "W1", orientation="N"),         # к шахте → INTERIOR
+        _boundary("A", "D1", row_type="opening", host="W1"),  # дверь в W1
+        _boundary("B", "W2", orientation="S"),         # настоящий фасад
+        _boundary("A", "W3", orientation="E"),         # NOSPACE — не трогаем
+        _boundary("A", "W4", is_exterior=False),       # уже внутренняя
+    ])
+    # Ложные фасады W1 (N) + W3 (E) дали FIRE HALL признак «угловое»
+    p.spaces[0].is_corner = True
+    return p
+
+
+_PROBE_DATA = ("W1\tINTERIOR\tHTL-1129\t3.0\n"
+               "W2\tFACADE\t\t\n"
+               "W3\tNOSPACE\t\t\n")
+
+
+class TestFacadeCheck:
+    def test_probe_sends_ids_file_and_parses(self, monkeypatch, tmp_path):
+        captured = {}
+
+        def fake_send(code, parameters=None, transaction_mode="auto",
+                      timeout=120.0):
+            assert code is revit_link.FACADE_PROBE_CS
+            assert transaction_mode == "none"      # проба read-only
+            with open(parameters[0], encoding="utf-8") as f:
+                captured["ids"] = f.read().splitlines()
+            captured["path"] = parameters[0]
+            return {"walls": 3, "facade": 1, "interior": 1, "nospace": 1,
+                    "notfound": 0, "notwall": 0, "data": _PROBE_DATA}
+
+        monkeypatch.setattr(revit_link, "send_code", fake_send)
+        out = revit_link.probe_facades(["W1", "W2", "W3"])
+        assert captured["ids"] == ["W1", "W2", "W3"]
+        # Временный файл со списком id удалён
+        import os
+        assert not os.path.exists(captured["path"])
+        assert out["W1"] == {"verdict": "INTERIOR", "hit": "HTL-1129",
+                             "dist_m": 3.0}
+        assert out["W2"]["verdict"] == "FACADE"
+        assert out["W3"]["verdict"] == "NOSPACE"
+
+    def test_plan_classifies_and_inherits_openings(self):
+        verdicts = {
+            "W1": {"verdict": "INTERIOR", "hit": "HTL-1129", "dist_m": 3.0},
+            "W2": {"verdict": "FACADE", "hit": "", "dist_m": 0.0},
+            "W3": {"verdict": "NOSPACE", "hit": "", "dist_m": 0.0},
+        }
+        plan = revit_link.plan_facade_check(_facade_project(),
+                                            verdicts=verdicts)
+        # Кандидаты — только наружные стены (W1, W2, W3); W4 внутренняя,
+        # D1 — проём (наследует вердикт хозяина W1)
+        assert plan.checked == 3
+        assert plan.facades == 1
+        assert plan.no_geometry == 1
+        assert sorted(plan.pairs) == [("A", "D1"), ("A", "W1")]
+        assert plan.has_updates
+        assert plan.to_interior[0]["hit"] == "HTL-1129"
+
+    def test_apply_flips_and_recalculates(self):
+        p = _facade_project()
+        verdicts = {
+            "W1": {"verdict": "INTERIOR", "hit": "HTL-1129", "dist_m": 3.0},
+            "W2": {"verdict": "FACADE", "hit": "", "dist_m": 0.0},
+            "W3": {"verdict": "NOSPACE", "hit": "", "dist_m": 0.0},
+        }
+        plan = revit_link.plan_facade_check(p, verdicts=verdicts)
+        n = revit_link.apply_facade_check(p, plan)
+        assert n == 2
+        by_eid = {(e.space_id, e.element_id): e for e in p.elements}
+        assert by_eid[("A", "W1")].is_exterior is False
+        assert by_eid[("A", "W1")].user_modified is True   # в element_overrides
+        assert by_eid[("A", "D1")].is_exterior is False
+        assert by_eid[("B", "W2")].is_exterior is True     # фасад не тронут
+        assert by_eid[("A", "W3")].is_exterior is True     # NOSPACE не тронут
+        # После снятия W1 у A осталась одна ориентация (E) — «угловое» снято
+        assert p.spaces[0].is_corner is False
+
+    def test_plan_empty_project(self):
+        p = HVACProject()
+        p.params.apply_city("Ташкент")
+        plan = revit_link.plan_facade_check(p, verdicts={})
+        assert plan.checked == 0
+        assert not plan.has_updates
 
 
 class TestRoundTripThroughLoader:

@@ -1174,6 +1174,210 @@ def apply_equipment_import(project: "HVACProject",
     return n
 
 
+# ============================================================================
+# Лучевая проверка фасадов по живой модели (read-only)
+# ============================================================================
+# Эвристики выгрузки (bsc/rbc/толщина/имя) не видят, ЧТО за стеной:
+# стена к лифтовой шахте и настоящий фасад выглядят одинаково (bsc=1).
+# Здесь — прямая геометрия: от середины стены лучом наружу до 8 м через
+# Document.GetSpaceAtPoint. Нашлось отапливаемое пространство (балконы,
+# шахты и террасы отфильтрованы) — стена внутренняя, за ней не улица.
+# Список element_id передаётся ФАЙЛОМ (запрос ограничен 8 КБ), ответ —
+# TSV без ограничений. Элемент ищется в хост-модели и во всех связях.
+
+FACADE_PROBE_CS = r'''
+string path=(string)parameters[0];
+var CI=System.Globalization.CultureInfo.InvariantCulture;
+string S(Element e,BuiltInParameter b){var p=e.get_Parameter(b);if(p==null)return "";if(p.StorageType==StorageType.String)return p.AsString()??"";return p.AsValueString()??"";}
+bool Unc(Element sp){
+string nu=(S(sp,BuiltInParameter.ROOM_NUMBER)??"").Trim().ToUpperInvariant();
+foreach(var px in new[]{"OFC-","BAL-","TER-","SHAFT","ШАХТ"})if(nu.StartsWith(px))return true;
+string full=(nu+" "+(S(sp,BuiltInParameter.ROOM_NAME)??"")).ToLowerInvariant();
+foreach(var kw in new[]{"балкон","терраса","лоджия","balcony","terrace","loggia","shaft","open air"})if(full.Contains(kw))return true;
+return false;}
+Autodesk.Revit.DB.Mechanical.Space Cond(XYZ p){
+Autodesk.Revit.DB.Mechanical.Space s=null;
+try{s=document.GetSpaceAtPoint(p);}catch{}
+if(s==null)return null;
+return Unc(s)?null:s;}
+var docs=new List<object[]>();
+docs.Add(new object[]{document,null});
+foreach(Element e in new FilteredElementCollector(document).OfClass(typeof(RevitLinkInstance))){
+var li=e as RevitLinkInstance;Document ld=null;try{ld=li.GetLinkDocument();}catch{}
+if(ld==null)continue;
+Transform tr=null;try{tr=li.GetTotalTransform();}catch{}
+docs.Add(new object[]{ld,tr});}
+var sb=new System.Text.StringBuilder();
+int nf=0,nw=0,fa=0,it=0,ns=0;
+foreach(var line in System.IO.File.ReadAllLines(path)){
+string ids=line.Trim();if(ids=="")continue;
+long id;if(!long.TryParse(ids,System.Globalization.NumberStyles.Any,CI,out id))continue;
+Wall w=null;Transform tr=null;bool found=false;
+foreach(var o in docs){
+Element el=null;try{el=((Document)o[0]).GetElement(new ElementId(id));}catch{}
+if(el==null)continue;
+found=true;
+var ww=el as Wall;if(ww!=null){w=ww;tr=(Transform)o[1];break;}}
+if(w==null){if(found){nw++;sb.Append(ids).Append("\tNOTWALL\t\t\n");}else{nf++;sb.Append(ids).Append("\tNOTFOUND\t\t\n");}continue;}
+XYZ mid=null,n=null;
+try{var c=(w.Location as LocationCurve).Curve;
+var a=c.GetEndPoint(0);var b=c.GetEndPoint(1);
+mid=new XYZ((a.X+b.X)*0.5,(a.Y+b.Y)*0.5,(a.Z+b.Z)*0.5+4.0);
+n=w.Orientation;
+if(tr!=null){mid=tr.OfPoint(mid);n=tr.OfVector(n);}}catch{}
+if(mid==null||n==null){nw++;sb.Append(ids).Append("\tNOTWALL\t\t\n");continue;}
+var sA=Cond(new XYZ(mid.X+n.X,mid.Y+n.Y,mid.Z));
+var sB=Cond(new XYZ(mid.X-n.X,mid.Y-n.Y,mid.Z));
+if(sA!=null&&sB!=null){it++;sb.Append(ids).Append("\tINTERIOR\t").Append(S(sB,BuiltInParameter.ROOM_NUMBER)).Append("\t0.3\n");continue;}
+if(sA==null&&sB==null){ns++;sb.Append(ids).Append("\tNOSPACE\t\t\n");continue;}
+double sg=sA!=null?-1.0:1.0;
+string hit="",hd="";
+foreach(var m in new[]{1.0,1.5,2.0,3.0,4.0,6.0,8.0}){
+double ft=m*3.28084;
+var s=Cond(new XYZ(mid.X+sg*ft*n.X,mid.Y+sg*ft*n.Y,mid.Z));
+if(s!=null){hit=S(s,BuiltInParameter.ROOM_NUMBER);hd=m.ToString("0.0",CI);break;}}
+if(hit==""){fa++;sb.Append(ids).Append("\tFACADE\t\t\n");}
+else{it++;sb.Append(ids).Append("\tINTERIOR\t").Append(hit).Append('\t').Append(hd).Append('\n');}}
+return new{walls=fa+it+ns,facade=fa,interior=it,nospace=ns,notfound=nf,notwall=nw,data=sb.ToString()};
+'''
+
+
+def probe_facades(element_ids, timeout: float = 600.0) -> Dict[str, dict]:
+    """Лучевая проверка стен по id: {id: {verdict, hit, dist_m}}.
+
+    verdict: FACADE (за стеной пусто до 8 м — улица), INTERIOR (нашлось
+    отапливаемое пространство), NOSPACE (стена не у пространств),
+    NOTFOUND / NOTWALL (нет в модели / не стена).
+    """
+    ids = [str(i).strip() for i in element_ids if str(i).strip()]
+    fd, path = tempfile.mkstemp(suffix=".txt", prefix="hvac_probe_")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+            f.write("\n".join(ids))
+        res = send_code(FACADE_PROBE_CS, parameters=[path],
+                        transaction_mode="none", timeout=timeout)
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    if not isinstance(res, dict) or "data" not in res:
+        raise RuntimeError(f"Неожиданный ответ Revit: {res!r}")
+    out: Dict[str, dict] = {}
+    for line in str(res["data"]).splitlines():
+        parts = line.split("\t")
+        if len(parts) < 4:
+            continue
+        try:
+            dist = float(parts[3]) if parts[3] else 0.0
+        except ValueError:
+            dist = 0.0
+        out[parts[0]] = {"verdict": parts[1], "hit": parts[2],
+                         "dist_m": dist}
+    return out
+
+
+@dataclass
+class FacadeCheckPlan:
+    """Результат лучевой проверки до записи в проект."""
+    checked: int = 0          # уникальных стен отправлено на проверку
+    facades: int = 0          # подтверждены наружными
+    no_geometry: int = 0      # NOSPACE / NOTFOUND / NOTWALL — не трогаем
+    pairs: List[tuple] = field(default_factory=list)   # (space_id, element_id)
+    to_interior: List[dict] = field(default_factory=list)  # для отчёта
+
+    @property
+    def has_updates(self) -> bool:
+        return bool(self.pairs)
+
+
+def plan_facade_check(project: "HVACProject",
+                      verdicts: Optional[Dict[str, dict]] = None,
+                      timeout: float = 600.0) -> FacadeCheckPlan:
+    """Проверяет все «наружные» стены проекта лучом по живой модели.
+
+    Ничего не меняет — применение отдельно (apply_facade_check, главный
+    поток). Стена с вердиктом INTERIOR переводится во внутренние вместе
+    со своими проёмами (host_element_id).
+    """
+    wall_ids: List[str] = []
+    seen: set = set()
+    for e in project.elements:
+        if (e.row_type == "external_wall" and e.is_exterior
+                and e.element_id and e.element_id not in seen):
+            seen.add(e.element_id)
+            wall_ids.append(e.element_id)
+    plan = FacadeCheckPlan(checked=len(wall_ids))
+    if not wall_ids:
+        return plan
+    if verdicts is None:
+        verdicts = probe_facades(wall_ids, timeout=timeout)
+    interior: Dict[str, dict] = {}
+    for eid in wall_ids:
+        v = verdicts.get(eid)
+        if v is None:
+            plan.no_geometry += 1
+        elif v["verdict"] == "INTERIOR":
+            interior[eid] = v
+        elif v["verdict"] == "FACADE":
+            plan.facades += 1
+        else:
+            plan.no_geometry += 1
+    if not interior:
+        return plan
+    sid_to_sp = {sp.space_id: sp for sp in project.spaces}
+    for e in project.elements:
+        if not e.is_exterior or e.row_type not in ("external_wall",
+                                                   "opening"):
+            continue
+        key = (e.element_id if e.row_type == "external_wall"
+               else e.host_element_id)
+        v = interior.get(key)
+        if v is None:
+            continue
+        plan.pairs.append((e.space_id, e.element_id))
+        sp = sid_to_sp.get(e.space_id)
+        plan.to_interior.append({
+            "number": sp.number if sp else "", "name": sp.name if sp else "",
+            "family": e.family, "type": e.type_name,
+            "area_m2": e.approx_area_m2 or e.element_area_m2 or 0.0,
+            "hit": v["hit"], "dist_m": v["dist_m"]})
+    plan.to_interior.sort(key=lambda r: r["number"])
+    return plan
+
+
+def apply_facade_check(project: "HVACProject", plan: FacadeCheckPlan) -> int:
+    """Переводит ложные «фасады» во внутренние и пересчитывает проект.
+
+    Использует set_elements_exterior — изменения сохраняются в проект
+    как element_overrides и переживают сохранение/открытие. У затронутых
+    помещений заново выводится признак «угловое»: ложные фасады давали
+    ≥2 ориентации наружных стен почти каждому помещению. Флаг только
+    снимается (снятие стен не может сделать помещение угловым).
+    """
+    n = project.set_elements_exterior(plan.pairs, False)
+    if not n:
+        return 0
+    affected = {sid for sid, _eid in plan.pairs}
+    # Критерии зеркалят project._mark_corner_rooms()
+    ext_by_space: Dict[str, list] = {}
+    for e in project.elements:
+        if (e.space_id in affected and e.row_type == "external_wall"
+                and e.is_exterior and e.net_area_m2 > 1.0):
+            ext_by_space.setdefault(e.space_id, []).append(e)
+    for sp in project.spaces:
+        if sp.space_id not in affected or not sp.is_corner:
+            continue
+        ext = ext_by_space.get(sp.space_id, [])
+        oris = {e.orientation for e in ext if e.orientation}
+        still_corner = (len(oris) >= 2
+                        or (len(ext) >= 2 and not oris))
+        if not still_corner:
+            sp.is_corner = False
+    project.recalculate()
+    return n
+
+
 def check_revit_params(timeout: float = 60.0) -> dict:
     """Какие целевые параметры уже созданы на Spaces/Rooms модели."""
     code = r'''
