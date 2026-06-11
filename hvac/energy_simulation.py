@@ -45,6 +45,7 @@ class _SpaceParams(TypedDict):
     u_gain: float
     q_internal: float
     schedule: str
+    solar_aperture: Dict[str, float]   # {сектор: м²·SHGC}, пусто = нет солнца
 
 
 # ============================================================================
@@ -186,6 +187,52 @@ def synth_outdoor_temperature(
 
 
 # ============================================================================
+# Солнечные теплопоступления по фасадам (только с EPW-радиацией)
+# ============================================================================
+
+# Коэффициент использования солнечных теплопоступлений зимой (часть солнца
+# перегревает помещение и не замещает отопление) — как у внутренних
+# тепловыделений в q_h_raw ниже.
+SOLAR_HEATING_UTILIZATION = 0.7
+
+
+def _space_solar_aperture(project: "HVACProject", sp: "Space") -> Dict[str, float]:
+    """Эффективная апертура остекления помещения по секторам, м²·SHGC.
+
+    Повторяет логику выбора остекления из engine/sp50.heat_gain:
+    реальный витраж из Revit (конструкция с SHGC>0) либо WWR-оценка
+    по наружным стенам, если реального стекла в помещении нет.
+    Затенение и аккумуляция учтены множителями проекта (как в пике).
+    """
+    from hvac.engine.sp50 import (
+        SOLAR_CLF, _room_has_real_glazing, _wwr_split)
+    from hvac.parsers import effective_orientation
+
+    p = project.params
+    tn_offset = getattr(p, "true_north_offset_deg", 0.0)
+    elems = [e for e in project.elements_for(sp.space_id) if e.is_exterior]
+    has_real = _room_has_real_glazing(elems, project.constructions)
+    scale = p.solar_shading_factor * SOLAR_CLF
+
+    aperture: Dict[str, float] = {}
+    for el in elems:
+        if el.u_value <= 0 or el.net_area_m2 <= 0:
+            continue
+        con = project.constructions.get(el.construction_key)
+        orient = effective_orientation(
+            el.orientation, el.orientation_deg, tn_offset) or "S"
+        if con is not None and con.shgc > 0:
+            aperture[orient] = (aperture.get(orient, 0.0)
+                                + con.shgc * el.net_area_m2 * scale)
+            continue
+        _wall, window_area = _wwr_split(el, p, has_real)
+        if window_area > 0:
+            aperture[orient] = (aperture.get(orient, 0.0)
+                                + p.wwr_shgc * window_area * scale)
+    return aperture
+
+
+# ============================================================================
 # Результат симуляции
 # ============================================================================
 
@@ -224,6 +271,11 @@ class EnergySimulationResult:
     # Источник наружной температуры: "" — синтетический профиль,
     # иначе город/файл EPW (см. hvac/weather.py).
     weather_source: str = ""
+
+    # Солнце по фасадам учтено явно (EPW содержит радиацию и координаты).
+    solar_from_epw: bool = False
+    # Годовые солнечные теплопоступления через остекление, кВт·ч
+    e_solar_kwh: float = 0.0
 
 
 # ============================================================================
@@ -266,6 +318,15 @@ def simulate_year(
     )
     t_out_series = weather.t_dry_bulb_c if weather else None
 
+    # Явный почасовой учёт солнца: только когда EPW содержит радиацию.
+    # Облучённость 8 фасадов считается один раз на весь прогон.
+    facade_irr: Dict[str, List[float]] = {}
+    if weather is not None and weather.has_solar:
+        from hvac.solar import facade_irradiance_year
+        facade_irr = facade_irradiance_year(weather)
+        result.solar_from_epw = True
+    use_solar = bool(facade_irr)
+
     # Расчётные удельные значения для каждого помещения (для линейного
     # масштабирования с T_out)
     space_params: List[_SpaceParams] = []
@@ -279,9 +340,22 @@ def simulate_year(
         # У нас sensible + latent. Упрощённо считаем sensible линейной по ΔT,
         # а latent — постоянной (от внутренних источников + влажности).
         dt_summer = max(p.t_out_cooling - sp.t_in_cool, 1e-3)
-        u_gain_w_k = sp.heat_gain_sensible_w / dt_summer
-        q_internal_const = (sp.heat_gain_w - sp.heat_gain_sensible_w
-                             - u_gain_w_k * dt_summer) + (
+        sensible_design = sp.heat_gain_sensible_w
+        aperture: Dict[str, float] = {}
+        if use_solar:
+            aperture = _space_solar_aperture(project, sp)
+            if aperture:
+                # Проектное солнце уже сидит в heat_gain_sensible_w —
+                # убираем его из линейной части, иначе двойной учёт.
+                q_solar_design = (sp.heat_gain_breakdown_sensible.get(
+                    "Солнечная радиация", 0.0) * p.safety_margin_cooling)
+                sensible_design = max(0.0, sensible_design - q_solar_design)
+        u_gain_w_k = sensible_design / dt_summer
+        # Вычитается полная расчётная явная нагрузка (исторически было
+        # u_gain·Δt, что ей и равнялось): при явном солнце u_gain уменьшен,
+        # и q_internal не должен «впитать» проектное солнце константой.
+        q_internal_const = (sp.heat_gain_w
+                             - 2.0 * sp.heat_gain_sensible_w) + (
             sp.area_m2 * sp.lighting_w_m2 * 0.5    # средняя освещ.
             + sp.area_m2 * sp.equipment_w_m2 * 0.5
             + sp.occupancy_people * 100.0          # 100 Вт/чел
@@ -292,6 +366,7 @@ def simulate_year(
             "u_gain": u_gain_w_k,
             "q_internal": q_internal_const,
             "schedule": schedule_for_room_type(sp.room_type),
+            "solar_aperture": aperture,
         })
 
     # Постоянная времени → коэф. сглаживания (RC-фильтр)
@@ -306,6 +381,7 @@ def simulate_year(
 
     e_heat_total = 0.0
     e_cool_total = 0.0
+    e_solar_total = 0.0
     q_peak_h = 0.0
     q_peak_c = 0.0
     hour_peak_h = 0
@@ -333,13 +409,23 @@ def simulate_year(
             t_in_cool = sp.t_in_cool + (
                 cooling_setpoint_offset if occ < 0.3 else 0.0)
 
+            # Солнце через остекление в этот час (Вт)
+            q_solar = 0.0
+            for sector, ap in params["solar_aperture"].items():
+                irr = facade_irr.get(sector)
+                if irr is not None:
+                    q_solar += ap * irr[h]
+            e_solar_total += q_solar
+
             # Базовая «инстантная» нагрузка
             q_h_raw = max(0.0,
                            params["u_loss"] * (t_in_heat - t_out)
-                           - params["q_internal"] * occ * 0.7)
+                           - (params["q_internal"] * occ * 0.7
+                              + q_solar * SOLAR_HEATING_UTILIZATION))
             q_c_raw = max(0.0,
                            params["u_gain"] * (t_out - t_in_cool)
-                           + params["q_internal"] * occ)
+                           + params["q_internal"] * occ
+                           + q_solar * p.safety_margin_cooling)
 
             # Сглаживание через тепловую массу (RC-фильтр)
             q_heat_smooth[i] += alpha * (q_h_raw - q_heat_smooth[i])
@@ -375,6 +461,7 @@ def simulate_year(
 
     result.e_heat_kwh = e_heat_total / 1000.0
     result.e_cool_kwh = e_cool_total / 1000.0
+    result.e_solar_kwh = e_solar_total / 1000.0
     result.q_peak_heat_w = q_peak_h
     result.q_peak_cool_w = q_peak_c
     result.hour_of_peak_heat = hour_peak_h

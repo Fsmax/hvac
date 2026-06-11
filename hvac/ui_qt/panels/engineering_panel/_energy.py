@@ -141,11 +141,30 @@ class _EnergyTab(QWidget):
         wd = getattr(self.project, "weather_data", None)
         if wd is None:
             self._epw_lbl.setText(_t("panel.eng.en.epw_none"))
+            self._epw_lbl.setToolTip("")
             self.epw_clear_btn.setVisible(False)
         else:
-            self._epw_lbl.setText(_t("panel.eng.en.epw_loaded").format(
+            text = _t("panel.eng.en.epw_loaded").format(
                 loc=wd.location or wd.source,
-                tmin=wd.t_min_c, tmax=wd.t_max_c))
+                tmin=wd.t_min_c, tmax=wd.t_max_c)
+            try:
+                from hvac.weather import derive_design_conditions
+                dc = derive_design_conditions(wd)
+            except ValueError:
+                dc = None
+            if dc is not None:
+                text += "\n" + _t("panel.eng.en.epw_design").format(
+                    t5=dc.t_cold_5day_c, t95=dc.t_cool_095_c,
+                    gsop=dc.gsop_18)
+                self._epw_lbl.setToolTip(
+                    _t("panel.eng.en.epw_design_tt").format(
+                        t5=dc.t_cold_5day_c, t1=dc.t_cold_1day_c,
+                        t95=dc.t_cool_095_c, t98=dc.t_cool_098_c,
+                        amp=dc.daily_amp_summer_k,
+                        z8=dc.z_ht_8_days, t8=dc.t_ht_8_c,
+                        z12=dc.z_ht_12_days, t12=dc.t_ht_12_c,
+                        gsop=dc.gsop_18))
+            self._epw_lbl.setText(text)
             self.epw_clear_btn.setVisible(True)
 
     def _run(self):
@@ -250,6 +269,12 @@ class _EnergyTab(QWidget):
               f"{result.e_cool_kwh_m2:.1f}"],
             [_t("panel.eng.en.row.e_total_m2"),
               f"{result.e_total_kwh_m2:.1f}"],
+        ]
+        if result.solar_from_epw:
+            rows.append(
+                [_t("panel.eng.en.row.e_solar"),
+                  f"{result.e_solar_kwh:,.0f}".replace(",", " ")])
+        rows += [
             ["", ""],
             [_t("panel.eng.en.row.q_peak_heat"),
               f"{result.q_peak_heat_w / 1000:.1f}"],

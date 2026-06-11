@@ -1619,6 +1619,18 @@ UZ: Dict[str, str] = {
     "panel.eng.en.epw_none":         ("Iqlim: hisobiy T dan sintetik profil. "
                                         "Aniqrog'i — real EPW meteoyili (climate.onebuilding.org)."),
     "panel.eng.en.epw_loaded":       "Iqlim: EPW {loc} ({tmin:+.1f}…{tmax:+.1f} °C)",
+    "panel.eng.en.epw_design":       ("Fayl bo‘yicha hisobiy: besh kunlik {t5:+.1f} °C · "
+                                        "yoz 0,95: {t95:+.1f} °C · GSOP {gsop:.0f}"),
+    "panel.eng.en.epw_design_tt":    ("EPW soatlik ma’lumotlaridan hisobiy parametrlar:\n"
+                                        "Eng sovuq besh kunlik: {t5:+.1f} °C (≈ ta’min. 0,92)\n"
+                                        "Eng sovuq sutka: {t1:+.1f} °C (≈ ta’min. 0,98)\n"
+                                        "Yoz, ta’min. 0,95 (≤440 soat/yil): {t95:+.1f} °C\n"
+                                        "Yoz, ta’min. 0,98 (≤88 soat/yil): {t98:+.1f} °C\n"
+                                        "Issiq oy sutkalik amplitudasi: {amp:.1f} K\n"
+                                        "≤8 °C davri: {z8} sutka, o‘rtacha {t8:+.1f} °C\n"
+                                        "≤12 °C davri: {z12} sutka, o‘rtacha {t12:+.1f} °C\n"
+                                        "GSOP (t_ich=20 °C): {gsop:.0f} °C·sutka\n"
+                                        "Qishki qiymatlar — bitta meteoyil bo‘yicha, ma’lumotnoma bilan solishtiring."),
     "panel.eng.en.epw_err":          "EPW o'qish xatosi",
     "panel.eng.en.empty":            "Ma’lumot yo‘q. «Yilni simulyatsiya qilish» tugmasini bosing.",
     "panel.eng.en.chart.t_year":     "Yillik T (o‘rtacha sutkalik)",
@@ -1635,6 +1647,7 @@ UZ: Dict[str, str] = {
     "panel.eng.en.row.e_heat_m2":    "Solishtirma isitish, kVt·s/(m²·yil)",
     "panel.eng.en.row.e_cool_m2":    "Solishtirma sovutish, kVt·s/(m²·yil)",
     "panel.eng.en.row.e_total_m2":   "Solishtirma Σ, kVt·s/(m²·yil)",
+    "panel.eng.en.row.e_solar":      "Oyna orqali quyosh (EPW), kVt·s/yil",
     "panel.eng.en.row.q_peak_heat":  "Q maks. isitish, kVt",
     "panel.eng.en.row.q_peak_cool":  "Q maks. sovutish, kVt",
     "panel.eng.en.row.t_peak_heat":  "Isitish maks. vaqti",
