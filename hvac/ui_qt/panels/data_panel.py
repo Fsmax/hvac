@@ -409,6 +409,8 @@ class DataPanel(QWidget):
         menu = QMenu(self.revit_tools_btn)
         self._act_diff = menu.addAction("")
         self._act_diff.triggered.connect(self._revit_diff)
+        self._act_equip = menu.addAction("")
+        self._act_equip.triggered.connect(self._revit_equip)
         menu.addSeparator()
         self._act_color_heat = menu.addAction("")
         self._act_color_heat.triggered.connect(
@@ -425,6 +427,7 @@ class DataPanel(QWidget):
 
         def _tr_menu():
             self._act_diff.setText(_t("panel.data.revit.act_diff"))
+            self._act_equip.setText(_t("panel.data.revit.act_equip"))
             self._act_color_heat.setText(_t("panel.data.revit.act_color_heat"))
             self._act_color_cool.setText(_t("panel.data.revit.act_color_cool"))
             self._act_color_ach.setText(_t("panel.data.revit.act_color_ach"))
@@ -827,6 +830,65 @@ class DataPanel(QWidget):
         m.setText(summary)
         m.setDetailedText("\n".join(details))
         m.exec()
+
+    def _revit_equip(self) -> None:
+        """Импорт расставленного оборудования помещений из Revit."""
+        if not self.project.spaces:
+            QMessageBox.information(
+                self, _t("panel.data.revit.act_equip"),
+                _t("panel.data.revit.diff.no_project"))
+            return
+        if not self._revit_ready():
+            return
+        from hvac.revit_link import plan_equipment_import
+        # Снимок и разбор — в фоне; запись в проект — в _apply_revit_equip
+        # (главный поток: подписчики equipment_changed трогают виджеты).
+        self._run_revit_task(
+            lambda: plan_equipment_import(self.project),
+            self._apply_revit_equip, "panel.data.status.revit_equip")
+
+    def _apply_revit_equip(self, plan) -> None:
+        from hvac.revit_link import apply_equipment_import
+        if not plan.has_updates:
+            QMessageBox.information(
+                self, _t("panel.data.revit.act_equip"),
+                _t("panel.data.revit.equip.none"))
+            return
+        n = apply_equipment_import(self.project, plan)
+        self.bridge.dirtyChanged.emit(True)
+        summary = _t("panel.data.revit.equip.summary").format(
+            total=plan.total, spaces=n,
+            supply=plan.by_slot.get("supply", 0),
+            exhaust=plan.by_slot.get("exhaust", 0),
+            heating=plan.by_slot.get("heating", 0),
+            cooling=plan.by_slot.get("cooling", 0),
+            no_space=plan.no_space, unmatched=plan.unmatched,
+            unrec=len(plan.unrecognized))
+        details: list[str] = []
+        if plan.assigned:
+            details.append(_t("panel.data.revit.equip.h_assigned"))
+            for r in plan.assigned[:200]:
+                line = _t("panel.data.revit.equip.line").format(
+                    number=r["number"], name=r["name"],
+                    slot=_t("panel.data.revit.equip.slot." + r["slot"]),
+                    qty=r["qty"], type=r["type"], model=r["model"])
+                if r["value"] > 0:
+                    key = ("panel.data.revit.equip.val.flow"
+                           if r["slot"] in ("supply", "exhaust")
+                           else "panel.data.revit.equip.val.power")
+                    line += _t(key).format(v=round(r["value"]))
+                details.append(line)
+        if plan.unrecognized:
+            details.append(_t("panel.data.revit.equip.h_unrec"))
+            details += [f"  ? {s}" for s in plan.unrecognized[:100]]
+        m = QMessageBox(self)
+        m.setIcon(QMessageBox.Information)
+        m.setWindowTitle(_t("panel.data.revit.act_equip"))
+        m.setText(summary)
+        m.setDetailedText("\n".join(details))
+        m.exec()
+        self.bridge.statusMessage.emit(
+            _t("panel.data.revit.equip.done").format(spaces=n), 8000)
 
     def _revit_color(self, metric: str) -> None:
         """Раскраска помещений активного вида Revit по метрике."""

@@ -317,6 +317,27 @@ UZ: Dict[str, str] = {
     "panel.data.revit.color.done": ("«{view}» ko‘rinishida {n} ta xona bo‘yaldi "
                                   "(diapazon {vmin}…{vmax})"),
     "panel.data.revit.color.cleared": "«{view}» ko‘rinishida {n} ta xona bo‘yashi bekor qilindi",
+    "panel.data.revit.act_equip": "Xona uskunalarini import qilish",
+    "panel.data.status.revit_equip": "Revit'dan uskunalar o‘qilmoqda…",
+    "panel.data.revit.equip.none": ("Modelda xonalarga bog‘langan uskunalar "
+                                  "topilmadi (panjaralar/diffuzorlar, fankoyllar, "
+                                  "radiatorlar)."),
+    "panel.data.revit.equip.summary": ("Aniqlangan nusxalar: {total}\n"
+                                  "Yangilangan xonalar: {spaces}\n\n"
+                                  "Havo berish: {supply} · So‘rish: {exhaust} · "
+                                  "Isitish: {heating} · Sovitish: {cooling}\n"
+                                  "Xonadan tashqari: {no_space} · Loyihada yo‘q: "
+                                  "{unmatched} · Aniqlanmadi: {unrec}"),
+    "panel.data.revit.equip.h_assigned": "— Xonalar bo‘yicha tayinlandi —",
+    "panel.data.revit.equip.h_unrec": "— Aniqlanmadi (oila / tur) —",
+    "panel.data.revit.equip.slot.supply": "havo berish",
+    "panel.data.revit.equip.slot.exhaust": "so‘rish",
+    "panel.data.revit.equip.slot.heating": "isitish",
+    "panel.data.revit.equip.slot.cooling": "sovitish",
+    "panel.data.revit.equip.line": "  {number} {name}: {slot} — {qty} × {type} ({model})",
+    "panel.data.revit.equip.val.flow": " · {v} m³/soat donasiga",
+    "panel.data.revit.equip.val.power": " · {v} Vt donasiga",
+    "panel.data.revit.equip.done": "Revit'dan uskunalar: yangilangan xonalar — {spaces}",
     "panel.data.summary_loaded": ("✓ Yuklandi: {sp} ta xona · "
                                    "{el} ta devor · {co} ta tip konstruksiya"),
     "panel.data.actions.title": "Loyiha",

@@ -215,7 +215,8 @@ class TestWrappers:
 _EXPORT_TEMPLATES = ("EXPORT_CS_SPACES", "EXPORT_CS_THERMAL",
                      "EXPORT_CS_ORPHANS")
 _ALL_TEMPLATES = _EXPORT_TEMPLATES + (
-    "WRITEBACK_CS", "SNAPSHOT_CS", "COLOR_CS", "CLEAR_COLOR_CS")
+    "WRITEBACK_CS", "SNAPSHOT_CS", "COLOR_CS", "CLEAR_COLOR_CS",
+    "EQUIPMENT_CS")
 
 
 class TestCSharpTemplates:
@@ -450,6 +451,161 @@ class TestColorSpaces:
         # Клиппинг за пределами [0,1]
         assert revit_link._gradient_color(-1.0) == (59, 130, 246)
         assert revit_link._gradient_color(2.0) == (239, 68, 68)
+
+
+# ============================================================================
+# Импорт оборудования помещений
+# ============================================================================
+
+# 9 полей: cat, space_id, family, type, flow, sys_class, sys_name, heat, cool
+_EQUIP_DATA = (
+    "T\t101\tДиффузор вихревой\tDN200\t250\tПриточный воздух\tП1\t\t\n"
+    "T\t101\tДиффузор вихревой\tDN200\t250\tПриточный воздух\tП1\t\t\n"
+    "T\t101\tРешётка АМН\t300x150\t400\t\tВ2\t\t\n"
+    "T\t\tДиффузор\tDN160\t150\tSupply Air\tП1\t\t\n"
+    "T\t999\tДиффузор\tDN160\t150\tSupply Air\tП1\t\t\n"
+    "M\t101\tРадиатор панельный\tтип 11 500x1000\t\t\t\t1200\t\n"
+    "M\t101\tРадиатор панельный\tтип 11 500x800\t\t\t\t960\t\n"
+    "M\t102\tФанкойл кассетный\tFCU-600\t\t\t\t\t3500\n"
+    "M\t102\tНасос циркуляционный\tUPS 25-40\t\t\t\t\t\n"
+    "S\t102\tШкаф\tШ-1\t\t\t\t\t\n"
+)
+
+
+def _equip_project() -> HVACProject:
+    p = HVACProject()
+    p.params.apply_city("Ташкент")
+    for sid, num, name in (("101", "R1", "Офис"), ("102", "R2", "Серверная")):
+        sp = Space(space_id=sid, number=num, name=name, level="L1",
+                   area_m2=25, volume_m3=75, height_m=3)
+        p.spaces.append(sp)
+        p._space_by_id[sid] = sp
+    return p
+
+
+class TestEquipmentImport:
+    def test_snapshot_parses_rows(self, monkeypatch):
+        def fake_send(code, parameters=None, transaction_mode="auto",
+                      timeout=120.0):
+            assert code is revit_link.EQUIPMENT_CS
+            assert transaction_mode == "none"      # снимок read-only
+            return {"count": 10, "no_space": 1, "data": _EQUIP_DATA}
+        monkeypatch.setattr(revit_link, "send_code", fake_send)
+        rows = revit_link.snapshot_equipment()
+        assert len(rows) == 10
+        assert rows[0] == {"cat": "T", "space_id": "101",
+                           "family": "Диффузор вихревой", "type": "DN200",
+                           "flow_m3h": 250.0, "sys_class": "Приточный воздух",
+                           "sys_name": "П1", "heat_w": 0.0, "cool_w": 0.0}
+        assert rows[5]["heat_w"] == pytest.approx(1200.0)
+        assert rows[7]["cool_w"] == pytest.approx(3500.0)
+
+    def test_classify_air_terminals(self):
+        def t(family, type_="", sys_class="", sys_name=""):
+            return revit_link.classify_equipment_row(
+                {"cat": "T", "family": family, "type": type_,
+                 "sys_class": sys_class, "sys_name": sys_name})
+        # Классификация системы важнее имени
+        assert t("Решётка", sys_class="Отработанный воздух") == \
+            ("exhaust", "Решётка настенная")
+        assert t("Решётка потолочная", sys_class="Supply Air") == \
+            ("supply", "Решётка потолочная")
+        # Фоллбэк — имя системы (П/В), затем имя семейства
+        assert t("Диффузор", "DN200", sys_name="P1") == \
+            ("supply", "Диффузор круглый")
+        assert t("Анемостат", sys_name="В2") == ("exhaust", "Анемостат")
+        assert t("Зонт вытяжной", sys_name="В1") == \
+            ("exhaust", "Зонт кухонный")
+        assert t("Решётка вытяжная") == ("exhaust", "Решётка настенная")
+        # Дефолт без признаков — приток
+        assert t("Сопло")[0] == "supply"
+
+    def test_classify_mechanical(self):
+        def m(family, type_=""):
+            return revit_link.classify_equipment_row(
+                {"cat": "M", "family": family, "type": type_})
+        assert m("Радиатор биметаллический", "500") == \
+            ("heating", "Радиатор биметаллический")
+        assert m("Конвектор внутрипольный") == \
+            ("heating", "Конвектор внутрипольный")
+        assert m("Фанкойл канальный", "FCU") == \
+            ("cooling", "Фанкойл канальный")
+        assert m("Блок VRF настенный") == \
+            ("cooling", "Внутр. блок VRF настенный")
+        assert m("Сплит-система") == ("cooling", "Сплит-система настенная")
+        assert m("Тепловая завеса") == ("heating", "Тепловая завеса")
+        # Реальные имена из живой модели: фанкойл «N pipes» без слова
+        # «фанкойл», кухонный зонт как механическое оборудование
+        assert m("Clint DWX 4 PIPES", "DWX 183") == \
+            ("cooling", "Фанкойл (отопл.+охл.)")
+        assert m("Carrier 42N 2 pipes") == ("cooling", "Фанкойл кассетный")
+        assert m("ADSK_Зонт вытяжной", "Зонт вытяжной") == \
+            ("exhaust", "Зонт кухонный")
+        assert m("Насос циркуляционный") is None
+        assert m("Люк технического обслуживания") is None
+
+    def test_plan_aggregates_by_space_and_slot(self):
+        plan = revit_link.plan_equipment_import(
+            _equip_project(), rows=self._rows())
+        assert plan.total == 8           # без насоса (unrec) и шкафа (S)
+        assert plan.no_space == 1
+        assert plan.unmatched == 1
+        assert plan.skipped_other == 1
+        assert plan.by_slot == {"supply": 2, "exhaust": 1,
+                                "heating": 2, "cooling": 1}
+        up = plan.updates["101"]
+        assert up["supply_terminal_type"] == "Диффузор вихревой"
+        assert up["supply_terminal_model"] == "Диффузор вихревой DN200"
+        assert up["supply_terminal_qty"] == 2
+        assert up["supply_terminal_flow_m3h"] == pytest.approx(250.0)
+        assert up["exhaust_terminal_type"] == "Решётка настенная"
+        assert up["exhaust_terminal_qty"] == 1
+        assert up["exhaust_terminal_flow_m3h"] == pytest.approx(400.0)
+        assert up["heating_terminal_type"] == "Радиатор стальной"
+        assert up["heating_terminal_qty"] == 2
+        assert up["heating_terminal_power_w"] == pytest.approx(1080.0)
+        up2 = plan.updates["102"]
+        assert up2["cooling_terminal_type"] == "Фанкойл кассетный"
+        assert up2["cooling_terminal_power_w"] == pytest.approx(3500.0)
+        assert plan.unrecognized == ["Насос циркуляционный UPS 25-40"]
+        assert plan.has_updates
+
+    @staticmethod
+    def _rows():
+        """_EQUIP_DATA через тот же парсер, что и снимок."""
+        out = []
+        for line in _EQUIP_DATA.splitlines():
+            parts = line.split("\t")
+            out.append({
+                "cat": parts[0], "space_id": parts[1],
+                "family": parts[2], "type": parts[3],
+                "flow_m3h": float(parts[4] or 0),
+                "sys_class": parts[5], "sys_name": parts[6],
+                "heat_w": float(parts[7] or 0),
+                "cool_w": float(parts[8] or 0),
+            })
+        return out
+
+    def test_apply_fills_room_equipment(self):
+        p = _equip_project()
+        plan = revit_link.plan_equipment_import(p, rows=self._rows())
+        n = revit_link.apply_equipment_import(p, plan)
+        assert n == 2
+        eq = p.spaces[0].room_equipment
+        assert eq is not None
+        assert eq.supply_terminal_qty == 2
+        assert eq.supply_total_m3h == pytest.approx(500.0)
+        assert eq.heating_total_w == pytest.approx(2160.0)
+        # Слот охлаждения помещения 101 не затронут
+        assert eq.cooling_terminal_type == "—"
+        eq2 = p.spaces[1].room_equipment
+        assert eq2.cooling_terminal_qty == 1
+        assert eq2.supply_terminal_qty == 0
+
+    def test_plan_without_updates(self):
+        plan = revit_link.plan_equipment_import(_equip_project(), rows=[])
+        assert not plan.has_updates
+        assert revit_link.apply_equipment_import(_equip_project(), plan) == 0
 
 
 class TestRoundTripThroughLoader:

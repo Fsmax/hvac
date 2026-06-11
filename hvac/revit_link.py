@@ -35,6 +35,7 @@ import json
 import os
 import socket
 import tempfile
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, TYPE_CHECKING
 
@@ -817,6 +818,360 @@ def clear_space_colors_in_revit(timeout: float = 600.0) -> dict:
     if not isinstance(res, dict):
         raise RuntimeError(f"Неожиданный ответ Revit: {res!r}")
     return res
+
+
+# ============================================================================
+# Импорт оборудования помещений (решётки/диффузоры, фанкойлы, радиаторы)
+# ============================================================================
+# Read-only проход по расставленным FamilyInstance трёх категорий:
+#   T = Воздухораспределители (OST_DuctTerminal),
+#   M = Механическое оборудование (OST_MechanicalEquipment),
+#   S = Прочее оборудование (OST_SpecialityEquipment).
+# Помещение — через FamilyInstance.Space/.Room; расход — RBS_DUCT_FLOW_PARAM
+# (м³/ч), мощности — типовые параметры тепло/холодопроизводительности (Вт).
+# Ответ — TSV одной строкой (лимит 8 КБ касается только запроса).
+
+EQUIPMENT_CS = r'''
+var CI = System.Globalization.CultureInfo.InvariantCulture;
+string Cl(string s){if(s==null)return "";return s.Replace('\t',' ').Replace('\n',' ').Replace('\r',' ');}
+string Nm(double v){return Math.Round(v,1).ToString("0.#",CI);}
+double Pw(Element e,Element te,string[] ns){
+foreach(var el in new Element[]{e,te}){
+if(el==null)continue;
+foreach(var n in ns){
+Parameter p=null;try{p=el.LookupParameter(n);}catch{}
+if(p==null||p.StorageType!=StorageType.Double)continue;
+double v=0;try{v=p.AsDouble();}catch{continue;}
+if(v<=0)continue;
+try{var dt=p.Definition.GetDataType();if(UnitUtils.IsMeasurableSpec(dt))return UnitUtils.ConvertFromInternalUnits(v,UnitTypeId.Watts);}catch{}
+return v;}}
+return 0;}
+var cats=new[]{BuiltInCategory.OST_DuctTerminal,BuiltInCategory.OST_MechanicalEquipment,BuiltInCategory.OST_SpecialityEquipment};
+var codes=new[]{"T","M","S"};
+var hn=new[]{"Heating Capacity","Total Heating Capacity","Теплопроизводительность","Тепловая мощность","Номинальная тепловая мощность"};
+var cn=new[]{"Total Cooling Capacity","Cooling Capacity","Холодопроизводительность","Холодильная мощность"};
+var sb=new System.Text.StringBuilder();
+int total=0,nospace=0;
+for(int ci=0;ci<cats.Length;ci++){
+foreach(Element e in new FilteredElementCollector(document).OfCategory(cats[ci]).WhereElementIsNotElementType()){
+var fi=e as FamilyInstance;
+if(fi==null||fi.SuperComponent!=null)continue;
+string sid="";
+try{var s2=fi.Space;if(s2!=null)sid=s2.Id.Value.ToString(CI);}catch{}
+if(sid==""){try{var r2=fi.Room;if(r2!=null)sid=r2.Id.Value.ToString(CI);}catch{}}
+Element te=null;try{te=document.GetElement(fi.GetTypeId());}catch{}
+string fam="",tn="";
+var ty=te as ElementType;
+if(ty!=null){try{fam=ty.FamilyName??"";}catch{}try{tn=ty.Name??"";}catch{}}
+string fl="";
+try{var p=fi.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);if(p!=null&&p.StorageType==StorageType.Double){double v=p.AsDouble();if(v>0)fl=Nm(UnitUtils.ConvertFromInternalUnits(v,UnitTypeId.CubicMetersPerHour));}}catch{}
+string sc="";
+try{var p=fi.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM);if(p!=null){sc=p.AsString()??"";if(sc=="")sc=p.AsValueString()??"";}}catch{}
+string sn="";
+try{var p=fi.get_Parameter(BuiltInParameter.RBS_SYSTEM_NAME_PARAM);if(p!=null){sn=p.AsString()??"";if(sn=="")sn=p.AsValueString()??"";}}catch{}
+double hw=Pw(fi,te,hn),cw=Pw(fi,te,cn);
+if(sid=="")nospace++;
+sb.Append(codes[ci]).Append('\t').Append(sid).Append('\t').Append(Cl(fam)).Append('\t').Append(Cl(tn)).Append('\t').Append(fl).Append('\t').Append(Cl(sc)).Append('\t').Append(Cl(sn)).Append('\t').Append(hw>0?Nm(hw):"").Append('\t').Append(cw>0?Nm(cw):"").Append('\n');
+total++;}}
+return new{count=total,no_space=nospace,data=sb.ToString()};
+'''
+
+
+def snapshot_equipment(timeout: float = 300.0) -> List[dict]:
+    """Снимок расставленного оборудования открытой модели Revit.
+
+    Каждая строка: {cat: T/M/S, space_id, family, type, flow_m3h,
+    sys_class, sys_name, heat_w, cool_w}.
+    """
+    res = send_code(EQUIPMENT_CS, transaction_mode="none", timeout=timeout)
+    if not isinstance(res, dict) or "data" not in res:
+        raise RuntimeError(f"Неожиданный ответ Revit: {res!r}")
+
+    def _f(s: str) -> float:
+        try:
+            return float(s)
+        except ValueError:
+            return 0.0
+
+    rows: List[dict] = []
+    for line in str(res["data"]).splitlines():
+        parts = line.split("\t")
+        if len(parts) < 9:
+            continue
+        rows.append({
+            "cat": parts[0], "space_id": parts[1],
+            "family": parts[2], "type": parts[3],
+            "flow_m3h": _f(parts[4]),
+            "sys_class": parts[5], "sys_name": parts[6],
+            "heat_w": _f(parts[7]), "cool_w": _f(parts[8]),
+        })
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Классификация: семейство/тип Revit → слот и тип RoomEquipment
+# ---------------------------------------------------------------------------
+
+def _norm(s: str) -> str:
+    return (s or "").lower().replace("ё", "е")
+
+
+_EXHAUST_CLASS_KW = ("вытяж", "отработ", "exhaust", "return",
+                     "возврат", "рецирк")
+_SUPPLY_CLASS_KW = ("приточ", "supply")
+
+
+def _terminal_slot(row: dict, text: str) -> str:
+    """Приток или вытяжка: классификация системы → имя системы → имя."""
+    sc = _norm(row.get("sys_class", ""))
+    if any(k in sc for k in _EXHAUST_CLASS_KW):
+        return "exhaust"
+    if any(k in sc for k in _SUPPLY_CLASS_KW):
+        return "supply"
+    sn = (row.get("sys_name") or "").strip().upper()
+    if sn[:1] in ("П", "P"):
+        return "supply"
+    if sn[:1] in ("В", "У", "V", "U", "E"):
+        return "exhaust"
+    if "вытяж" in text or "exhaust" in text:
+        return "exhaust"
+    return "supply"
+
+
+def _air_terminal_type(text: str, slot: str) -> str:
+    """Тип из SUPPLY/EXHAUST_TERMINAL_TYPES по ключевым словам имени."""
+    if "анемостат" in text:
+        return "Анемостат"
+    is_ceiling = "потолоч" in text or "ceiling" in text
+    if slot == "exhaust":
+        if "зонт" in text:
+            return "Зонт кухонный"
+        if "клапан" in text:
+            return ("Клапан вытяжной квадратный"
+                    if "квадрат" in text or "прямоуг" in text
+                    else "Клапан вытяжной круглый")
+        if "дроссель" in text:
+            return "Решётка с дроссель-клапаном"
+        return "Решётка потолочная" if is_ceiling else "Решётка настенная"
+    if "сопло" in text or "jet" in text:
+        return "Сопло поворотное"
+    if "перфор" in text:
+        return "Перфорированная панель"
+    if "вытесн" in text or "displacement" in text:
+        return "Вытесняющий диффузор"
+    if "решетк" in text or "grille" in text:
+        return "Решётка потолочная" if is_ceiling else "Решётка настенная"
+    if "вихр" in text or "swirl" in text:
+        return "Диффузор вихревой"
+    if "щелев" in text or "slot" in text or "линейн" in text:
+        return "Диффузор щелевой"
+    if "струйн" in text:
+        return "Диффузор струйный"
+    if "диффузор" in text or "diffuser" in text:
+        return ("Диффузор круглый"
+                if "кругл" in text or "round" in text or "dn" in text
+                else "Диффузор квадратный")
+    return "Решётка настенная"
+
+
+def _cooling_type(text: str) -> Optional[str]:
+    # «2/4 pipes» — типовое именование фанкойлов у производителей
+    # (например Clint DWX 4 PIPES) без слова «фанкойл» в семействе.
+    four_pipe = ("4-труб" in text or "четырехтруб" in text
+                 or "4 труб" in text or "4 pipe" in text
+                 or "4-pipe" in text)
+    if ("фанкойл" in text or "fancoil" in text or "fan coil" in text
+            or "fcu" in text or four_pipe or "2 pipe" in text
+            or "2-pipe" in text):
+        if four_pipe:
+            return "Фанкойл (отопл.+охл.)"
+        if "канал" in text or "duct" in text:
+            return "Фанкойл канальный"
+        if "настен" in text or "wall" in text:
+            return "Фанкойл настенный"
+        if "наполь" in text or "floor" in text:
+            return "Фанкойл напольный"
+        return "Фанкойл кассетный"
+    if "vrf" in text or "vrv" in text or "врф" in text:
+        if "канал" in text or "duct" in text:
+            return "Внутр. блок VRF канальный"
+        if "настен" in text or "wall" in text:
+            return "Внутр. блок VRF настенный"
+        return "Внутр. блок VRF кассетный"
+    if "сплит" in text or "split" in text:
+        return ("Сплит-система кассетная" if "кассет" in text
+                else "Сплит-система настенная")
+    if "chilled beam" in text or ("балк" in text and "охлажд" in text):
+        return "Охлаждаемая балка"
+    if "прецизион" in text or "precision" in text:
+        return "Прецизионный кондиционер"
+    return None
+
+
+def _heating_type(text: str) -> Optional[str]:
+    if "радиатор" in text or "radiator" in text:
+        if "биметал" in text:
+            return "Радиатор биметаллический"
+        if "алюмин" in text or "alumin" in text:
+            return "Радиатор алюминиевый"
+        if "чугун" in text or "cast iron" in text:
+            return "Радиатор чугунный"
+        return "Радиатор стальной"
+    if "конвектор" in text or "convector" in text:
+        if ("внутрипольн" in text or "встраив" in text or "наполь" in text
+                or "trench" in text or "floor" in text):
+            return "Конвектор внутрипольный"
+        return "Конвектор настенный"
+    if "завес" in text or "air curtain" in text:
+        return "Тепловая завеса"
+    if "инфракрасн" in text or "infrared" in text:
+        return "Инфракрасный обогреватель"
+    return None
+
+
+def classify_equipment_row(row: dict) -> Optional[tuple]:
+    """Строка снимка → (слот, тип RoomEquipment) или None.
+
+    Слоты: supply / exhaust / heating / cooling — четыре группы полей
+    hvac.room_equipment.RoomEquipment.
+    """
+    text = _norm(row.get("family", "") + " " + row.get("type", ""))
+    if row.get("cat") == "T":
+        slot = _terminal_slot(row, text)
+        return slot, _air_terminal_type(text, slot)
+    cool = _cooling_type(text)
+    if cool:
+        return "cooling", cool
+    heat = _heating_type(text)
+    if heat:
+        return "heating", heat
+    # Кухонные зонты часто расставлены как механическое оборудование
+    if "зонт" in text or "hood" in text:
+        return "exhaust", "Зонт кухонный"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# План импорта (фоновый поток) и применение к проекту (главный поток)
+# ---------------------------------------------------------------------------
+
+#: слот → префикс полей RoomEquipment
+_SLOT_PREFIX = {"heating": "heating_terminal", "cooling": "cooling_terminal",
+                "supply": "supply_terminal", "exhaust": "exhaust_terminal"}
+
+
+@dataclass
+class EquipmentImportPlan:
+    """Результат разбора снимка оборудования до записи в проект."""
+    total: int = 0            # классифицированных экземпляров в модели
+    no_space: int = 0         # вне помещений (не привязать)
+    unmatched: int = 0        # помещение есть в Revit, но не в проекте
+    skipped_other: int = 0    # прочее оборудование без ключевых слов
+    by_slot: Dict[str, int] = field(default_factory=dict)
+    updates: Dict[str, dict] = field(default_factory=dict)  # space_id → поля
+    assigned: List[dict] = field(default_factory=list)      # для отчёта
+    unrecognized: List[str] = field(default_factory=list)   # мех. без слота
+
+    @property
+    def has_updates(self) -> bool:
+        return bool(self.updates)
+
+
+def plan_equipment_import(project: "HVACProject", rows: Optional[List[dict]]
+                          = None, timeout: float = 300.0
+                          ) -> EquipmentImportPlan:
+    """Снимок оборудования Revit → план заполнения RoomEquipment.
+
+    Ничего не меняет ни в проекте, ни в модели — применение отдельно
+    (apply_equipment_import), чтобы UI мог мутировать проект в главном
+    потоке. На помещение и слот: количество = все экземпляры слота,
+    модель/тип — преобладающие, расход/мощность — среднее по ненулевым.
+    """
+    if rows is None:
+        rows = snapshot_equipment(timeout=timeout)
+    plan = EquipmentImportPlan()
+    proj = {sp.space_id: sp for sp in project.spaces}
+    unrec: set = set()
+    # (space_id, слот) → типы/модели Counter, ненулевые значения
+    buckets: Dict[tuple, dict] = {}
+    for row in rows:
+        cls = classify_equipment_row(row)
+        if cls is None:
+            if row.get("cat") == "M":
+                label = (row.get("family", "") + " "
+                         + row.get("type", "")).strip()
+                if label:
+                    unrec.add(label)
+            else:
+                plan.skipped_other += 1
+            continue
+        plan.total += 1
+        sid = row.get("space_id", "")
+        if not sid:
+            plan.no_space += 1
+            continue
+        if sid not in proj:
+            plan.unmatched += 1
+            continue
+        slot, ttype = cls
+        plan.by_slot[slot] = plan.by_slot.get(slot, 0) + 1
+        b = buckets.setdefault((sid, slot), {
+            "types": Counter(), "models": Counter(), "values": []})
+        b["types"][ttype] += 1
+        model = (row.get("family", "") + " " + row.get("type", "")).strip()
+        if model:
+            b["models"][model] += 1
+        value = (row.get("flow_m3h", 0.0) if slot in ("supply", "exhaust")
+                 else row.get("cool_w", 0.0) if slot == "cooling"
+                 else row.get("heat_w", 0.0))
+        if value > 0:
+            b["values"].append(value)
+    for (sid, slot), b in buckets.items():
+        prefix = _SLOT_PREFIX[slot]
+        qty = sum(b["types"].values())
+        ttype = b["types"].most_common(1)[0][0]
+        model = (b["models"].most_common(1)[0][0] if b["models"] else "")
+        mean = (round(sum(b["values"]) / len(b["values"]), 1)
+                if b["values"] else 0.0)
+        fields = {f"{prefix}_type": ttype, f"{prefix}_model": model,
+                  f"{prefix}_qty": qty}
+        if slot in ("supply", "exhaust"):
+            fields[f"{prefix}_flow_m3h"] = mean
+        else:
+            fields[f"{prefix}_power_w"] = mean
+        plan.updates.setdefault(sid, {}).update(fields)
+        sp = proj[sid]
+        plan.assigned.append({
+            "space_id": sid, "number": sp.number, "name": sp.name,
+            "slot": slot, "type": ttype, "model": model, "qty": qty,
+            "value": mean})
+    plan.assigned.sort(key=lambda r: (r["number"], r["slot"]))
+    plan.unrecognized = sorted(unrec)
+    return plan
+
+
+def apply_equipment_import(project: "HVACProject",
+                           plan: EquipmentImportPlan) -> int:
+    """Записывает план в Space.room_equipment. Возвращает число помещений.
+
+    Затрагиваются только слоты, найденные в Revit; остальные поля
+    оборудования помещения не трогаются. equipment_changed эмитится
+    один раз.
+    """
+    by_id = {sp.space_id: sp for sp in project.spaces}
+    n = 0
+    for sid, fields in plan.updates.items():
+        sp = by_id.get(sid)
+        if sp is None:
+            continue
+        eq = sp.get_or_create_equipment()
+        for k, v in fields.items():
+            if hasattr(eq, k):
+                setattr(eq, k, v)
+        n += 1
+    if n:
+        project.emit("equipment_changed")
+    return n
 
 
 def check_revit_params(timeout: float = 60.0) -> dict:

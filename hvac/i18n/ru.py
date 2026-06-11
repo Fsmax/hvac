@@ -312,6 +312,27 @@ RU: Dict[str, str] = {
     "panel.data.revit.color.done": ("Раскрашено {n} помещений на виде «{view}» "
                                   "(диапазон {vmin}…{vmax})"),
     "panel.data.revit.color.cleared": "Сброшена раскраска {n} помещений на виде «{view}»",
+    "panel.data.revit.act_equip": "Импорт оборудования помещений",
+    "panel.data.status.revit_equip": "Чтение оборудования из Revit…",
+    "panel.data.revit.equip.none": ("В модели не найдено оборудования, привязанного "
+                                  "к помещениям (решётки/диффузоры, фанкойлы, "
+                                  "радиаторы)."),
+    "panel.data.revit.equip.summary": ("Распознано экземпляров: {total}\n"
+                                  "Обновлено помещений: {spaces}\n\n"
+                                  "Приток: {supply} · Вытяжка: {exhaust} · "
+                                  "Отопление: {heating} · Охлаждение: {cooling}\n"
+                                  "Вне помещений: {no_space} · Нет в проекте: "
+                                  "{unmatched} · Не распознано: {unrec}"),
+    "panel.data.revit.equip.h_assigned": "— Назначено по помещениям —",
+    "panel.data.revit.equip.h_unrec": "— Не распознано (семейство / тип) —",
+    "panel.data.revit.equip.slot.supply": "приток",
+    "panel.data.revit.equip.slot.exhaust": "вытяжка",
+    "panel.data.revit.equip.slot.heating": "отопление",
+    "panel.data.revit.equip.slot.cooling": "охлаждение",
+    "panel.data.revit.equip.line": "  {number} {name}: {slot} — {qty} × {type} ({model})",
+    "panel.data.revit.equip.val.flow": " · {v} м³/ч на шт.",
+    "panel.data.revit.equip.val.power": " · {v} Вт на шт.",
+    "panel.data.revit.equip.done": "Оборудование из Revit: обновлено помещений — {spaces}",
     "panel.data.summary_loaded": ("✓ Загружено: {sp} помещений · "
                                    "{el} ограждений · {co} типов конструкций"),
     "panel.data.actions.title": "Проект",
