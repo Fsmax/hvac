@@ -214,7 +214,8 @@ class TestWrappers:
 
 _EXPORT_TEMPLATES = ("EXPORT_CS_SPACES", "EXPORT_CS_THERMAL",
                      "EXPORT_CS_ORPHANS")
-_ALL_TEMPLATES = _EXPORT_TEMPLATES + ("WRITEBACK_CS",)
+_ALL_TEMPLATES = _EXPORT_TEMPLATES + (
+    "WRITEBACK_CS", "SNAPSHOT_CS", "COLOR_CS", "CLEAR_COLOR_CS")
 
 
 class TestCSharpTemplates:
@@ -299,6 +300,155 @@ class TestCSharpTemplates:
                 f"{name}: Directory. без префикса System.IO"
             assert not re.search(r"(?<![\w.])JsonConvert\.", cs), \
                 f"{name}: JsonConvert. без префикса Newtonsoft.Json"
+
+
+# ============================================================================
+# Снимок модели и дифф
+# ============================================================================
+
+_SNAPSHOT_DATA = ("101\tR1\tОфис\tL1\t25.5\t76.5\n"
+                  "102\tR2\tХолл\tL1\t40.0\t120.0\n")
+
+
+class TestSnapshotAndDiff:
+    def _patch_snapshot(self, monkeypatch, data=_SNAPSHOT_DATA, count=2):
+        def fake_send(code, parameters=None, transaction_mode="auto",
+                      timeout=120.0):
+            assert code is revit_link.SNAPSHOT_CS
+            assert transaction_mode == "none"      # снимок read-only
+            return {"count": count, "source": "Spaces (MEP)", "data": data}
+        monkeypatch.setattr(revit_link, "send_code", fake_send)
+
+    def test_snapshot_parses_rows(self, monkeypatch):
+        self._patch_snapshot(monkeypatch)
+        snap = revit_link.snapshot_spaces()
+        assert set(snap) == {"101", "102"}
+        assert snap["101"]["name"] == "Офис"
+        assert snap["101"]["area_m2"] == pytest.approx(25.5)
+        assert snap["102"]["volume_m3"] == pytest.approx(120.0)
+
+    def test_diff_categories(self, monkeypatch):
+        """101 изменился (площадь), 102 новый, 103 удалён из Revit."""
+        self._patch_snapshot(monkeypatch)
+        p = HVACProject()
+        p.params.apply_city("Ташкент")
+        for sid, num, name, area in (("101", "R1", "Офис", 20.0),
+                                     ("103", "R3", "Архив", 15.0)):
+            sp = Space(space_id=sid, number=num, name=name, level="L1",
+                       area_m2=area, volume_m3=area * 3, height_m=3)
+            p.spaces.append(sp)
+            p._space_by_id[sid] = sp
+        diff = revit_link.diff_with_project(p)
+        assert not diff.in_sync
+        assert [r["id"] for r in diff.added] == ["102"]
+        assert [r["id"] for r in diff.removed] == ["103"]
+        assert [r["id"] for r in diff.changed] == ["101"]
+        assert any("area" in w for w in diff.changed[0]["what"])
+        assert diff.unchanged == 0
+
+    def test_diff_in_sync(self, monkeypatch):
+        self._patch_snapshot(monkeypatch)
+        p = HVACProject()
+        p.params.apply_city("Ташкент")
+        for sid, num, name, area, vol in (("101", "R1", "Офис", 25.5, 76.5),
+                                          ("102", "R2", "Холл", 40.0, 120.0)):
+            sp = Space(space_id=sid, number=num, name=name, level="L1",
+                       area_m2=area, volume_m3=vol, height_m=3)
+            p.spaces.append(sp)
+            p._space_by_id[sid] = sp
+        diff = revit_link.diff_with_project(p)
+        assert diff.in_sync
+        assert diff.unchanged == 2
+
+    def test_diff_tolerates_small_drift(self, monkeypatch):
+        """Дрейф площади в пределах допуска — не «изменение»
+        (AsValueString округляет)."""
+        self._patch_snapshot(monkeypatch, data="101\tR1\tОфис\tL1\t25.6\t76.6\n",
+                             count=1)
+        p = HVACProject()
+        p.params.apply_city("Ташкент")
+        sp = Space(space_id="101", number="R1", name="Офис", level="L1",
+                   area_m2=25.5, volume_m3=76.5, height_m=3)
+        p.spaces.append(sp)
+        p._space_by_id["101"] = sp
+        diff = revit_link.diff_with_project(p)
+        assert diff.in_sync
+
+
+# ============================================================================
+# Раскраска результатов
+# ============================================================================
+
+class TestColorSpaces:
+    def _project(self):
+        p = HVACProject()
+        p.params.apply_city("Ташкент")
+        for i, q in enumerate((100.0, 200.0, 300.0), start=1):
+            sp = Space(space_id=str(i), number=f"R{i}", name="Оф",
+                       level="L1", area_m2=10, volume_m3=30, height_m=3,
+                       heat_loss_w=q, heat_gain_w=q * 1.5)
+            sp.ach_calculated = float(i)
+            p.spaces.append(sp)
+            p._space_by_id[sp.space_id] = sp
+        return p
+
+    def test_color_sends_gradient_csv(self, monkeypatch):
+        captured = {}
+
+        def fake_send(code, parameters=None, transaction_mode="auto",
+                      timeout=120.0):
+            captured["code"] = code
+            captured["mode"] = transaction_mode
+            captured["path"] = parameters[0]
+            with open(parameters[0], encoding="utf-8") as f:
+                captured["csv"] = f.read().splitlines()
+            return {"colored": 3, "missing": 0, "failed": 0,
+                    "view": "Level 1"}
+
+        monkeypatch.setattr(revit_link, "send_code", fake_send)
+        res = revit_link.color_spaces_in_revit(self._project(),
+                                               "heating_w_m2")
+        assert captured["code"] is revit_link.COLOR_CS
+        assert captured["mode"] == "auto"          # запись — в транзакции
+        lines = captured["csv"]
+        assert lines[0] == "space_id,r,g,b"
+        assert len(lines) == 4
+        # Холодное помещение — синий конец градиента, горячее — красный
+        assert lines[1] == "1,59,130,246"
+        assert lines[3] == "3,239,68,68"
+        # Временный CSV удалён после вызова
+        import os
+        assert not os.path.exists(captured["path"])
+        assert res["metric"] == "heating_w_m2"
+        assert res["vmin"] == pytest.approx(10.0)
+        assert res["vmax"] == pytest.approx(30.0)
+
+    def test_unknown_metric_raises(self):
+        with pytest.raises(ValueError, match="метрик"):
+            revit_link.color_spaces_in_revit(self._project(), "nope")
+
+    def test_empty_project_raises(self):
+        p = HVACProject()
+        p.params.apply_city("Ташкент")
+        with pytest.raises(ValueError, match="нет помещений"):
+            revit_link.color_spaces_in_revit(p)
+
+    def test_clear_colors(self, monkeypatch):
+        def fake_send(code, parameters=None, transaction_mode="auto",
+                      timeout=120.0):
+            assert code is revit_link.CLEAR_COLOR_CS
+            return {"cleared": 5, "view": "Level 1"}
+        monkeypatch.setattr(revit_link, "send_code", fake_send)
+        res = revit_link.clear_space_colors_in_revit()
+        assert res["cleared"] == 5
+
+    def test_gradient_endpoints(self):
+        assert revit_link._gradient_color(0.0) == (59, 130, 246)
+        assert revit_link._gradient_color(0.5) == (250, 204, 21)
+        assert revit_link._gradient_color(1.0) == (239, 68, 68)
+        # Клиппинг за пределами [0,1]
+        assert revit_link._gradient_color(-1.0) == (59, 130, 246)
+        assert revit_link._gradient_color(2.0) == (239, 68, 68)
 
 
 class TestRoundTripThroughLoader:

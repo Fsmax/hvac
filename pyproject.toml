@@ -67,6 +67,11 @@ files = [
     "hvac/specification.py",
     "hvac/energy.py",
     "hvac/energy_simulation.py",
+    "hvac/weather.py",
+    "hvac/solar.py",
+    "hvac/air_curtain.py",
+    "hvac/heat_exchanger.py",
+    "hvac/fan_catalog.py",
     # io-слой (сериализация/экспорт)
     "hvac/io_revit.py",
     "hvac/io_json.py",

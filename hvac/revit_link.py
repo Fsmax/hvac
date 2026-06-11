@@ -34,7 +34,9 @@ from __future__ import annotations
 import json
 import os
 import socket
-from typing import List, Optional, TYPE_CHECKING
+import tempfile
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hvac.project import HVACProject
@@ -575,6 +577,238 @@ def write_results_to_revit(project: "HVACProject", csv_path: str,
     export_results_for_revit(project, csv_path)
     res = send_code(WRITEBACK_CS, parameters=[str(csv_path)],
                     transaction_mode="auto", timeout=timeout)
+    if not isinstance(res, dict):
+        raise RuntimeError(f"Неожиданный ответ Revit: {res!r}")
+    return res
+
+
+# ============================================================================
+# Снимок модели и дифф с проектом
+# ============================================================================
+# Лёгкий read-only проход: id/номер/имя/уровень/площадь/объём всех
+# помещений. Ответ (даже на тысячи помещений) приходит одной строкой —
+# лимит 8 КБ касается только запроса.
+
+SNAPSHOT_CS = r'''
+var CI = System.Globalization.CultureInfo.InvariantCulture;
+string S(Element e, BuiltInParameter b){var p=e.get_Parameter(b);if(p==null)return "";if(p.StorageType==StorageType.String)return p.AsString()??"";return p.AsValueString()??"";}
+double D(Element e, BuiltInParameter b){var p=e.get_Parameter(b);if(p!=null&&p.StorageType==StorageType.Double){try{return p.AsDouble();}catch{}}return 0.0;}
+string Lv(Element e){try{var l=e.Document.GetElement(e.LevelId);if(l!=null)return l.Name??"";}catch{}return S(e,BuiltInParameter.LEVEL_PARAM);}
+string Cl(string s){if(s==null)return "";return s.Replace('\t',' ').Replace('\n',' ').Replace('\r',' ');}
+var spatial=new List<SpatialElement>();
+string source="Spaces (MEP)";
+foreach(Element e in new FilteredElementCollector(document).OfCategory(BuiltInCategory.OST_MEPSpaces).WhereElementIsNotElementType()){var se=e as SpatialElement;if(se!=null&&D(se,BuiltInParameter.ROOM_AREA)>1e-9)spatial.Add(se);}
+if(spatial.Count==0){source="Rooms (Architecture)";
+foreach(Element e in new FilteredElementCollector(document).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()){var se=e as SpatialElement;if(se!=null&&D(se,BuiltInParameter.ROOM_AREA)>1e-9)spatial.Add(se);}}
+var sb=new System.Text.StringBuilder();
+foreach(var sp in spatial){
+sb.Append(sp.Id.Value.ToString(CI)).Append('\t');
+sb.Append(Cl(S(sp,BuiltInParameter.ROOM_NUMBER))).Append('\t');
+sb.Append(Cl(S(sp,BuiltInParameter.ROOM_NAME))).Append('\t');
+sb.Append(Cl(Lv(sp))).Append('\t');
+sb.Append(Math.Round(D(sp,BuiltInParameter.ROOM_AREA)*0.09290304,3).ToString("0.0##",CI)).Append('\t');
+sb.Append(Math.Round(D(sp,BuiltInParameter.ROOM_VOLUME)*0.0283168466,3).ToString("0.0##",CI)).Append('\n');}
+return new{count=spatial.Count,source=source,data=sb.ToString()};
+'''
+
+
+def snapshot_spaces(timeout: float = 300.0) -> Dict[str, dict]:
+    """Лёгкий снимок помещений открытой модели: {id: данные}."""
+    res = send_code(SNAPSHOT_CS, transaction_mode="none", timeout=timeout)
+    if not isinstance(res, dict) or "data" not in res:
+        raise RuntimeError(f"Неожиданный ответ Revit: {res!r}")
+    out: Dict[str, dict] = {}
+    for line in str(res["data"]).splitlines():
+        parts = line.split("\t")
+        if len(parts) < 6:
+            continue
+        try:
+            area = float(parts[4])
+            volume = float(parts[5])
+        except ValueError:
+            continue
+        out[parts[0]] = {
+            "number": parts[1], "name": parts[2], "level": parts[3],
+            "area_m2": area, "volume_m3": volume,
+        }
+    return out
+
+
+@dataclass
+class RevitDiff:
+    """Расхождения открытой модели Revit с загруженным проектом."""
+    source: str = ""                       # Spaces (MEP) / Rooms
+    added: List[dict] = field(default_factory=list)    # есть в Revit, нет в проекте
+    removed: List[dict] = field(default_factory=list)  # есть в проекте, нет в Revit
+    changed: List[dict] = field(default_factory=list)  # площадь/объём/атрибуты разошлись
+    unchanged: int = 0
+
+    @property
+    def in_sync(self) -> bool:
+        return not self.added and not self.removed and not self.changed
+
+
+def diff_with_project(project: "HVACProject", *, rel_tol: float = 0.02,
+                      abs_tol_m2: float = 0.5,
+                      timeout: float = 300.0) -> RevitDiff:
+    """Сравнивает помещения открытой модели Revit с проектом.
+
+    Изменённым считается помещение, у которого площадь или объём ушли
+    больше чем на rel_tol (2%) И abs_tol (0.5 м²/м³), либо изменились
+    номер/имя/уровень.
+    """
+    snap = snapshot_spaces(timeout=timeout)
+    diff = RevitDiff()
+
+    proj = {sp.space_id: sp for sp in project.spaces}
+    for sid, r in snap.items():
+        sp = proj.get(sid)
+        if sp is None:
+            diff.added.append({"id": sid, **r})
+            continue
+        changes = []
+        for attr, key in (("number", "number"), ("name", "name"),
+                          ("level", "level")):
+            old = getattr(sp, attr, "") or ""
+            new = r[key] or ""
+            if old.strip() != new.strip():
+                changes.append(f"{key}: {old!r} → {new!r}")
+        for attr, key, unit in (("area_m2", "area_m2", "м²"),
+                                ("volume_m3", "volume_m3", "м³")):
+            old = float(getattr(sp, attr, 0.0) or 0.0)
+            new = float(r[key])
+            if (abs(new - old) > abs_tol_m2
+                    and abs(new - old) > rel_tol * max(old, 1e-9)):
+                changes.append(f"{key}: {old:.1f} → {new:.1f} {unit}")
+        if changes:
+            diff.changed.append({"id": sid, "number": r["number"],
+                                 "name": r["name"], "what": changes})
+        else:
+            diff.unchanged += 1
+    for sid, sp in proj.items():
+        if sid not in snap:
+            diff.removed.append({"id": sid, "number": sp.number,
+                                 "name": sp.name, "level": sp.level})
+    return diff
+
+
+# ============================================================================
+# Раскраска результатов в Revit (override графики активного вида)
+# ============================================================================
+# Python считает цвет каждого помещения (градиент синий→жёлтый→красный
+# по выбранной метрике), пишет CSV id,r,g,b; C# в транзакции ставит
+# заливку Solid Fill через SetElementOverrides активного вида.
+
+COLOR_CS = r'''
+string csvPath = (string)parameters[0];
+var lines = System.IO.File.ReadAllLines(csvPath);
+var view = document.ActiveView;
+FillPatternElement solid = null;
+foreach(FillPatternElement f in new FilteredElementCollector(document).OfClass(typeof(FillPatternElement))){try{if(f.GetFillPattern().IsSolidFill){solid=f;break;}}catch{}}
+var col = new FilteredElementCollector(document).OfCategory(BuiltInCategory.OST_MEPSpaces).WhereElementIsNotElementType().ToElements();
+if(col.Count==0) col = new FilteredElementCollector(document).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().ToElements();
+var byId = new Dictionary<string,Element>();
+foreach(var e in col){var k=e.Id.Value.ToString();if(!byId.ContainsKey(k))byId[k]=e;}
+int done=0,missing=0,failed=0;
+for(int i=1;i<lines.Length;i++){
+if(string.IsNullOrWhiteSpace(lines[i]))continue;
+var c=lines[i].Split(',');
+if(c.Length<4)continue;
+Element e;
+if(!byId.TryGetValue(c[0].Trim(),out e)){missing++;continue;}
+byte r,g,b;
+if(!byte.TryParse(c[1],out r)||!byte.TryParse(c[2],out g)||!byte.TryParse(c[3],out b))continue;
+var ogs=new OverrideGraphicSettings();
+var clr=new Color(r,g,b);
+ogs.SetSurfaceForegroundPatternColor(clr);
+ogs.SetCutForegroundPatternColor(clr);
+if(solid!=null){ogs.SetSurfaceForegroundPatternId(solid.Id);ogs.SetCutForegroundPatternId(solid.Id);}
+try{view.SetElementOverrides(e.Id,ogs);done++;}catch{failed++;}}
+return new{colored=done,missing=missing,failed=failed,view=view.Name};
+'''
+
+CLEAR_COLOR_CS = r'''
+var view = document.ActiveView;
+var col = new FilteredElementCollector(document).OfCategory(BuiltInCategory.OST_MEPSpaces).WhereElementIsNotElementType().ToElements();
+if(col.Count==0) col = new FilteredElementCollector(document).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().ToElements();
+int done=0;
+var ogs=new OverrideGraphicSettings();
+foreach(var e in col){try{view.SetElementOverrides(e.Id,ogs);done++;}catch{}}
+return new{cleared=done,view=view.Name};
+'''
+
+#: Метрики раскраски: {ключ: функция(Space) → значение}
+COLOR_METRICS = {
+    "heating_w_m2": lambda sp: (sp.heat_loss_w / sp.area_m2
+                                if sp.area_m2 > 0 else 0.0),
+    "cooling_w_m2": lambda sp: (sp.heat_gain_w / sp.area_m2
+                                if sp.area_m2 > 0 else 0.0),
+    "ach": lambda sp: sp.ach_calculated,
+}
+
+
+def _gradient_color(v: float) -> tuple:
+    """Синий (0) → жёлтый (0.5) → красный (1) для нормированного v."""
+    v = max(0.0, min(1.0, v))
+    lo, mid, hi = (59, 130, 246), (250, 204, 21), (239, 68, 68)
+    if v < 0.5:
+        t = v * 2.0
+        a, b = lo, mid
+    else:
+        t = (v - 0.5) * 2.0
+        a, b = mid, hi
+    return tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def color_spaces_in_revit(project: "HVACProject",
+                          metric: str = "heating_w_m2",
+                          timeout: float = 600.0) -> dict:
+    """Раскрашивает помещения активного вида Revit по метрике расчёта.
+
+    Нормировка — перцентили 5/95 по проекту (устойчивость к выбросам).
+    Возвращает сводку C# + диапазон значений {vmin, vmax, metric}.
+    """
+    fn = COLOR_METRICS.get(metric)
+    if fn is None:
+        raise ValueError(f"Неизвестная метрика {metric!r}; "
+                         f"доступны {sorted(COLOR_METRICS)}")
+    values = [(sp.space_id, fn(sp)) for sp in project.spaces
+              if sp.area_m2 > 0]
+    if not values:
+        raise ValueError("В проекте нет помещений с площадью — "
+                         "нечего раскрашивать")
+    ordered = sorted(v for _sid, v in values)
+    vmin = ordered[int(len(ordered) * 0.05)]
+    vmax = ordered[min(int(len(ordered) * 0.95), len(ordered) - 1)]
+    span = max(vmax - vmin, 1e-9)
+
+    lines = ["space_id,r,g,b"]
+    for sid, v in values:
+        r, g, b = _gradient_color((v - vmin) / span)
+        lines.append(f"{sid},{r},{g},{b}")
+
+    fd, csv_path = tempfile.mkstemp(suffix=".csv", prefix="hvac_color_")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+            f.write("\n".join(lines))
+        res = send_code(COLOR_CS, parameters=[csv_path],
+                        transaction_mode="auto", timeout=timeout)
+    finally:
+        try:
+            os.remove(csv_path)
+        except OSError:
+            pass
+    if not isinstance(res, dict):
+        raise RuntimeError(f"Неожиданный ответ Revit: {res!r}")
+    res.update({"metric": metric, "vmin": round(vmin, 1),
+                "vmax": round(vmax, 1)})
+    return res
+
+
+def clear_space_colors_in_revit(timeout: float = 600.0) -> dict:
+    """Сбрасывает раскраску помещений активного вида Revit."""
+    res = send_code(CLEAR_COLOR_CS, transaction_mode="auto",
+                    timeout=timeout)
     if not isinstance(res, dict):
         raise RuntimeError(f"Неожиданный ответ Revit: {res!r}")
     return res

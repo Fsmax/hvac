@@ -292,6 +292,31 @@ UZ: Dict[str, str] = {
     "panel.data.revit.done": ("Revit'dan yuklandi ({source}): {spaces} ta xona, "
                                   "{thermal} ta chegara qatori"),
     "panel.data.err.revit":     "Revit'dan import xatosi",
+    "panel.data.btn_revit_tools": "Revit asboblari ▾",
+    "panel.data.revit.act_diff": "Modelni loyiha bilan solishtirish",
+    "panel.data.revit.act_color_heat": "Bo‘yash: isitish, Vt/m²",
+    "panel.data.revit.act_color_cool": "Bo‘yash: sovutish, Vt/m²",
+    "panel.data.revit.act_color_ach": "Bo‘yash: almashinish, 1/soat",
+    "panel.data.revit.act_color_clear": "Bo‘yashni bekor qilish",
+    "panel.data.status.revit_diff": "Revit modeli bilan solishtirish…",
+    "panel.data.status.revit_color": "Revit'da xonalarni bo‘yash…",
+    "panel.data.revit.diff.no_project": ("Loyiha bo‘sh — avval ma’lumotlarni yuklang "
+                                  "(CSV yoki Revit'dan import)."),
+    "panel.data.revit.diff.in_sync": ("Revit modeli loyiha bilan mos: "
+                                  "{n} ta xona farqsiz."),
+    "panel.data.revit.diff.summary": ("Revit modeli loyihadan farq qiladi.\n\n"
+                                  "Revit'da yangi xonalar: {added}\n"
+                                  "Revit'dan o‘chirilgan: {removed}\n"
+                                  "O‘zgargan (maydon/hajm/atributlar): {changed}\n"
+                                  "O‘zgarishsiz: {unchanged}\n\n"
+                                  "Tafsilotlar — «Tafsilotlarni ko‘rsatish». "
+                                  "Loyihani yangilash: «Revit'dan import»."),
+    "panel.data.revit.diff.h_added": "— Revit'da yangi —",
+    "panel.data.revit.diff.h_removed": "— Revit'dan o‘chirilgan —",
+    "panel.data.revit.diff.h_changed": "— O‘zgarganlar —",
+    "panel.data.revit.color.done": ("«{view}» ko‘rinishida {n} ta xona bo‘yaldi "
+                                  "(diapazon {vmin}…{vmax})"),
+    "panel.data.revit.color.cleared": "«{view}» ko‘rinishida {n} ta xona bo‘yashi bekor qilindi",
     "panel.data.summary_loaded": ("✓ Yuklandi: {sp} ta xona · "
                                    "{el} ta devor · {co} ta tip konstruksiya"),
     "panel.data.actions.title": "Loyiha",

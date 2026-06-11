@@ -287,6 +287,31 @@ RU: Dict[str, str] = {
     "panel.data.revit.done": ("Выгружено из Revit ({source}): помещений {spaces}, "
                                   "строк границ {thermal}"),
     "panel.data.err.revit":     "Ошибка импорта из Revit",
+    "panel.data.btn_revit_tools": "Revit-инструменты ▾",
+    "panel.data.revit.act_diff": "Сравнить модель с проектом",
+    "panel.data.revit.act_color_heat": "Раскрасить: отопление, Вт/м²",
+    "panel.data.revit.act_color_cool": "Раскрасить: охлаждение, Вт/м²",
+    "panel.data.revit.act_color_ach": "Раскрасить: кратность, 1/ч",
+    "panel.data.revit.act_color_clear": "Сбросить раскраску",
+    "panel.data.status.revit_diff": "Сравнение с моделью Revit…",
+    "panel.data.status.revit_color": "Раскраска помещений в Revit…",
+    "panel.data.revit.diff.no_project": ("Проект пуст — сначала загрузите данные "
+                                  "(CSV или импорт из Revit)."),
+    "panel.data.revit.diff.in_sync": ("Модель Revit совпадает с проектом: "
+                                  "{n} помещений без расхождений."),
+    "panel.data.revit.diff.summary": ("Модель Revit разошлась с проектом.\n\n"
+                                  "Новых помещений в Revit: {added}\n"
+                                  "Удалено из Revit: {removed}\n"
+                                  "Изменено (площадь/объём/атрибуты): {changed}\n"
+                                  "Без изменений: {unchanged}\n\n"
+                                  "Подробности — кнопка «Показать подробности». "
+                                  "Обновить проект: «Импорт из Revit»."),
+    "panel.data.revit.diff.h_added": "— Новые в Revit —",
+    "panel.data.revit.diff.h_removed": "— Удалённые из Revit —",
+    "panel.data.revit.diff.h_changed": "— Изменённые —",
+    "panel.data.revit.color.done": ("Раскрашено {n} помещений на виде «{view}» "
+                                  "(диапазон {vmin}…{vmax})"),
+    "panel.data.revit.color.cleared": "Сброшена раскраска {n} помещений на виде «{view}»",
     "panel.data.summary_loaded": ("✓ Загружено: {sp} помещений · "
                                    "{el} ограждений · {co} типов конструкций"),
     "panel.data.actions.title": "Проект",
