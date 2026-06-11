@@ -65,6 +65,16 @@ def _revit_csv(project: HVACProject, path: str) -> None:
     export_results_for_revit(project, path)
 
 
+def _revit_live(project: HVACProject, path: str) -> None:
+    """Запись результатов прямо в открытую модель Revit через живой мост.
+
+    CSV сохраняется в path как артефакт; затем тот же файл читает C#-код
+    внутри Revit и пишет значения в Project Parameters категории Spaces.
+    """
+    from hvac.revit_link import write_results_to_revit
+    write_results_to_revit(project, path)
+
+
 def _equipment_xlsx(project: HVACProject, path: str) -> None:
     from hvac.io_excel_equipment import export_equipment_summary
     export_equipment_summary(project, path)
@@ -137,6 +147,10 @@ FORMATS = [
     ExportFormat(
         "revit", "export.fmt.revit.title", "export.fmt.revit.desc",
         ".csv", "export.fmt.revit.name", _revit_csv,
+    ),
+    ExportFormat(
+        "revit_live", "export.fmt.revit_live.title", "export.fmt.revit_live.desc",
+        ".csv", "export.fmt.revit_live.name", _revit_live,
     ),
     ExportFormat(
         "spec_gost", "export.fmt.spec.title", "export.fmt.spec.desc",

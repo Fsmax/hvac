@@ -280,6 +280,18 @@ UZ: Dict[str, str] = {
     "panel.data.keep_overrides": ("Qayta yuklashda xonalarning qo‘lda "
                                    "kiritilgan o‘zgarishlarini saqlash"),
     "panel.data.btn_load_csv":  "📥  CSV yuklash",
+    "panel.data.btn_revit_import": "🔄  Revit'dan import",
+    "panel.data.revit.tooltip": ("Xona va to'siqlarni ochiq Revit modelidan to'g'ridan-to'g'ri "
+                                  "yuklash (Dynamo'siz). Revit MCP Switch yoqilgan bo'lishi kerak."),
+    "panel.data.revit.pick_dir": "spaces.csv / thermal_all.csv uchun papka",
+    "panel.data.revit.not_connected.title": "Revit mavjud emas",
+    "panel.data.revit.not_connected.body": ("Revit'ga ulanib bo'lmadi (127.0.0.1:8080).\n\n"
+                                  "Tekshiring: Revit model bilan ochiq, lentada "
+                                  "«Revit MCP Switch» yoqilgan."),
+    "panel.data.status.revit_import": "Revit'dan import… (katta model — bir necha daqiqa)",
+    "panel.data.revit.done": ("Revit'dan yuklandi ({source}): {spaces} ta xona, "
+                                  "{thermal} ta chegara qatori"),
+    "panel.data.err.revit":     "Revit'dan import xatosi",
     "panel.data.summary_loaded": ("✓ Yuklandi: {sp} ta xona · "
                                    "{el} ta devor · {co} ta tip konstruksiya"),
     "panel.data.actions.title": "Loyiha",
@@ -1673,6 +1685,12 @@ UZ: Dict[str, str] = {
                                         "revit_dynamo_apply_results.py ni ishga tushiring — qiymatlar "
                                         "Space/Room parametrlariga yoziladi."),
     "export.fmt.revit.name":         "results_for_revit.csv",
+    "export.fmt.revit_live.title":   "Revit'ga yozish (jonli ko'prik)",
+    "export.fmt.revit_live.desc":    ("Yuklama/sarf/tizimlarni ochiq Revit modelining Spaces "
+                                        "parametrlariga to'g'ridan-to'g'ri yozadi (Revit MCP plagin, "
+                                        "port 8080, Dynamo'siz). CSV artefakt sifatida saqlanadi. "
+                                        "Modelda Project Parameters yaratilgan bo'lishi kerak."),
+    "export.fmt.revit_live.name":    "results_for_revit.csv",
     "export.fmt.spec.title":         "GOST 21.110 bo‘yicha spetsifikatsiya",
     "export.fmt.spec.desc":          ("Jihoz va materiallarning to‘liq spetsifikatsiyasi: qozonlar, AHU, "
                                         "radiatorlar, fankoyl, VRF, nasoslar, baklar, shovqin pasaytirgich, "

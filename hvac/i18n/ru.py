@@ -275,6 +275,18 @@ RU: Dict[str, str] = {
     "panel.data.keep_overrides": ("Сохранить ручные правки помещений при "
                                    "перезагрузке"),
     "panel.data.btn_load_csv":  "📥  Загрузить CSV",
+    "panel.data.btn_revit_import": "🔄  Импорт из Revit",
+    "panel.data.revit.tooltip": ("Выгрузить помещения и ограждения прямо из открытой модели "
+                                  "Revit (без Dynamo). Нужен включённый Revit MCP Switch."),
+    "panel.data.revit.pick_dir": "Папка для spaces.csv / thermal_all.csv",
+    "panel.data.revit.not_connected.title": "Revit недоступен",
+    "panel.data.revit.not_connected.body": ("Не удалось подключиться к Revit (127.0.0.1:8080).\n\n"
+                                  "Проверьте: Revit открыт с моделью, включён переключатель "
+                                  "«Revit MCP Switch» на ленте."),
+    "panel.data.status.revit_import": "Импорт из Revit… (большая модель — несколько минут)",
+    "panel.data.revit.done": ("Выгружено из Revit ({source}): помещений {spaces}, "
+                                  "строк границ {thermal}"),
+    "panel.data.err.revit":     "Ошибка импорта из Revit",
     "panel.data.summary_loaded": ("✓ Загружено: {sp} помещений · "
                                    "{el} ограждений · {co} типов конструкций"),
     "panel.data.actions.title": "Проект",
@@ -1663,6 +1675,12 @@ RU: Dict[str, str] = {
                                         "revit_dynamo_apply_results.py в Dynamo — значения запишутся "
                                         "в параметры Space/Room."),
     "export.fmt.revit.name":         "results_for_revit.csv",
+    "export.fmt.revit_live.title":   "Запись в Revit (живой мост)",
+    "export.fmt.revit_live.desc":    ("Пишет нагрузки/расходы/системы прямо в параметры Spaces "
+                                        "открытой модели Revit через плагин Revit MCP (порт 8080), "
+                                        "без Dynamo. CSV сохраняется рядом как артефакт. В модели "
+                                        "должны быть созданы Project Parameters (Heating Load и др.)."),
+    "export.fmt.revit_live.name":    "results_for_revit.csv",
     "export.fmt.spec.title":         "Спецификация по ГОСТ 21.110",
     "export.fmt.spec.desc":          ("Полная спецификация оборудования и материалов: котлы, AHU, "
                                         "радиаторы, фанкойлы, VRF, насосы, баки, шумоглушители, медь, "

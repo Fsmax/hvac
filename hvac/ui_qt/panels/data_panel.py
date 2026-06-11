@@ -11,7 +11,7 @@ import traceback
 from pathlib import Path
 from typing import Callable, List
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout,
@@ -28,6 +28,23 @@ from hvac.project import HVACProject
 from hvac.ui_qt.bridge import ProjectBridge
 from hvac.ui_qt.widgets.card import Card
 from hvac.ui_qt.widgets.city_combo import CityCombo
+
+
+class _RevitImportWorker(QObject):
+    """Выгрузка геометрии из Revit в фоне (модель может быть большой)."""
+    finished = Signal(dict)
+    failed = Signal(str)
+
+    def __init__(self, folder: str):
+        super().__init__()
+        self._folder = folder
+
+    def run(self) -> None:
+        try:
+            from hvac.revit_link import import_from_revit
+            self.finished.emit(import_from_revit(self._folder))
+        except Exception as e:
+            self.failed.emit(str(e))
 
 
 class DataPanel(QWidget):
@@ -362,6 +379,13 @@ class DataPanel(QWidget):
         actions = QHBoxLayout()
         actions.addStretch(1)
 
+        self.revit_btn = QPushButton()
+        self._tr_button(self.revit_btn, "panel.data.btn_revit_import")
+        self.revit_btn.setToolTip(_t("panel.data.revit.tooltip"))
+        self.revit_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self.revit_btn.clicked.connect(self._import_from_revit)
+        actions.addWidget(self.revit_btn)
+
         self.load_btn = QPushButton()
         self._tr_button(self.load_btn, "panel.data.btn_load_csv")
         self.load_btn.setProperty("role", "primary")
@@ -620,6 +644,58 @@ class DataPanel(QWidget):
             self._thermal_path = path
             self.thermal_path_lbl.setText(path)
             self._update_load_button_state()
+
+    def _import_from_revit(self) -> None:
+        """Живой импорт геометрии из открытой модели Revit (без Dynamo)."""
+        from hvac.revit_link import ping
+        if not ping():
+            QMessageBox.warning(
+                self, _t("panel.data.revit.not_connected.title"),
+                _t("panel.data.revit.not_connected.body"))
+            return
+        start = (str(Path(self._spaces_path).parent)
+                 if self._spaces_path else str(Path.home()))
+        folder = QFileDialog.getExistingDirectory(
+            self, _t("panel.data.revit.pick_dir"), start)
+        if not folder:
+            return
+
+        self.revit_btn.setEnabled(False)
+        self.bridge.busyChanged.emit(
+            True, _t("panel.data.status.revit_import"))
+        self._revit_thread = QThread(self)
+        self._revit_worker = _RevitImportWorker(folder)
+        self._revit_worker.moveToThread(self._revit_thread)
+        self._revit_thread.started.connect(self._revit_worker.run)
+        self._revit_worker.finished.connect(self._on_revit_import_done)
+        self._revit_worker.failed.connect(self._on_revit_import_failed)
+        self._revit_worker.finished.connect(self._revit_thread.quit)
+        self._revit_worker.failed.connect(self._revit_thread.quit)
+        self._revit_thread.start()
+
+    def _on_revit_import_done(self, summary: dict) -> None:
+        self.revit_btn.setEnabled(True)
+        self.bridge.busyChanged.emit(False, "")
+        spaces_csv = summary.get("spaces_csv", "")
+        thermal_csv = summary.get("thermal_csv", "")
+        if spaces_csv and thermal_csv:
+            self._spaces_path = spaces_csv
+            self._thermal_path = thermal_csv
+            self.spaces_path_lbl.setText(spaces_csv)
+            self.thermal_path_lbl.setText(thermal_csv)
+            self._update_load_button_state()
+        self.bridge.statusMessage.emit(
+            _t("panel.data.revit.done").format(
+                spaces=summary.get("spaces_rows", 0),
+                thermal=summary.get("thermal_rows", 0),
+                source=summary.get("source", "")), 8000)
+        self._load_csv()
+
+    def _on_revit_import_failed(self, message: str) -> None:
+        self.revit_btn.setEnabled(True)
+        self.bridge.busyChanged.emit(False, "")
+        QMessageBox.critical(
+            self, _t("panel.data.err.revit"), message)
 
     def _load_csv(self) -> None:
         if not (self._spaces_path and self._thermal_path):
