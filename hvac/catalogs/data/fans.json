@@ -1,0 +1,32 @@
+{
+  "type": "fans",
+  "comment": "Типовые характеристики канальных, радиальных и крышных вентиляторов (обобщение по каталогам Systemair, Вентс, ВР 80-75). flow_max — расход при свободном выходе, pressure_max — давление при нулевом расходе; кривая аппроксимируется параболой p(q) = p_max·(1 − (q/q_max)²). Финальный подбор — по программе изготовителя.",
+  "models": [
+    {"name": "К 100",  "family": "Канальный круглый", "flow_max_m3_h": 250,  "pressure_max_pa": 320, "power_w": 60,   "rpm": 2500, "noise_db_a": 51, "diameter_mm": 100},
+    {"name": "К 125",  "family": "Канальный круглый", "flow_max_m3_h": 405,  "pressure_max_pa": 380, "power_w": 80,   "rpm": 2480, "noise_db_a": 53, "diameter_mm": 125},
+    {"name": "К 160",  "family": "Канальный круглый", "flow_max_m3_h": 740,  "pressure_max_pa": 420, "power_w": 100,  "rpm": 2450, "noise_db_a": 55, "diameter_mm": 160},
+    {"name": "К 200",  "family": "Канальный круглый", "flow_max_m3_h": 1020, "pressure_max_pa": 450, "power_w": 135,  "rpm": 2400, "noise_db_a": 56, "diameter_mm": 200},
+    {"name": "К 250",  "family": "Канальный круглый", "flow_max_m3_h": 1320, "pressure_max_pa": 520, "power_w": 170,  "rpm": 2350, "noise_db_a": 58, "diameter_mm": 250},
+    {"name": "К 315",  "family": "Канальный круглый", "flow_max_m3_h": 1780, "pressure_max_pa": 560, "power_w": 245,  "rpm": 2300, "noise_db_a": 60, "diameter_mm": 315},
+
+    {"name": "КП 40-20",  "family": "Канальный прямоугольный", "flow_max_m3_h": 1500,  "pressure_max_pa": 400, "power_w": 250,  "rpm": 1350, "noise_db_a": 55, "width_mm": 400,  "height_mm": 200},
+    {"name": "КП 50-25",  "family": "Канальный прямоугольный", "flow_max_m3_h": 2750,  "pressure_max_pa": 500, "power_w": 420,  "rpm": 1380, "noise_db_a": 57, "width_mm": 500,  "height_mm": 250},
+    {"name": "КП 50-30",  "family": "Канальный прямоугольный", "flow_max_m3_h": 3300,  "pressure_max_pa": 540, "power_w": 540,  "rpm": 1370, "noise_db_a": 58, "width_mm": 500,  "height_mm": 300},
+    {"name": "КП 60-30",  "family": "Канальный прямоугольный", "flow_max_m3_h": 4000,  "pressure_max_pa": 580, "power_w": 700,  "rpm": 1360, "noise_db_a": 59, "width_mm": 600,  "height_mm": 300},
+    {"name": "КП 60-35",  "family": "Канальный прямоугольный", "flow_max_m3_h": 4700,  "pressure_max_pa": 620, "power_w": 850,  "rpm": 1350, "noise_db_a": 60, "width_mm": 600,  "height_mm": 350},
+    {"name": "КП 70-40",  "family": "Канальный прямоугольный", "flow_max_m3_h": 5900,  "pressure_max_pa": 650, "power_w": 1100, "rpm": 1340, "noise_db_a": 61, "width_mm": 700,  "height_mm": 400},
+    {"name": "КП 80-50",  "family": "Канальный прямоугольный", "flow_max_m3_h": 8200,  "pressure_max_pa": 700, "power_w": 1650, "rpm": 1330, "noise_db_a": 63, "width_mm": 800,  "height_mm": 500},
+    {"name": "КП 100-50", "family": "Канальный прямоугольный", "flow_max_m3_h": 11200, "pressure_max_pa": 750, "power_w": 2500, "rpm": 1320, "noise_db_a": 65, "width_mm": 1000, "height_mm": 500},
+
+    {"name": "ВР-2,5",  "family": "Радиальный", "flow_max_m3_h": 2600,  "pressure_max_pa": 1450, "power_w": 1100,  "rpm": 2850, "noise_db_a": 72},
+    {"name": "ВР-3,15", "family": "Радиальный", "flow_max_m3_h": 4800,  "pressure_max_pa": 1500, "power_w": 2200,  "rpm": 2850, "noise_db_a": 74},
+    {"name": "ВР-4",    "family": "Радиальный", "flow_max_m3_h": 8600,  "pressure_max_pa": 1600, "power_w": 4000,  "rpm": 2850, "noise_db_a": 76},
+    {"name": "ВР-5",    "family": "Радиальный", "flow_max_m3_h": 14500, "pressure_max_pa": 1700, "power_w": 7500,  "rpm": 2850, "noise_db_a": 78},
+    {"name": "ВР-6,3",  "family": "Радиальный", "flow_max_m3_h": 26000, "pressure_max_pa": 1900, "power_w": 15000, "rpm": 1450, "noise_db_a": 79},
+    {"name": "ВР-8",    "family": "Радиальный", "flow_max_m3_h": 46000, "pressure_max_pa": 2200, "power_w": 30000, "rpm": 1450, "noise_db_a": 81},
+
+    {"name": "КР-4",   "family": "Крышный", "flow_max_m3_h": 4500,  "pressure_max_pa": 450, "power_w": 550,  "rpm": 1350, "noise_db_a": 60},
+    {"name": "КР-5",   "family": "Крышный", "flow_max_m3_h": 8500,  "pressure_max_pa": 500, "power_w": 1100, "rpm": 1320, "noise_db_a": 62},
+    {"name": "КР-6,3", "family": "Крышный", "flow_max_m3_h": 16000, "pressure_max_pa": 600, "power_w": 2200, "rpm": 960,  "noise_db_a": 64}
+  ]
+}

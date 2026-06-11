@@ -287,6 +287,52 @@ RU: Dict[str, str] = {
     "panel.data.revit.done": ("Выгружено из Revit ({source}): помещений {spaces}, "
                                   "строк границ {thermal}"),
     "panel.data.err.revit":     "Ошибка импорта из Revit",
+    "panel.data.btn_revit_tools": "Revit-инструменты ▾",
+    "panel.data.revit.act_diff": "Сравнить модель с проектом",
+    "panel.data.revit.act_color_heat": "Раскрасить: отопление, Вт/м²",
+    "panel.data.revit.act_color_cool": "Раскрасить: охлаждение, Вт/м²",
+    "panel.data.revit.act_color_ach": "Раскрасить: кратность, 1/ч",
+    "panel.data.revit.act_color_clear": "Сбросить раскраску",
+    "panel.data.status.revit_diff": "Сравнение с моделью Revit…",
+    "panel.data.status.revit_color": "Раскраска помещений в Revit…",
+    "panel.data.revit.diff.no_project": ("Проект пуст — сначала загрузите данные "
+                                  "(CSV или импорт из Revit)."),
+    "panel.data.revit.diff.in_sync": ("Модель Revit совпадает с проектом: "
+                                  "{n} помещений без расхождений."),
+    "panel.data.revit.diff.summary": ("Модель Revit разошлась с проектом.\n\n"
+                                  "Новых помещений в Revit: {added}\n"
+                                  "Удалено из Revit: {removed}\n"
+                                  "Изменено (площадь/объём/атрибуты): {changed}\n"
+                                  "Без изменений: {unchanged}\n\n"
+                                  "Подробности — кнопка «Показать подробности». "
+                                  "Обновить проект: «Импорт из Revit»."),
+    "panel.data.revit.diff.h_added": "— Новые в Revit —",
+    "panel.data.revit.diff.h_removed": "— Удалённые из Revit —",
+    "panel.data.revit.diff.h_changed": "— Изменённые —",
+    "panel.data.revit.color.done": ("Раскрашено {n} помещений на виде «{view}» "
+                                  "(диапазон {vmin}…{vmax})"),
+    "panel.data.revit.color.cleared": "Сброшена раскраска {n} помещений на виде «{view}»",
+    "panel.data.revit.act_equip": "Импорт оборудования помещений",
+    "panel.data.status.revit_equip": "Чтение оборудования из Revit…",
+    "panel.data.revit.equip.none": ("В модели не найдено оборудования, привязанного "
+                                  "к помещениям (решётки/диффузоры, фанкойлы, "
+                                  "радиаторы)."),
+    "panel.data.revit.equip.summary": ("Распознано экземпляров: {total}\n"
+                                  "Обновлено помещений: {spaces}\n\n"
+                                  "Приток: {supply} · Вытяжка: {exhaust} · "
+                                  "Отопление: {heating} · Охлаждение: {cooling}\n"
+                                  "Вне помещений: {no_space} · Нет в проекте: "
+                                  "{unmatched} · Не распознано: {unrec}"),
+    "panel.data.revit.equip.h_assigned": "— Назначено по помещениям —",
+    "panel.data.revit.equip.h_unrec": "— Не распознано (семейство / тип) —",
+    "panel.data.revit.equip.slot.supply": "приток",
+    "panel.data.revit.equip.slot.exhaust": "вытяжка",
+    "panel.data.revit.equip.slot.heating": "отопление",
+    "panel.data.revit.equip.slot.cooling": "охлаждение",
+    "panel.data.revit.equip.line": "  {number} {name}: {slot} — {qty} × {type} ({model})",
+    "panel.data.revit.equip.val.flow": " · {v} м³/ч на шт.",
+    "panel.data.revit.equip.val.power": " · {v} Вт на шт.",
+    "panel.data.revit.equip.done": "Оборудование из Revit: обновлено помещений — {spaces}",
     "panel.data.summary_loaded": ("✓ Загружено: {sp} помещений · "
                                    "{el} ограждений · {co} типов конструкций"),
     "panel.data.actions.title": "Проект",
@@ -1362,6 +1408,70 @@ RU: Dict[str, str] = {
     "panel.eng.tab.vrf":             "VRF/VRV",
     "panel.eng.tab.energy":          "Энергия (8760 ч)",
     "panel.eng.tab.comfort":         "Комфорт PMV/PPD",
+    "panel.eng.tab.curtain":         "Тепловые завесы",
+    "panel.eng.tab.itp":             "ИТП / ТО",
+
+    # ========== Engineering: воздушно-тепловые завесы ==========
+    "panel.eng.cu.info":             ("Подбор воздушно-тепловой завесы шиберующего типа "
+                                        "(СНиП 2.04.05 прил. 20 / СП 60.13330 п.7.7): расход и "
+                                        "тепловая мощность по разности давлений на проёме. "
+                                        "Коэффициенты q̄ и μ уточняйте по данным изготовителя."),
+    "panel.eng.cu.type":             "Тип проёма:",
+    "panel.eng.cu.type_door":        "Наружная дверь",
+    "panel.eng.cu.type_gate":        "Ворота / технологический проём",
+    "panel.eng.cu.purpose":          "Назначение:",
+    "panel.eng.cu.purpose_public":   "Общественное / адм.-бытовое (t_см 14 °C)",
+    "panel.eng.cu.purpose_ind_light": "Производственное, лёгкая работа (t_см 12 °C)",
+    "panel.eng.cu.purpose_ind_none": "Произв. без пост. рабочих мест (t_см 5 °C)",
+    "panel.eng.cu.width":            "Ширина проёма:",
+    "panel.eng.cu.height":           "Высота проёма:",
+    "panel.eng.cu.bld_height":       "Высота здания:",
+    "panel.eng.cu.t_out":            "t наружная (Б):",
+    "panel.eng.cu.t_in":             "t внутренняя:",
+    "panel.eng.cu.t_mix":            "t смеси у проёма:",
+    "panel.eng.cu.wind":             "Скорость ветра:",
+    "panel.eng.cu.q_ratio":          "q̄ (G_зав/G_проёма):",
+    "panel.eng.cu.mu":               "μ (коэф. расхода):",
+    "panel.eng.cu.slot":             "Площадь щелей (0 — нет):",
+    "panel.eng.cu.intake_inside":    "Забор воздуха изнутри",
+    "panel.eng.cu.btn_run":          "▶ Рассчитать завесу",
+    "panel.eng.cu.col.param":        "Параметр",
+    "panel.eng.cu.col.value":        "Значение",
+    "panel.eng.cu.row.area":         "Площадь проёма, м²",
+    "panel.eng.cu.row.dp":           "Расчётная Δp, Па",
+    "panel.eng.cu.row.g":            "Расход завесы, кг/ч",
+    "panel.eng.cu.row.l":            "Расход завесы, м³/ч",
+    "panel.eng.cu.row.t_supply":     "t подачи завесы, °C",
+    "panel.eng.cu.row.q":            "Мощность калорифера, кВт",
+    "panel.eng.cu.row.v_slot":       "Скорость выпуска, м/с",
+    "panel.eng.cu.status":           "Завеса рассчитана",
+
+    # ========== Engineering: ИТП / теплообменники ==========
+    "panel.eng.itp.info":            ("Подбор пластинчатого теплообменника по LMTD (противоток): "
+                                        "поверхность с запасом на загрязнение и расходы сторон. "
+                                        "k = 3000…5500 Вт/(м²·К) для разборных ТО вода-вода; "
+                                        "финальный подбор — по программе изготовителя."),
+    "panel.eng.itp.preset":          "Температурный график:",
+    "panel.eng.itp.preset_95_70":    "Отопление 95/70 → 80/60",
+    "panel.eng.itp.preset_80_60":    "Отопление 80/60 → 70/50",
+    "panel.eng.itp.preset_dhw":      "ГВС 70/30 → 5/60",
+    "panel.eng.itp.q":               "Нагрузка Q:",
+    "panel.eng.itp.btn_from_project": "Q из теплопотерь проекта",
+    "panel.eng.itp.no_loads":        "Теплопотери ещё не рассчитаны.",
+    "panel.eng.itp.k":               "k теплопередачи:",
+    "panel.eng.itp.margin":          "Запас поверхности:",
+    "panel.eng.itp.t_hot_in":        "Греющая, вход:",
+    "panel.eng.itp.t_hot_out":       "Греющая, выход:",
+    "panel.eng.itp.t_cold_in":       "Нагреваемая, вход:",
+    "panel.eng.itp.t_cold_out":      "Нагреваемая, выход:",
+    "panel.eng.itp.btn_run":         "▶ Подобрать ТО",
+    "panel.eng.itp.col.param":       "Параметр",
+    "panel.eng.itp.col.value":       "Значение",
+    "panel.eng.itp.row.lmtd":        "LMTD, K",
+    "panel.eng.itp.row.area":        "Поверхность (с запасом), м²",
+    "panel.eng.itp.row.g_hot":       "Расход греющей, м³/ч",
+    "panel.eng.itp.row.g_cold":      "Расход нагреваемой, м³/ч",
+    "panel.eng.itp.status":          "Теплообменник подобран",
     "panel.eng.common.error":        "Ошибка",
     "panel.eng.common.no_data":      "Нет данных. Нажмите «Рассчитать».",
 
@@ -1435,6 +1545,18 @@ RU: Dict[str, str] = {
     "panel.eng.duct.del_title":      "Удалить участок",
     "panel.eng.duct.del_msg":        "Удалить участок «{eid}»?",
     "panel.eng.duct.fan_label":      "Вентилятор: Q = {q} м³/ч, ΔP = {dp} Па",
+    "panel.eng.duct.btn_fan":        "Подобрать вентилятор",
+    "panel.eng.duct.fan_title":      "Подбор вентилятора",
+    "panel.eng.duct.fan_head":       ("Рабочая точка: Q = {q} м³/ч, ΔP = {dp} Па.\n"
+                                        "Каталожный предподбор (парабола по двум точкам) — "
+                                        "финальный подбор по программе изготовителя."),
+    "panel.eng.duct.fan_pick":       ("• {name} ({family}): {p_avail:.0f} Па в точке "
+                                        "(запас {margin:.0f}%, {ratio:.0f}% кривой), "
+                                        "{power:.0f} Вт, {noise:.0f} дБ(А)"),
+    "panel.eng.duct.fan_none":       ("Для точки Q = {q} м³/ч, ΔP = {dp} Па в каталоге "
+                                        "ничего не подошло. Добавьте модели в "
+                                        "~/.hvac_calc/catalogs/ (тип \"fans\") или разбейте "
+                                        "систему на несколько вентиляторов."),
 
     # Hydraulics
     "panel.eng.hyd.h_static":        "Статическая высота:",
@@ -1609,6 +1731,18 @@ RU: Dict[str, str] = {
     "panel.eng.en.epw_none":         ("Климат: синтетический профиль из расчётных T. "
                                         "Точнее — реальный метеогод EPW (climate.onebuilding.org)."),
     "panel.eng.en.epw_loaded":       "Климат: EPW {loc} ({tmin:+.1f}…{tmax:+.1f} °C)",
+    "panel.eng.en.epw_design":       ("Расчётные по файлу: пятидневка {t5:+.1f} °C · "
+                                        "лето 0,95: {t95:+.1f} °C · ГСОП {gsop:.0f}"),
+    "panel.eng.en.epw_design_tt":    ("Расчётные параметры из почасовых данных EPW:\n"
+                                        "Наиболее холодная пятидневка: {t5:+.1f} °C (≈ обесп. 0,92)\n"
+                                        "Наиболее холодные сутки: {t1:+.1f} °C (≈ обесп. 0,98)\n"
+                                        "Лето, обесп. 0,95 (≤440 ч/год): {t95:+.1f} °C\n"
+                                        "Лето, обесп. 0,98 (≤88 ч/год): {t98:+.1f} °C\n"
+                                        "Суточная амплитуда тёплого месяца: {amp:.1f} K\n"
+                                        "Период ≤8 °C: {z8} сут, средняя {t8:+.1f} °C\n"
+                                        "Период ≤12 °C: {z12} сут, средняя {t12:+.1f} °C\n"
+                                        "ГСОП (t_в=20 °C): {gsop:.0f} °C·сут\n"
+                                        "Зимние значения — по одному метеогоду, сверяйте со справочником."),
     "panel.eng.en.epw_err":          "Ошибка чтения EPW",
     "panel.eng.en.empty":            "Нет данных. Нажмите «Симулировать год».",
     "panel.eng.en.chart.t_year":     "Годовая T (среднесуточная)",
@@ -1625,6 +1759,7 @@ RU: Dict[str, str] = {
     "panel.eng.en.row.e_heat_m2":    "Удельное отопление, кВт·ч/(м²·год)",
     "panel.eng.en.row.e_cool_m2":    "Удельное охлаждение, кВт·ч/(м²·год)",
     "panel.eng.en.row.e_total_m2":   "Удельное Σ, кВт·ч/(м²·год)",
+    "panel.eng.en.row.e_solar":      "Солнце через остекление (EPW), кВт·ч/год",
     "panel.eng.en.row.q_peak_heat":  "Q пик отопление, кВт",
     "panel.eng.en.row.q_peak_cool":  "Q пик охлаждение, кВт",
     "panel.eng.en.row.t_peak_heat":  "Время пика отопления",
@@ -1686,6 +1821,11 @@ RU: Dict[str, str] = {
                                         "радиаторы, фанкойлы, VRF, насосы, баки, шумоглушители, медь, "
                                         "трубы тёплого пола. Группировка по разделам ГОСТ 21.110-2013."),
     "export.fmt.spec.name":          "Спецификация_{name}.xlsx",
+    "export.fmt.passport.title":     "Паспорта вентсистем (DOCX)",
+    "export.fmt.passport.desc":      ("Паспорт на каждую вентустановку: расчётные расходы, "
+                                        "калорифер/охладитель, вентилятор и сеть, обслуживаемые "
+                                        "помещения. Колонка «Факт» — для наладчика."),
+    "export.fmt.passport.name":      "Паспорта_вентсистем_{name}.docx",
     "export.fmt.gas.title":          "PDF: расчёт газа (письмо для ТУ)",
     "export.fmt.gas.desc":           ("Письмо-расчёт потребности в газе от мощности газовых котлов "
                                         "проекта: часовой / суточный / месячный / годовой расход."),

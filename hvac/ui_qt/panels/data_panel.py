@@ -15,8 +15,8 @@ from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout,
-    QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
-    QScrollArea, QVBoxLayout, QWidget,
+    QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox,
+    QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
 from hvac.catalogs.climate import CLIMATE_DB
@@ -43,6 +43,22 @@ class _RevitImportWorker(QObject):
         try:
             from hvac.revit_link import import_from_revit
             self.finished.emit(import_from_revit(self._folder))
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
+class _RevitTaskWorker(QObject):
+    """Произвольная операция живого моста Revit в фоновом потоке."""
+    finished = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, fn: Callable[[], object]):
+        super().__init__()
+        self._fn = fn
+
+    def run(self) -> None:
+        try:
+            self.finished.emit(self._fn())
         except Exception as e:
             self.failed.emit(str(e))
 
@@ -386,6 +402,40 @@ class DataPanel(QWidget):
         self.revit_btn.clicked.connect(self._import_from_revit)
         actions.addWidget(self.revit_btn)
 
+        # Инструменты живого моста: дифф модели + раскраска результатов
+        self.revit_tools_btn = QPushButton()
+        self._tr_button(self.revit_tools_btn, "panel.data.btn_revit_tools")
+        self.revit_tools_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        menu = QMenu(self.revit_tools_btn)
+        self._act_diff = menu.addAction("")
+        self._act_diff.triggered.connect(self._revit_diff)
+        self._act_equip = menu.addAction("")
+        self._act_equip.triggered.connect(self._revit_equip)
+        menu.addSeparator()
+        self._act_color_heat = menu.addAction("")
+        self._act_color_heat.triggered.connect(
+            lambda: self._revit_color("heating_w_m2"))
+        self._act_color_cool = menu.addAction("")
+        self._act_color_cool.triggered.connect(
+            lambda: self._revit_color("cooling_w_m2"))
+        self._act_color_ach = menu.addAction("")
+        self._act_color_ach.triggered.connect(
+            lambda: self._revit_color("ach"))
+        self._act_color_clear = menu.addAction("")
+        self._act_color_clear.triggered.connect(self._revit_color_clear)
+        self.revit_tools_btn.setMenu(menu)
+
+        def _tr_menu():
+            self._act_diff.setText(_t("panel.data.revit.act_diff"))
+            self._act_equip.setText(_t("panel.data.revit.act_equip"))
+            self._act_color_heat.setText(_t("panel.data.revit.act_color_heat"))
+            self._act_color_cool.setText(_t("panel.data.revit.act_color_cool"))
+            self._act_color_ach.setText(_t("panel.data.revit.act_color_ach"))
+            self._act_color_clear.setText(
+                _t("panel.data.revit.act_color_clear"))
+        self._tr(_tr_menu)
+        actions.addWidget(self.revit_tools_btn)
+
         self.load_btn = QPushButton()
         self._tr_button(self.load_btn, "panel.data.btn_load_csv")
         self.load_btn.setProperty("role", "primary")
@@ -696,6 +746,184 @@ class DataPanel(QWidget):
         self.bridge.busyChanged.emit(False, "")
         QMessageBox.critical(
             self, _t("panel.data.err.revit"), message)
+
+    # ---------- Инструменты живого моста: дифф и раскраска ----------
+
+    def _revit_ready(self) -> bool:
+        from hvac.revit_link import ping
+        if not ping():
+            QMessageBox.warning(
+                self, _t("panel.data.revit.not_connected.title"),
+                _t("panel.data.revit.not_connected.body"))
+            return False
+        return True
+
+    def _run_revit_task(self, fn, on_done, busy_key: str) -> None:
+        """Запускает операцию моста в фоне с блокировкой кнопки."""
+        self.revit_tools_btn.setEnabled(False)
+        self.bridge.busyChanged.emit(True, _t(busy_key))
+
+        def _finish():
+            self.revit_tools_btn.setEnabled(True)
+            self.bridge.busyChanged.emit(False, "")
+
+        def _ok(result):
+            _finish()
+            on_done(result)
+
+        def _fail(message: str):
+            _finish()
+            QMessageBox.critical(self, _t("panel.data.err.revit"), message)
+
+        self._revit_task_thread = QThread(self)
+        self._revit_task_worker = _RevitTaskWorker(fn)
+        self._revit_task_worker.moveToThread(self._revit_task_thread)
+        self._revit_task_thread.started.connect(self._revit_task_worker.run)
+        self._revit_task_worker.finished.connect(_ok)
+        self._revit_task_worker.failed.connect(_fail)
+        self._revit_task_worker.finished.connect(self._revit_task_thread.quit)
+        self._revit_task_worker.failed.connect(self._revit_task_thread.quit)
+        self._revit_task_thread.start()
+
+    def _revit_diff(self) -> None:
+        """Сравнение открытой модели Revit с загруженным проектом."""
+        if not self.project.spaces:
+            QMessageBox.information(
+                self, _t("panel.data.revit.act_diff"),
+                _t("panel.data.revit.diff.no_project"))
+            return
+        if not self._revit_ready():
+            return
+        from hvac.revit_link import diff_with_project
+        self._run_revit_task(
+            lambda: diff_with_project(self.project),
+            self._show_revit_diff, "panel.data.status.revit_diff")
+
+    def _show_revit_diff(self, diff) -> None:
+        if diff.in_sync:
+            QMessageBox.information(
+                self, _t("panel.data.revit.act_diff"),
+                _t("panel.data.revit.diff.in_sync").format(
+                    n=diff.unchanged))
+            return
+        summary = _t("panel.data.revit.diff.summary").format(
+            added=len(diff.added), removed=len(diff.removed),
+            changed=len(diff.changed), unchanged=diff.unchanged)
+        details: list[str] = []
+        if diff.added:
+            details.append(_t("panel.data.revit.diff.h_added"))
+            details += [f"  + {r['number']} {r['name']} "
+                        f"({r['area_m2']:.1f} м², id {r['id']})"  # i18n-allow
+                        for r in diff.added[:150]]
+        if diff.removed:
+            details.append(_t("panel.data.revit.diff.h_removed"))
+            details += [f"  − {r['number']} {r['name']} (id {r['id']})"
+                        for r in diff.removed[:150]]
+        if diff.changed:
+            details.append(_t("panel.data.revit.diff.h_changed"))
+            for r in diff.changed[:150]:
+                details.append(f"  ~ {r['number']} {r['name']}: "
+                               + "; ".join(r["what"]))
+        m = QMessageBox(self)
+        m.setIcon(QMessageBox.Information)
+        m.setWindowTitle(_t("panel.data.revit.act_diff"))
+        m.setText(summary)
+        m.setDetailedText("\n".join(details))
+        m.exec()
+
+    def _revit_equip(self) -> None:
+        """Импорт расставленного оборудования помещений из Revit."""
+        if not self.project.spaces:
+            QMessageBox.information(
+                self, _t("panel.data.revit.act_equip"),
+                _t("panel.data.revit.diff.no_project"))
+            return
+        if not self._revit_ready():
+            return
+        from hvac.revit_link import plan_equipment_import
+        # Снимок и разбор — в фоне; запись в проект — в _apply_revit_equip
+        # (главный поток: подписчики equipment_changed трогают виджеты).
+        self._run_revit_task(
+            lambda: plan_equipment_import(self.project),
+            self._apply_revit_equip, "panel.data.status.revit_equip")
+
+    def _apply_revit_equip(self, plan) -> None:
+        from hvac.revit_link import apply_equipment_import
+        if not plan.has_updates:
+            QMessageBox.information(
+                self, _t("panel.data.revit.act_equip"),
+                _t("panel.data.revit.equip.none"))
+            return
+        n = apply_equipment_import(self.project, plan)
+        self.bridge.dirtyChanged.emit(True)
+        summary = _t("panel.data.revit.equip.summary").format(
+            total=plan.total, spaces=n,
+            supply=plan.by_slot.get("supply", 0),
+            exhaust=plan.by_slot.get("exhaust", 0),
+            heating=plan.by_slot.get("heating", 0),
+            cooling=plan.by_slot.get("cooling", 0),
+            no_space=plan.no_space, unmatched=plan.unmatched,
+            unrec=len(plan.unrecognized))
+        details: list[str] = []
+        if plan.assigned:
+            details.append(_t("panel.data.revit.equip.h_assigned"))
+            for r in plan.assigned[:200]:
+                line = _t("panel.data.revit.equip.line").format(
+                    number=r["number"], name=r["name"],
+                    slot=_t("panel.data.revit.equip.slot." + r["slot"]),
+                    qty=r["qty"], type=r["type"], model=r["model"])
+                if r["value"] > 0:
+                    key = ("panel.data.revit.equip.val.flow"
+                           if r["slot"] in ("supply", "exhaust")
+                           else "panel.data.revit.equip.val.power")
+                    line += _t(key).format(v=round(r["value"]))
+                details.append(line)
+        if plan.unrecognized:
+            details.append(_t("panel.data.revit.equip.h_unrec"))
+            details += [f"  ? {s}" for s in plan.unrecognized[:100]]
+        m = QMessageBox(self)
+        m.setIcon(QMessageBox.Information)
+        m.setWindowTitle(_t("panel.data.revit.act_equip"))
+        m.setText(summary)
+        m.setDetailedText("\n".join(details))
+        m.exec()
+        self.bridge.statusMessage.emit(
+            _t("panel.data.revit.equip.done").format(spaces=n), 8000)
+
+    def _revit_color(self, metric: str) -> None:
+        """Раскраска помещений активного вида Revit по метрике."""
+        if not self.project.spaces:
+            QMessageBox.information(
+                self, _t("panel.data.btn_revit_tools"),
+                _t("panel.data.revit.diff.no_project"))
+            return
+        if not self._revit_ready():
+            return
+        from hvac.revit_link import color_spaces_in_revit
+
+        def _done(res: dict):
+            self.bridge.statusMessage.emit(
+                _t("panel.data.revit.color.done").format(
+                    n=res.get("colored", 0), view=res.get("view", "?"),
+                    vmin=res.get("vmin", 0), vmax=res.get("vmax", 0)), 8000)
+
+        self._run_revit_task(
+            lambda: color_spaces_in_revit(self.project, metric),
+            _done, "panel.data.status.revit_color")
+
+    def _revit_color_clear(self) -> None:
+        if not self._revit_ready():
+            return
+        from hvac.revit_link import clear_space_colors_in_revit
+
+        def _done(res: dict):
+            self.bridge.statusMessage.emit(
+                _t("panel.data.revit.color.cleared").format(
+                    n=res.get("cleared", 0), view=res.get("view", "?")), 6000)
+
+        self._run_revit_task(
+            clear_space_colors_in_revit, _done,
+            "panel.data.status.revit_color")
 
     def _load_csv(self) -> None:
         if not (self._spaces_path and self._thermal_path):

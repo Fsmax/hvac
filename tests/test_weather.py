@@ -5,7 +5,8 @@ import math
 
 import pytest
 
-from hvac.weather import HOURS_IN_YEAR, load_epw
+from hvac.weather import (
+    HOURS_IN_YEAR, WeatherData, derive_design_conditions, load_epw)
 
 
 def _make_epw(path, hours=HOURS_IN_YEAR, t_func=None, rh=50.0, ghi=200.0,
@@ -73,6 +74,63 @@ class TestLoadEPW:
             return 99.9 if h == 10 else 5.0
         wd = load_epw(_make_epw(tmp_path / "m.epw", t_func=t_func))
         assert wd.t_dry_bulb_c[10] == pytest.approx(5.0)
+
+    def test_parses_timezone(self, tmp_path):
+        wd = load_epw(_make_epw(tmp_path / "tz.epw"))
+        assert wd.tz_offset_h == pytest.approx(5.0)
+
+
+def _wd_from_hourly(t_hourly):
+    return WeatherData(t_dry_bulb_c=list(t_hourly),
+                       rh_pct=[50.0] * len(t_hourly),
+                       ghi_w_m2=[0.0] * len(t_hourly))
+
+
+class TestDesignConditions:
+    def test_constant_year(self):
+        dc = derive_design_conditions(_wd_from_hourly([20.0] * HOURS_IN_YEAR))
+        assert dc.t_cold_5day_c == pytest.approx(20.0)
+        assert dc.t_cold_1day_c == pytest.approx(20.0)
+        assert dc.t_cool_095_c == pytest.approx(20.0)
+        assert dc.z_ht_8_days == 0
+        assert dc.gsop_18 == 0
+
+    def test_cold_snap_defines_5day(self):
+        """5 суток по −20 °C среди года +15 °C → пятидневка −20."""
+        t = [15.0] * HOURS_IN_YEAR
+        for h in range(100 * 24, 105 * 24):
+            t[h] = -20.0
+        dc = derive_design_conditions(_wd_from_hourly(t))
+        assert dc.t_cold_5day_c == pytest.approx(-20.0)
+        assert dc.t_cold_1day_c == pytest.approx(-20.0)
+        assert dc.z_ht_8_days == 5
+        assert dc.t_ht_8_c == pytest.approx(-20.0)
+        # ГСОП = (20 − (−20)) · 5 = 200
+        assert dc.gsop_18 == pytest.approx(200.0)
+
+    def test_cold_snap_wraps_year_boundary(self):
+        """Холод 29.12–02.01 (через Новый год) ловится кольцом."""
+        t = [15.0] * HOURS_IN_YEAR
+        for h in range(362 * 24, 365 * 24):    # 3 последних дня
+            t[h] = -20.0
+        for h in range(0, 2 * 24):             # 2 первых дня
+            t[h] = -20.0
+        dc = derive_design_conditions(_wd_from_hourly(t))
+        assert dc.t_cold_5day_c == pytest.approx(-20.0)
+
+    def test_summer_quantiles_by_exceedance_hours(self):
+        """100 часов по +40 °C: обесп. 0,98 (≤88 ч) ловит их,
+        обесп. 0,95 (≤440 ч) — уже нет."""
+        t = [10.0] * HOURS_IN_YEAR
+        for h in range(100):
+            t[h] = 40.0
+        dc = derive_design_conditions(_wd_from_hourly(t))
+        assert dc.t_cool_098_c == pytest.approx(40.0)
+        assert dc.t_cool_095_c == pytest.approx(10.0)
+
+    def test_short_series_raises(self):
+        with pytest.raises(ValueError, match="8760"):
+            derive_design_conditions(_wd_from_hourly([5.0] * 100))
 
 
 class TestSimulationWithWeather:

@@ -292,6 +292,52 @@ UZ: Dict[str, str] = {
     "panel.data.revit.done": ("Revit'dan yuklandi ({source}): {spaces} ta xona, "
                                   "{thermal} ta chegara qatori"),
     "panel.data.err.revit":     "Revit'dan import xatosi",
+    "panel.data.btn_revit_tools": "Revit asboblari ▾",
+    "panel.data.revit.act_diff": "Modelni loyiha bilan solishtirish",
+    "panel.data.revit.act_color_heat": "Bo‘yash: isitish, Vt/m²",
+    "panel.data.revit.act_color_cool": "Bo‘yash: sovutish, Vt/m²",
+    "panel.data.revit.act_color_ach": "Bo‘yash: almashinish, 1/soat",
+    "panel.data.revit.act_color_clear": "Bo‘yashni bekor qilish",
+    "panel.data.status.revit_diff": "Revit modeli bilan solishtirish…",
+    "panel.data.status.revit_color": "Revit'da xonalarni bo‘yash…",
+    "panel.data.revit.diff.no_project": ("Loyiha bo‘sh — avval ma’lumotlarni yuklang "
+                                  "(CSV yoki Revit'dan import)."),
+    "panel.data.revit.diff.in_sync": ("Revit modeli loyiha bilan mos: "
+                                  "{n} ta xona farqsiz."),
+    "panel.data.revit.diff.summary": ("Revit modeli loyihadan farq qiladi.\n\n"
+                                  "Revit'da yangi xonalar: {added}\n"
+                                  "Revit'dan o‘chirilgan: {removed}\n"
+                                  "O‘zgargan (maydon/hajm/atributlar): {changed}\n"
+                                  "O‘zgarishsiz: {unchanged}\n\n"
+                                  "Tafsilotlar — «Tafsilotlarni ko‘rsatish». "
+                                  "Loyihani yangilash: «Revit'dan import»."),
+    "panel.data.revit.diff.h_added": "— Revit'da yangi —",
+    "panel.data.revit.diff.h_removed": "— Revit'dan o‘chirilgan —",
+    "panel.data.revit.diff.h_changed": "— O‘zgarganlar —",
+    "panel.data.revit.color.done": ("«{view}» ko‘rinishida {n} ta xona bo‘yaldi "
+                                  "(diapazon {vmin}…{vmax})"),
+    "panel.data.revit.color.cleared": "«{view}» ko‘rinishida {n} ta xona bo‘yashi bekor qilindi",
+    "panel.data.revit.act_equip": "Xona uskunalarini import qilish",
+    "panel.data.status.revit_equip": "Revit'dan uskunalar o‘qilmoqda…",
+    "panel.data.revit.equip.none": ("Modelda xonalarga bog‘langan uskunalar "
+                                  "topilmadi (panjaralar/diffuzorlar, fankoyllar, "
+                                  "radiatorlar)."),
+    "panel.data.revit.equip.summary": ("Aniqlangan nusxalar: {total}\n"
+                                  "Yangilangan xonalar: {spaces}\n\n"
+                                  "Havo berish: {supply} · So‘rish: {exhaust} · "
+                                  "Isitish: {heating} · Sovitish: {cooling}\n"
+                                  "Xonadan tashqari: {no_space} · Loyihada yo‘q: "
+                                  "{unmatched} · Aniqlanmadi: {unrec}"),
+    "panel.data.revit.equip.h_assigned": "— Xonalar bo‘yicha tayinlandi —",
+    "panel.data.revit.equip.h_unrec": "— Aniqlanmadi (oila / tur) —",
+    "panel.data.revit.equip.slot.supply": "havo berish",
+    "panel.data.revit.equip.slot.exhaust": "so‘rish",
+    "panel.data.revit.equip.slot.heating": "isitish",
+    "panel.data.revit.equip.slot.cooling": "sovitish",
+    "panel.data.revit.equip.line": "  {number} {name}: {slot} — {qty} × {type} ({model})",
+    "panel.data.revit.equip.val.flow": " · {v} m³/soat donasiga",
+    "panel.data.revit.equip.val.power": " · {v} Vt donasiga",
+    "panel.data.revit.equip.done": "Revit'dan uskunalar: yangilangan xonalar — {spaces}",
     "panel.data.summary_loaded": ("✓ Yuklandi: {sp} ta xona · "
                                    "{el} ta devor · {co} ta tip konstruksiya"),
     "panel.data.actions.title": "Loyiha",
@@ -1372,6 +1418,70 @@ UZ: Dict[str, str] = {
     "panel.eng.tab.vrf":             "VRF/VRV",
     "panel.eng.tab.energy":          "Energiya (8760 soat)",
     "panel.eng.tab.comfort":         "Komfort PMV/PPD",
+    "panel.eng.tab.curtain":         "Issiqlik pardalari",
+    "panel.eng.tab.itp":             "IIP / IA",
+
+    # ========== Engineering: havo-issiqlik pardalari ==========
+    "panel.eng.cu.info":             ("Shiberlovchi havo-issiqlik pardasini tanlash "
+                                        "(SNiP 2.04.05 20-ilova / SP 60.13330 7.7-b.): sarf va "
+                                        "issiqlik quvvati proyomdagi bosim farqi bo‘yicha. "
+                                        "q̄ va μ koeffitsiyentlarini ishlab chiqaruvchi ma’lumotlari bilan aniqlang."),
+    "panel.eng.cu.type":             "Proyom turi:",
+    "panel.eng.cu.type_door":        "Tashqi eshik",
+    "panel.eng.cu.type_gate":        "Darvoza / texnologik proyom",
+    "panel.eng.cu.purpose":          "Vazifasi:",
+    "panel.eng.cu.purpose_public":   "Jamoat / ma’muriy-maishiy (t_ar 14 °C)",
+    "panel.eng.cu.purpose_ind_light": "Ishlab chiqarish, yengil ish (t_ar 12 °C)",
+    "panel.eng.cu.purpose_ind_none": "Doimiy ish o‘rinsiz ishlab chiqarish (t_ar 5 °C)",
+    "panel.eng.cu.width":            "Proyom kengligi:",
+    "panel.eng.cu.height":           "Proyom balandligi:",
+    "panel.eng.cu.bld_height":       "Bino balandligi:",
+    "panel.eng.cu.t_out":            "t tashqi (B):",
+    "panel.eng.cu.t_in":             "t ichki:",
+    "panel.eng.cu.t_mix":            "Proyomdagi aralashma t:",
+    "panel.eng.cu.wind":             "Shamol tezligi:",
+    "panel.eng.cu.q_ratio":          "q̄ (G_parda/G_proyom):",
+    "panel.eng.cu.mu":               "μ (sarf koef.):",
+    "panel.eng.cu.slot":             "Tirqish maydoni (0 — yo‘q):",
+    "panel.eng.cu.intake_inside":    "Havo ichkaridan olinadi",
+    "panel.eng.cu.btn_run":          "▶ Pardani hisoblash",
+    "panel.eng.cu.col.param":        "Parametr",
+    "panel.eng.cu.col.value":        "Qiymat",
+    "panel.eng.cu.row.area":         "Proyom maydoni, m²",
+    "panel.eng.cu.row.dp":           "Hisobiy Δp, Pa",
+    "panel.eng.cu.row.g":            "Parda sarfi, kg/soat",
+    "panel.eng.cu.row.l":            "Parda sarfi, m³/soat",
+    "panel.eng.cu.row.t_supply":     "Parda berish t, °C",
+    "panel.eng.cu.row.q":            "Kalorifer quvvati, kVt",
+    "panel.eng.cu.row.v_slot":       "Chiqish tezligi, m/s",
+    "panel.eng.cu.status":           "Parda hisoblandi",
+
+    # ========== Engineering: IIP / issiqlik almashtirgichlar ==========
+    "panel.eng.itp.info":            ("Plastinali issiqlik almashtirgichni LMTD bo‘yicha tanlash "
+                                        "(qarama-qarshi oqim): ifloslanish zaxirasi bilan yuza va "
+                                        "tomonlar sarfi. k = 3000…5500 Vt/(m²·K) suv-suv uchun; "
+                                        "yakuniy tanlov — ishlab chiqaruvchi dasturi bo‘yicha."),
+    "panel.eng.itp.preset":          "Harorat grafigi:",
+    "panel.eng.itp.preset_95_70":    "Isitish 95/70 → 80/60",
+    "panel.eng.itp.preset_80_60":    "Isitish 80/60 → 70/50",
+    "panel.eng.itp.preset_dhw":      "ISV 70/30 → 5/60",
+    "panel.eng.itp.q":               "Yuklama Q:",
+    "panel.eng.itp.btn_from_project": "Q loyiha issiqlik yo‘qotishidan",
+    "panel.eng.itp.no_loads":        "Issiqlik yo‘qotishlari hali hisoblanmagan.",
+    "panel.eng.itp.k":               "k issiqlik o‘tkazish:",
+    "panel.eng.itp.margin":          "Yuza zaxirasi:",
+    "panel.eng.itp.t_hot_in":        "Isituvchi, kirish:",
+    "panel.eng.itp.t_hot_out":       "Isituvchi, chiqish:",
+    "panel.eng.itp.t_cold_in":       "Isitiluvchi, kirish:",
+    "panel.eng.itp.t_cold_out":      "Isitiluvchi, chiqish:",
+    "panel.eng.itp.btn_run":         "▶ IA tanlash",
+    "panel.eng.itp.col.param":       "Parametr",
+    "panel.eng.itp.col.value":       "Qiymat",
+    "panel.eng.itp.row.lmtd":        "LMTD, K",
+    "panel.eng.itp.row.area":        "Yuza (zaxira bilan), m²",
+    "panel.eng.itp.row.g_hot":       "Isituvchi sarfi, m³/soat",
+    "panel.eng.itp.row.g_cold":      "Isitiluvchi sarfi, m³/soat",
+    "panel.eng.itp.status":          "Issiqlik almashtirgich tanlandi",
     "panel.eng.common.error":        "Xato",
     "panel.eng.common.no_data":      "Ma’lumot yo‘q. «Hisoblash» tugmasini bosing.",
 
@@ -1445,6 +1555,18 @@ UZ: Dict[str, str] = {
     "panel.eng.duct.del_title":      "Uchastkani o‘chirish",
     "panel.eng.duct.del_msg":        "«{eid}» uchastkani o‘chirish kerakmi?",
     "panel.eng.duct.fan_label":      "Ventilyator: Q = {q} m³/soat, ΔP = {dp} Pa",
+    "panel.eng.duct.btn_fan":        "Ventilyator tanlash",
+    "panel.eng.duct.fan_title":      "Ventilyator tanlash",
+    "panel.eng.duct.fan_head":       ("Ish nuqtasi: Q = {q} m³/soat, ΔP = {dp} Pa.\n"
+                                        "Katalog bo‘yicha oldindan tanlov (ikki nuqtali parabola) — "
+                                        "yakuniy tanlov ishlab chiqaruvchi dasturida."),
+    "panel.eng.duct.fan_pick":       ("• {name} ({family}): nuqtada {p_avail:.0f} Pa "
+                                        "(zaxira {margin:.0f}%, egri {ratio:.0f}%), "
+                                        "{power:.0f} Vt, {noise:.0f} dB(A)"),
+    "panel.eng.duct.fan_none":       ("Q = {q} m³/soat, ΔP = {dp} Pa nuqtasi uchun katalogda "
+                                        "mos model topilmadi. ~/.hvac_calc/catalogs/ ga model "
+                                        "qo‘shing (\"fans\" turi) yoki tizimni bir necha "
+                                        "ventilyatorga bo‘ling."),
 
     # Hydraulics
     "panel.eng.hyd.h_static":        "Statik balandlik:",
@@ -1619,6 +1741,18 @@ UZ: Dict[str, str] = {
     "panel.eng.en.epw_none":         ("Iqlim: hisobiy T dan sintetik profil. "
                                         "Aniqrog'i — real EPW meteoyili (climate.onebuilding.org)."),
     "panel.eng.en.epw_loaded":       "Iqlim: EPW {loc} ({tmin:+.1f}…{tmax:+.1f} °C)",
+    "panel.eng.en.epw_design":       ("Fayl bo‘yicha hisobiy: besh kunlik {t5:+.1f} °C · "
+                                        "yoz 0,95: {t95:+.1f} °C · GSOP {gsop:.0f}"),
+    "panel.eng.en.epw_design_tt":    ("EPW soatlik ma’lumotlaridan hisobiy parametrlar:\n"
+                                        "Eng sovuq besh kunlik: {t5:+.1f} °C (≈ ta’min. 0,92)\n"
+                                        "Eng sovuq sutka: {t1:+.1f} °C (≈ ta’min. 0,98)\n"
+                                        "Yoz, ta’min. 0,95 (≤440 soat/yil): {t95:+.1f} °C\n"
+                                        "Yoz, ta’min. 0,98 (≤88 soat/yil): {t98:+.1f} °C\n"
+                                        "Issiq oy sutkalik amplitudasi: {amp:.1f} K\n"
+                                        "≤8 °C davri: {z8} sutka, o‘rtacha {t8:+.1f} °C\n"
+                                        "≤12 °C davri: {z12} sutka, o‘rtacha {t12:+.1f} °C\n"
+                                        "GSOP (t_ich=20 °C): {gsop:.0f} °C·sutka\n"
+                                        "Qishki qiymatlar — bitta meteoyil bo‘yicha, ma’lumotnoma bilan solishtiring."),
     "panel.eng.en.epw_err":          "EPW o'qish xatosi",
     "panel.eng.en.empty":            "Ma’lumot yo‘q. «Yilni simulyatsiya qilish» tugmasini bosing.",
     "panel.eng.en.chart.t_year":     "Yillik T (o‘rtacha sutkalik)",
@@ -1635,6 +1769,7 @@ UZ: Dict[str, str] = {
     "panel.eng.en.row.e_heat_m2":    "Solishtirma isitish, kVt·s/(m²·yil)",
     "panel.eng.en.row.e_cool_m2":    "Solishtirma sovutish, kVt·s/(m²·yil)",
     "panel.eng.en.row.e_total_m2":   "Solishtirma Σ, kVt·s/(m²·yil)",
+    "panel.eng.en.row.e_solar":      "Oyna orqali quyosh (EPW), kVt·s/yil",
     "panel.eng.en.row.q_peak_heat":  "Q maks. isitish, kVt",
     "panel.eng.en.row.q_peak_cool":  "Q maks. sovutish, kVt",
     "panel.eng.en.row.t_peak_heat":  "Isitish maks. vaqti",
@@ -1696,6 +1831,11 @@ UZ: Dict[str, str] = {
                                         "radiatorlar, fankoyl, VRF, nasoslar, baklar, shovqin pasaytirgich, "
                                         "mis, issiq pol quvurlari. GOST 21.110-2013 bo‘limlari bo‘yicha guruhlanadi."),
     "export.fmt.spec.name":          "Spetsifikatsiya_{name}.xlsx",
+    "export.fmt.passport.title":     "Shamollatish tizimlari pasportlari (DOCX)",
+    "export.fmt.passport.desc":      ("Har bir shamollatish qurilmasiga pasport: hisobiy sarflar, "
+                                        "kalorifer/sovutgich, ventilyator va tarmoq, xizmat "
+                                        "ko‘rsatiladigan xonalar. «Fakt» ustuni — sozlovchi uchun."),
+    "export.fmt.passport.name":      "Pasportlar_shamollatish_{name}.docx",
     "export.fmt.gas.title":          "PDF: gaz hisobi (TSh uchun xat)",
     "export.fmt.gas.desc":           ("Loyiha gaz qozonlari quvvatidan kelib chiqib gazga ehtiyoj "
                                         "hisobi: soatlik / sutkalik / oylik / yillik sarf."),
