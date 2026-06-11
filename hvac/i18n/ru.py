@@ -1591,6 +1591,13 @@ RU: Dict[str, str] = {
     "panel.eng.en.install":          "Установите matplotlib для просмотра графика.",
     "panel.eng.en.status_err":       "Ошибка симуляции",
     "panel.eng.en.status":           "Годовая симуляция выполнена",
+    "panel.eng.en.btn_epw":          "Загрузить EPW…",
+    "panel.eng.en.btn_epw_clear":    "✕ Убрать EPW",
+    "panel.eng.en.epw_filter":       "Погодные файлы EPW (*.epw);;Все файлы (*)",
+    "panel.eng.en.epw_none":         ("Климат: синтетический профиль из расчётных T. "
+                                        "Точнее — реальный метеогод EPW (climate.onebuilding.org)."),
+    "panel.eng.en.epw_loaded":       "Климат: EPW {loc} ({tmin:+.1f}…{tmax:+.1f} °C)",
+    "panel.eng.en.epw_err":          "Ошибка чтения EPW",
     "panel.eng.en.empty":            "Нет данных. Нажмите «Симулировать год».",
     "panel.eng.en.chart.t_year":     "Годовая T (среднесуточная)",
     "panel.eng.en.chart.t_ext":      "T нар., °C",

@@ -361,6 +361,25 @@ class V37ExtensionsMixin:
         self.emit("vrf_systems_built")
         return result
 
+    def load_weather(self, path: str):
+        """Загружает EPW-файл с реальным почасовым климатом.
+
+        После загрузки simulate_annual_energy() использует реальные
+        температуры вместо синтетического профиля. Файлы EPW —
+        climate.onebuilding.org / energyplus.net/weather.
+
+        Сохраняет в self.weather_data, возвращает WeatherData.
+        """
+        from hvac.weather import load_epw
+        self.weather_data = load_epw(path)
+        self.emit("weather_loaded")
+        return self.weather_data
+
+    def clear_weather(self) -> None:
+        """Убирает загруженный EPW — симуляция вернётся к синтетике."""
+        self.weather_data = None
+        self.emit("weather_loaded")
+
     def simulate_annual_energy(
         self,
         *,
@@ -371,7 +390,8 @@ class V37ExtensionsMixin:
     ) -> "EnergySimulationResult":
         """Прогон 8760-часовой симуляции для всего проекта.
 
-        Сохраняет результат в self.energy_simulation_result.
+        Если загружен EPW (load_weather) — наружная температура берётся
+        из него. Сохраняет результат в self.energy_simulation_result.
         """
         from hvac.energy_simulation import simulate_year
         result = simulate_year(
@@ -380,6 +400,7 @@ class V37ExtensionsMixin:
             thermal_mass_tau_h=thermal_mass_tau_h,
             heating_setpoint_offset=heating_setpoint_offset,
             cooling_setpoint_offset=cooling_setpoint_offset,
+            weather=getattr(self, "weather_data", None),
         )
         self.energy_simulation_result = result
         self.emit("energy_simulated")

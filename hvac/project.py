@@ -155,6 +155,8 @@ class HVACProject(
         # ===== v4.3 =====
         # {season: {space_id: ComfortResult}} — PMV/PPD по ISO 7730
         self.comfort_results: Dict[str, Dict] = {}
+        # Почасовой климат из EPW (hvac/weather.py); None — синтетика
+        self.weather_data = None  # type: Optional["WeatherData"]
 
     # ---------- Event bus ----------
     def subscribe(self, event: str, callback: Callable) -> None:

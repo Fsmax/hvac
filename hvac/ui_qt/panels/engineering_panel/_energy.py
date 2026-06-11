@@ -62,6 +62,24 @@ class _EnergyTab(QWidget):
         toolbar.addWidget(self.run_btn)
         outer.addLayout(toolbar)
 
+        # Климат: синтетика или загруженный EPW
+        weather_bar = QHBoxLayout()
+        self._epw_lbl = QLabel("")
+        self._epw_lbl.setProperty("role", "muted")
+        weather_bar.addWidget(self._epw_lbl)
+        weather_bar.addStretch(1)
+        self.epw_clear_btn = QPushButton(_t("panel.eng.en.btn_epw_clear"))
+        self.epw_clear_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self.epw_clear_btn.clicked.connect(self._clear_epw)
+        self.epw_clear_btn.setVisible(False)
+        weather_bar.addWidget(self.epw_clear_btn)
+        self.epw_btn = QPushButton(_t("panel.eng.en.btn_epw"))
+        self.epw_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self.epw_btn.clicked.connect(self._load_epw)
+        weather_bar.addWidget(self.epw_btn)
+        outer.addLayout(weather_bar)
+        self._update_epw_label()
+
         # Стек: таблица результатов / график
         from PySide6.QtWidgets import QStackedWidget
         self.stack = QStackedWidget()
@@ -88,6 +106,9 @@ class _EnergyTab(QWidget):
         self._info.setText(_t("panel.eng.en.info"))
         self._lbl_tau.setText(_t("panel.eng.en.tau"))
         self._lbl_setback.setText(_t("panel.eng.en.setback"))
+        self.epw_btn.setText(_t("panel.eng.en.btn_epw"))
+        self.epw_clear_btn.setText(_t("panel.eng.en.btn_epw_clear"))
+        self._update_epw_label()
         if self.stack.currentWidget() is self.table:
             self.chart_btn.setText(_t("panel.eng.en.btn_chart"))
         else:
@@ -97,6 +118,35 @@ class _EnergyTab(QWidget):
         self.table.setHorizontalHeaderLabels([_t(k) for k in self.HEADER_KEYS])
         self.chart_placeholder.setText(_t("panel.eng.en.matplotlib"))
         self._refresh()
+
+    def _load_epw(self):
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getOpenFileName(
+            self, _t("panel.eng.en.btn_epw"), "",
+            _t("panel.eng.en.epw_filter"))
+        if not path:
+            return
+        try:
+            self.project.load_weather(path)
+        except Exception as e:
+            QMessageBox.critical(self, _t("panel.eng.en.epw_err"), str(e))
+            return
+        self._update_epw_label()
+
+    def _clear_epw(self):
+        self.project.clear_weather()
+        self._update_epw_label()
+
+    def _update_epw_label(self):
+        wd = getattr(self.project, "weather_data", None)
+        if wd is None:
+            self._epw_lbl.setText(_t("panel.eng.en.epw_none"))
+            self.epw_clear_btn.setVisible(False)
+        else:
+            self._epw_lbl.setText(_t("panel.eng.en.epw_loaded").format(
+                loc=wd.location or wd.source,
+                tmin=wd.t_min_c, tmax=wd.t_max_c))
+            self.epw_clear_btn.setVisible(True)
 
     def _run(self):
         try:

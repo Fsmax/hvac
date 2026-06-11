@@ -1601,6 +1601,13 @@ UZ: Dict[str, str] = {
     "panel.eng.en.install":          "Grafikni ko‘rish uchun matplotlib o‘rnating.",
     "panel.eng.en.status_err":       "Simulyatsiya xatosi",
     "panel.eng.en.status":           "Yillik simulyatsiya bajarildi",
+    "panel.eng.en.btn_epw":          "EPW yuklash…",
+    "panel.eng.en.btn_epw_clear":    "✕ EPW olib tashlash",
+    "panel.eng.en.epw_filter":       "EPW ob-havo fayllari (*.epw);;Barcha fayllar (*)",
+    "panel.eng.en.epw_none":         ("Iqlim: hisobiy T dan sintetik profil. "
+                                        "Aniqrog'i — real EPW meteoyili (climate.onebuilding.org)."),
+    "panel.eng.en.epw_loaded":       "Iqlim: EPW {loc} ({tmin:+.1f}…{tmax:+.1f} °C)",
+    "panel.eng.en.epw_err":          "EPW o'qish xatosi",
     "panel.eng.en.empty":            "Ma’lumot yo‘q. «Yilni simulyatsiya qilish» tugmasini bosing.",
     "panel.eng.en.chart.t_year":     "Yillik T (o‘rtacha sutkalik)",
     "panel.eng.en.chart.t_ext":      "T tash., °C",
