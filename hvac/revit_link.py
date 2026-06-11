@@ -612,8 +612,8 @@ return new{count=spatial.Count,source=source,data=sb.ToString()};
 '''
 
 
-def snapshot_spaces(timeout: float = 300.0) -> Dict[str, dict]:
-    """Лёгкий снимок помещений открытой модели: {id: данные}."""
+def _snapshot_raw(timeout: float = 300.0) -> tuple:
+    """Снимок помещений открытой модели: ({id: данные}, источник)."""
     res = send_code(SNAPSHOT_CS, transaction_mode="none", timeout=timeout)
     if not isinstance(res, dict) or "data" not in res:
         raise RuntimeError(f"Неожиданный ответ Revit: {res!r}")
@@ -631,7 +631,12 @@ def snapshot_spaces(timeout: float = 300.0) -> Dict[str, dict]:
             "number": parts[1], "name": parts[2], "level": parts[3],
             "area_m2": area, "volume_m3": volume,
         }
-    return out
+    return out, str(res.get("source", ""))
+
+
+def snapshot_spaces(timeout: float = 300.0) -> Dict[str, dict]:
+    """Лёгкий снимок помещений открытой модели: {id: данные}."""
+    return _snapshot_raw(timeout)[0]
 
 
 @dataclass
@@ -657,8 +662,8 @@ def diff_with_project(project: "HVACProject", *, rel_tol: float = 0.02,
     больше чем на rel_tol (2%) И abs_tol (0.5 м²/м³), либо изменились
     номер/имя/уровень.
     """
-    snap = snapshot_spaces(timeout=timeout)
-    diff = RevitDiff()
+    snap, source = _snapshot_raw(timeout=timeout)
+    diff = RevitDiff(source=source)
 
     proj = {sp.space_id: sp for sp in project.spaces}
     for sid, r in snap.items():

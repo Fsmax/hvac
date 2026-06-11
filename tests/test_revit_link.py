@@ -340,6 +340,7 @@ class TestSnapshotAndDiff:
             p._space_by_id[sid] = sp
         diff = revit_link.diff_with_project(p)
         assert not diff.in_sync
+        assert diff.source == "Spaces (MEP)"
         assert [r["id"] for r in diff.added] == ["102"]
         assert [r["id"] for r in diff.removed] == ["103"]
         assert [r["id"] for r in diff.changed] == ["101"]
