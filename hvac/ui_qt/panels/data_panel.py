@@ -812,9 +812,12 @@ class DataPanel(QWidget):
         details: list[str] = []
         if diff.added:
             details.append(_t("panel.data.revit.diff.h_added"))
-            details += [f"  + {r['number']} {r['name']} "
-                        f"({r['area_m2']:.1f} м², id {r['id']})"  # i18n-allow
-                        for r in diff.added[:150]]
+            # Литерал целиком на одной строке: в Python 3.11 константы
+            # склеенных f-строк получают lineno первой строки, и маркер
+            # на переносе не виден тесту i18n.
+            details += [
+                f"  + {r['number']} {r['name']} ({r['area_m2']:.1f} м², id {r['id']})"  # i18n-allow
+                for r in diff.added[:150]]
         if diff.removed:
             details.append(_t("panel.data.revit.diff.h_removed"))
             details += [f"  − {r['number']} {r['name']} (id {r['id']})"
