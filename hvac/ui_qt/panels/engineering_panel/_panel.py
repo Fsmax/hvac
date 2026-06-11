@@ -16,10 +16,11 @@ from hvac.ui_qt.panels.engineering_panel._underfloor import _UnderfloorTab
 from hvac.ui_qt.panels.engineering_panel._fancoils import _FancoilsTab
 from hvac.ui_qt.panels.engineering_panel._vrf import _VRFTab
 from hvac.ui_qt.panels.engineering_panel._energy import _EnergyTab
+from hvac.ui_qt.panels.engineering_panel._comfort import _ComfortTab
 
 
 class EngineeringPanel(QWidget):
-    """Подробная инженерия v4.1+v4.2 — 9 вкладок."""
+    """Подробная инженерия v4.1+v4.2 — 10 вкладок."""
 
     TAB_KEYS = (
         "panel.eng.tab.psychro",
@@ -31,6 +32,7 @@ class EngineeringPanel(QWidget):
         "panel.eng.tab.fancoils",
         "panel.eng.tab.vrf",
         "panel.eng.tab.energy",
+        "panel.eng.tab.comfort",
     )
 
     def __init__(self, project: HVACProject, bridge: ProjectBridge,
@@ -65,6 +67,7 @@ class EngineeringPanel(QWidget):
             _FancoilsTab(project, bridge),
             _VRFTab(project, bridge),
             _EnergyTab(project, bridge),
+            _ComfortTab(project, bridge),
         ]
         for w, key in zip(self._tabs_widgets, self.TAB_KEYS):
             self.tabs.addTab(w, _t(key))

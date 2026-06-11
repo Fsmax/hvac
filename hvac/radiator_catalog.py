@@ -31,13 +31,22 @@ EN 442-2 (Radiators and convectors — Test methods and rating)
 СП 60.13330.2020 п. 6.3, СП 60 Приложение В (методика подбора)
 Каталоги Kermi (Therm-X2), Purmo (Compact), Rifar (Monolit, Base),
 Global (Vox), Konner.
+
+Данные каталога вынесены в hvac/catalogs/data/radiators.json;
+пользовательские дополнения — JSON-файлы в ~/.hvac_calc/catalogs/
+(формат описан в hvac/catalogs/user_catalogs.py).
 """
 
 from __future__ import annotations
 
+import json
 import math
-from dataclasses import dataclass
-from typing import Dict, List, Optional
+from dataclasses import dataclass, fields
+from importlib.resources import files
+from pathlib import Path
+from typing import Dict, List, Optional, Union
+
+from hvac.catalogs.user_catalogs import iter_user_catalogs
 
 
 # ============================================================================
@@ -120,7 +129,7 @@ class RadiatorModel:
 
 
 # ============================================================================
-# Генератор семейства Kermi FK0 / Purmo Compact
+# Генератор семейства панельных радиаторов (Kermi FK0 / Purmo Compact / …)
 # ============================================================================
 #
 # Тепловой поток стального панельного радиатора с боковым подключением
@@ -129,48 +138,17 @@ class RadiatorModel:
 #
 #     Q(L) = q_per_m · L_m
 #
-# Удельная мощность q_per_m (Вт на 1 м длины при ΔT=50K) по справочникам
-# производителей (Kermi Therm-X2 FK0, Purmo Compact, Buderus K-Profil):
-
-# Удельная мощность Q при ΔT=50K (Вт/м длины) по высоте и типу
-KERMI_Q_PER_M: Dict[int, Dict[int, float]] = {
-    # height_mm: {type11, type22, type33}
-    300:  {11: 478, 22:  936, 33: 1366},
-    400:  {11: 596, 22: 1170, 33: 1696},
-    500:  {11: 722, 22: 1428, 33: 2076},
-    600:  {11: 853, 22: 1684, 33: 2453},
-    900:  {11: 1242, 22: 2454, 33: 3568},
-}
-# Удельный объём воды в радиаторе по высоте/типу (л/м длины)
-KERMI_V_PER_M = {
-    300:  {11: 1.7, 22: 3.1, 33: 4.5},
-    400:  {11: 2.1, 22: 3.9, 33: 5.6},
-    500:  {11: 2.6, 22: 4.6, 33: 6.9},
-    600:  {11: 3.1, 22: 5.5, 33: 8.3},
-    900:  {11: 4.4, 22: 8.0, 33: 12.1},
-}
-# Глубина (мм) одного типа
-KERMI_DEPTH_MM = {11: 65, 22: 100, 33: 155}
-# Длины из ряда производителя, мм
-KERMI_LENGTHS_MM = [400, 500, 600, 700, 800, 900, 1000, 1200, 1400,
-                     1600, 1800, 2000, 2300, 2600, 3000]
-
-PURMO_Q_PER_M: Dict[int, Dict[int, float]] = {
-    300:  {11: 471, 22:  922, 33: 1345},
-    400:  {11: 589, 22: 1158, 33: 1689},
-    500:  {11: 722, 22: 1428, 33: 2076},
-    600:  {11: 865, 22: 1712, 33: 2492},
-    900:  {11: 1245, 22: 2467, 33: 3592},
-}
-PURMO_LENGTHS_MM = KERMI_LENGTHS_MM
-PURMO_DEPTH_MM = KERMI_DEPTH_MM
-
+# Удельные мощности q_per_m (Вт на 1 м длины при ΔT=50K) по справочникам
+# производителей лежат в hvac/catalogs/data/radiators.json
+# (panel_families) — см. описание формата в hvac/catalogs/user_catalogs.py.
 
 def _generate_panel_family(brand: str,
                              q_table: Dict[int, Dict[int, float]],
                              v_table: Dict[int, Dict[int, float]],
                              depth_mm: Dict[int, int],
-                             lengths_mm: List[int]
+                             lengths_mm: List[int],
+                             family_prefix: str = "Стальной панельный",
+                             n_exponent: float = 1.30,
                              ) -> List[RadiatorModel]:
     """Генерирует список RadiatorModel для семейства панельных радиаторов."""
     models: List[RadiatorModel] = []
@@ -184,123 +162,70 @@ def _generate_panel_family(brand: str,
                 w = 0.55 * q_per_m * Lm / 50.0   # вес ≈ 1 кг на 50 Вт
                 models.append(RadiatorModel(
                     name=f"{brand} {t} {h}x{L}",
-                    family=f"Стальной панельный {t}",
+                    family=f"{family_prefix} {t}",
                     height_mm=h, length_mm=L, depth_mm=depth_mm[t],
-                    q_nominal_w=q, n_exponent=1.30,
+                    q_nominal_w=q, n_exponent=n_exponent,
                     water_volume_l=v, weight_kg=w,
                 ))
+    return models
+
+
+_FIELD_NAMES = {f.name for f in fields(RadiatorModel)}
+
+
+def _model_from_dict(d: dict) -> RadiatorModel:
+    """RadiatorModel из словаря JSON; неизвестные ключи игнорируются."""
+    return RadiatorModel(**{k: v for k, v in d.items() if k in _FIELD_NAMES})
+
+
+def _models_from_catalog_dict(data: dict) -> List[RadiatorModel]:
+    """Модели из словаря каталога: panel_families (генератор) + models."""
+    models: List[RadiatorModel] = []
+    for fam in data.get("panel_families", []):
+        models.extend(_generate_panel_family(
+            fam["brand"],
+            {int(h): {int(t): float(q) for t, q in by_t.items()}
+             for h, by_t in fam["q_per_m"].items()},
+            {int(h): {int(t): float(v) for t, v in by_t.items()}
+             for h, by_t in fam.get("v_per_m", {}).items()},
+            {int(t): int(d) for t, d in fam["depth_mm"].items()},
+            [int(x) for x in fam["lengths_mm"]],
+            family_prefix=fam.get("family_prefix", "Стальной панельный"),
+            n_exponent=float(fam.get("n_exponent", 1.30)),
+        ))
+    models.extend(_model_from_dict(m) for m in data.get("models", []))
     return models
 
 
 # ============================================================================
 # Каталог типовых моделей
 # ============================================================================
-# Стальные панельные генерируются массово: 5 высот × 3 типа × 15 длин = 225
-# моделей для каждого бренда. Алюминий/биметалл/чугун — секционные, заданы
-# одной записью на секцию (max_sections учитывает ограничение производителя).
-RADIATOR_CATALOG: List[RadiatorModel] = []
+# Данные вынесены в hvac/catalogs/data/radiators.json: панельные семейства
+# (Kermi FK0, Purmo Compact) генерируются из таблиц q_per_m (5 высот ×
+# 3 типа × 15 длин = 225 моделей на бренд), секционные (алюминий / биметалл /
+# чугун), конвекторы и тёплый пол заданы явными записями. Пользовательские
+# дополнения — JSON в ~/.hvac_calc/catalogs/ (см. catalogs/user_catalogs.py).
 
-# ===== Kermi FK0 (Therm-X2) — полное семейство =====
-RADIATOR_CATALOG.extend(_generate_panel_family(
-    "Kermi FK0", KERMI_Q_PER_M, KERMI_V_PER_M,
-    KERMI_DEPTH_MM, KERMI_LENGTHS_MM,
-))
+def _load_builtin() -> List[RadiatorModel]:
+    """Читает встроенный каталог из hvac/catalogs/data/radiators.json.
 
-# ===== Purmo Compact =====
-RADIATOR_CATALOG.extend(_generate_panel_family(
-    "Purmo C", PURMO_Q_PER_M, KERMI_V_PER_M,
-    PURMO_DEPTH_MM, PURMO_LENGTHS_MM,
-))
+    Через importlib.resources — работает и из исходников, и в сборке
+    PyInstaller (файл объявлен в datas hvac_calc.spec).
+    """
+    raw = (files("hvac.catalogs") / "data" / "radiators.json").read_text("utf-8")
+    return _models_from_catalog_dict(json.loads(raw))
 
-# ===== Алюминиевые секционные =====
-RADIATOR_CATALOG.extend([
-    RadiatorModel("Global Vox 350 (секция)", "Алюминий", 350, 80, 95,
-                  q_nominal_w=120, n_exponent=1.34, is_sectional=True,
-                  max_sections=14, water_volume_l=0.20, weight_kg=1.0),
-    RadiatorModel("Global Vox 500 (секция)", "Алюминий", 500, 80, 95,
-                  q_nominal_w=185, n_exponent=1.34, is_sectional=True,
-                  max_sections=14, water_volume_l=0.27, weight_kg=1.45),
-    RadiatorModel("Global Vox 800 (секция)", "Алюминий", 800, 80, 95,
-                  q_nominal_w=275, n_exponent=1.34, is_sectional=True,
-                  max_sections=12, water_volume_l=0.38, weight_kg=2.0),
-    RadiatorModel("Sira Alice 350 (секция)", "Алюминий", 350, 80, 95,
-                  q_nominal_w=125, n_exponent=1.34, is_sectional=True,
-                  max_sections=14, water_volume_l=0.22, weight_kg=1.05),
-    RadiatorModel("Sira Alice 500 (секция)", "Алюминий", 500, 80, 95,
-                  q_nominal_w=178, n_exponent=1.34, is_sectional=True,
-                  max_sections=14, water_volume_l=0.27, weight_kg=1.42),
-    RadiatorModel("Royal Thermo Indigo 500 (секция)", "Алюминий", 500, 80, 100,
-                  q_nominal_w=195, n_exponent=1.34, is_sectional=True,
-                  max_sections=14, water_volume_l=0.28, weight_kg=1.55),
-])
 
-# ===== Биметаллические =====
-RADIATOR_CATALOG.extend([
-    RadiatorModel("Rifar Base 200 (секция)", "Биметалл", 200, 80, 100,
-                  q_nominal_w=104, n_exponent=1.30, is_sectional=True,
-                  max_sections=14, water_volume_l=0.13, weight_kg=1.25),
-    RadiatorModel("Rifar Base 350 (секция)", "Биметалл", 350, 80, 90,
-                  q_nominal_w=136, n_exponent=1.30, is_sectional=True,
-                  max_sections=14, water_volume_l=0.18, weight_kg=1.45),
-    RadiatorModel("Rifar Base 500 (секция)", "Биметалл", 500, 80, 100,
-                  q_nominal_w=204, n_exponent=1.30, is_sectional=True,
-                  max_sections=14, water_volume_l=0.20, weight_kg=2.0),
-    RadiatorModel("Rifar Monolit 350 (секция)", "Биметалл (моноблок)", 350, 80, 100,
-                  q_nominal_w=134, n_exponent=1.30, is_sectional=True,
-                  max_sections=12, water_volume_l=0.18, weight_kg=1.6),
-    RadiatorModel("Rifar Monolit 500 (секция)", "Биметалл (моноблок)", 500, 80, 100,
-                  q_nominal_w=196, n_exponent=1.30, is_sectional=True,
-                  max_sections=12, water_volume_l=0.21, weight_kg=2.1),
-    RadiatorModel("Royal Thermo BiLiner 500 (секция)", "Биметалл", 500, 80, 87,
-                  q_nominal_w=171, n_exponent=1.30, is_sectional=True,
-                  max_sections=14, water_volume_l=0.20, weight_kg=1.95),
-    RadiatorModel("Sira RS Bimetal 500 (секция)", "Биметалл", 500, 80, 95,
-                  q_nominal_w=181, n_exponent=1.30, is_sectional=True,
-                  max_sections=14, water_volume_l=0.21, weight_kg=2.0),
-])
+def load_radiator_catalog(
+        user_dir: Optional[Union[str, Path]] = None) -> List[RadiatorModel]:
+    """Встроенный каталог + пользовательские каталоги типа "radiators"."""
+    models = _load_builtin()
+    for data in iter_user_catalogs("radiators", user_dir):
+        models.extend(_models_from_catalog_dict(data))
+    return models
 
-# ===== Чугунные =====
-RADIATOR_CATALOG.extend([
-    RadiatorModel("МС-140-300 (секция)", "Чугун", 300, 93, 140,
-                  q_nominal_w=120, n_exponent=1.30, is_sectional=True,
-                  max_sections=10, water_volume_l=1.10, weight_kg=5.7),
-    RadiatorModel("МС-140-500 (секция)", "Чугун", 500, 93, 140,
-                  q_nominal_w=160, n_exponent=1.30, is_sectional=True,
-                  max_sections=10, water_volume_l=1.45, weight_kg=7.1),
-    RadiatorModel("МС-140-1200 (секция)", "Чугун", 388, 93, 140,
-                  q_nominal_w=185, n_exponent=1.30, is_sectional=True,
-                  max_sections=10, water_volume_l=1.50, weight_kg=8.1),
-    RadiatorModel("Konner Modern 500 (секция)", "Чугун", 500, 80, 80,
-                  q_nominal_w=110, n_exponent=1.30, is_sectional=True,
-                  max_sections=10, water_volume_l=0.85, weight_kg=4.7),
-    RadiatorModel("Konner Modern 300 (секция)", "Чугун", 300, 80, 80,
-                  q_nominal_w=85, n_exponent=1.30, is_sectional=True,
-                  max_sections=10, water_volume_l=0.65, weight_kg=3.8),
-    RadiatorModel("Konner Lux 500 (секция)", "Чугун (дизайн)", 500, 90, 90,
-                  q_nominal_w=120, n_exponent=1.30, is_sectional=True,
-                  max_sections=8, water_volume_l=0.90, weight_kg=5.5),
-])
 
-# ===== Конвекторы =====
-RADIATOR_CATALOG.extend([
-    RadiatorModel("Универсал ТБ-100 (1 м)", "Конвектор настенный", 250, 1000, 130,
-                  q_nominal_w=540, n_exponent=1.38, water_volume_l=2.2, weight_kg=8),
-    RadiatorModel("Универсал ТБ-200 (1 м)", "Конвектор настенный", 350, 1000, 130,
-                  q_nominal_w=820, n_exponent=1.38, water_volume_l=2.8, weight_kg=11),
-    RadiatorModel("Универсал ТБ-300 (1 м)", "Конвектор настенный", 500, 1000, 130,
-                  q_nominal_w=1120, n_exponent=1.38, water_volume_l=3.5, weight_kg=14),
-    RadiatorModel("Минибрик-15 (внутрипольный)", "Конвектор внутрипольный",
-                  150, 1000, 200, q_nominal_w=750, n_exponent=1.40,
-                  water_volume_l=1.2, weight_kg=15),
-])
-
-# ===== Тёплый пол (виртуальная запись для подбора) =====
-RADIATOR_CATALOG.extend([
-    RadiatorModel("Тёплый пол REHAU 16x2", "Тёплый пол", 0, 100, 0,
-                  q_nominal_w=85, n_exponent=1.10, is_sectional=True,
-                  max_sections=200, water_volume_l=0.20, weight_kg=0.3,
-                  note="Удельная мощность на 1 м² (~80 Вт/м²). max_sections — м²."),
-])
+RADIATOR_CATALOG: List[RadiatorModel] = load_radiator_catalog()
 
 
 # ============================================================================

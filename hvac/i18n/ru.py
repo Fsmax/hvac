@@ -275,6 +275,18 @@ RU: Dict[str, str] = {
     "panel.data.keep_overrides": ("Сохранить ручные правки помещений при "
                                    "перезагрузке"),
     "panel.data.btn_load_csv":  "📥  Загрузить CSV",
+    "panel.data.btn_revit_import": "🔄  Импорт из Revit",
+    "panel.data.revit.tooltip": ("Выгрузить помещения и ограждения прямо из открытой модели "
+                                  "Revit (без Dynamo). Нужен включённый Revit MCP Switch."),
+    "panel.data.revit.pick_dir": "Папка для spaces.csv / thermal_all.csv",
+    "panel.data.revit.not_connected.title": "Revit недоступен",
+    "panel.data.revit.not_connected.body": ("Не удалось подключиться к Revit (127.0.0.1:8080).\n\n"
+                                  "Проверьте: Revit открыт с моделью, включён переключатель "
+                                  "«Revit MCP Switch» на ленте."),
+    "panel.data.status.revit_import": "Импорт из Revit… (большая модель — несколько минут)",
+    "panel.data.revit.done": ("Выгружено из Revit ({source}): помещений {spaces}, "
+                                  "строк границ {thermal}"),
+    "panel.data.err.revit":     "Ошибка импорта из Revit",
     "panel.data.summary_loaded": ("✓ Загружено: {sp} помещений · "
                                    "{el} ограждений · {co} типов конструкций"),
     "panel.data.actions.title": "Проект",
@@ -1349,6 +1361,7 @@ RU: Dict[str, str] = {
     "panel.eng.tab.fancoils":        "Фанкойлы",
     "panel.eng.tab.vrf":             "VRF/VRV",
     "panel.eng.tab.energy":          "Энергия (8760 ч)",
+    "panel.eng.tab.comfort":         "Комфорт PMV/PPD",
     "panel.eng.common.error":        "Ошибка",
     "panel.eng.common.no_data":      "Нет данных. Нажмите «Рассчитать».",
 
@@ -1467,6 +1480,26 @@ RU: Dict[str, str] = {
     "panel.eng.ac.col.dp":           "ΔP, Па",
     "panel.eng.ac.status":           "Акустика рассчитана",
 
+    # Comfort (PMV/PPD, ISO 7730)
+    "panel.eng.cf.info":             ("Тепловой комфорт по ISO 7730 (метод Фангера): PMV — средняя "
+                                        "оценка теплоощущения (−3…+3), PPD — % недовольных. Категории: "
+                                        "A (|PMV|<0.2), B (<0.5), C (<0.7). Расчёт по уставкам "
+                                        "помещений; оптимум ГОСТ 30494 ≈ категория B."),
+    "panel.eng.cf.btn_run":          "▶  Рассчитать PMV/PPD",
+    "panel.eng.cf.met":              "Метаболизм, met:",
+    "panel.eng.cf.vair":             "Подвижность воздуха, м/с:",
+    "panel.eng.cf.col.number":       "№",
+    "panel.eng.cf.col.name":         "Помещение",
+    "panel.eng.cf.col.t_w":          "t зима, °C",
+    "panel.eng.cf.col.pmv_w":        "PMV зима",
+    "panel.eng.cf.col.ppd_w":        "PPD зима, %",
+    "panel.eng.cf.col.cat_w":        "Кат. зима",
+    "panel.eng.cf.col.t_s":          "t лето, °C",
+    "panel.eng.cf.col.pmv_s":        "PMV лето",
+    "panel.eng.cf.col.ppd_s":        "PPD лето, %",
+    "panel.eng.cf.col.cat_s":        "Кат. лето",
+    "panel.eng.cf.status":           "Комфорт рассчитан",
+
     # Underfloor
     "panel.eng.uf.pitch":            "Шаг:",
     "panel.eng.uf.cover":            "Покрытие:",
@@ -1570,6 +1603,13 @@ RU: Dict[str, str] = {
     "panel.eng.en.install":          "Установите matplotlib для просмотра графика.",
     "panel.eng.en.status_err":       "Ошибка симуляции",
     "panel.eng.en.status":           "Годовая симуляция выполнена",
+    "panel.eng.en.btn_epw":          "Загрузить EPW…",
+    "panel.eng.en.btn_epw_clear":    "✕ Убрать EPW",
+    "panel.eng.en.epw_filter":       "Погодные файлы EPW (*.epw);;Все файлы (*)",
+    "panel.eng.en.epw_none":         ("Климат: синтетический профиль из расчётных T. "
+                                        "Точнее — реальный метеогод EPW (climate.onebuilding.org)."),
+    "panel.eng.en.epw_loaded":       "Климат: EPW {loc} ({tmin:+.1f}…{tmax:+.1f} °C)",
+    "panel.eng.en.epw_err":          "Ошибка чтения EPW",
     "panel.eng.en.empty":            "Нет данных. Нажмите «Симулировать год».",
     "panel.eng.en.chart.t_year":     "Годовая T (среднесуточная)",
     "panel.eng.en.chart.t_ext":      "T нар., °C",
@@ -1622,6 +1662,10 @@ RU: Dict[str, str] = {
     "export.fmt.pdf.title":          "PDF: пояснительная записка",
     "export.fmt.pdf.desc":           "До 12 разделов по заполненным данным проекта.",
     "export.fmt.pdf.name":           "Отчёт_{name}.pdf",
+    "export.fmt.docx.title":         "DOCX: пояснительная записка (Word)",
+    "export.fmt.docx.desc":          ("Те же разделы, что в PDF, но в редактируемом формате — "
+                                        "для доработки под требования экспертизы. Нужен python-docx."),
+    "export.fmt.docx.name":          "Отчёт_{name}.docx",
     "export.fmt.equipment.title":    "Сводная таблица оборудования",
     "export.fmt.equipment.desc":     "Сводка по помещениям + спецификации радиаторов/фанкойлов/диффузоров.",
     "export.fmt.equipment.name":     "Оборудование_{name}.xlsx",
@@ -1631,6 +1675,12 @@ RU: Dict[str, str] = {
                                         "revit_dynamo_apply_results.py в Dynamo — значения запишутся "
                                         "в параметры Space/Room."),
     "export.fmt.revit.name":         "results_for_revit.csv",
+    "export.fmt.revit_live.title":   "Запись в Revit (живой мост)",
+    "export.fmt.revit_live.desc":    ("Пишет нагрузки/расходы/системы прямо в параметры Spaces "
+                                        "открытой модели Revit через плагин Revit MCP (порт 8080), "
+                                        "без Dynamo. CSV сохраняется рядом как артефакт. В модели "
+                                        "должны быть созданы Project Parameters (Heating Load и др.)."),
+    "export.fmt.revit_live.name":    "results_for_revit.csv",
     "export.fmt.spec.title":         "Спецификация по ГОСТ 21.110",
     "export.fmt.spec.desc":          ("Полная спецификация оборудования и материалов: котлы, AHU, "
                                         "радиаторы, фанкойлы, VRF, насосы, баки, шумоглушители, медь, "
@@ -1651,6 +1701,23 @@ RU: Dict[str, str] = {
     "export.gas.hours":              "Часов работы в сутки",
     "export.gas.days_month":         "Суток в месяце",
     "export.gas.heating_days":       "Отопительный период, сут",
+    "export.fmt.hlgc.title":         "HLGC Design Table (мастер-таблица)",
+    "export.fmt.hlgc.desc":          ("Заполняет проектную таблицу HLGC нагрузками по номерам "
+                                        "помещений (лист «HLGC»). Движок Excel COM сохраняет формулы "
+                                        "и стили; при отсутствии Excel — fallback на openpyxl."),
+    "export.fmt.hlgc.name":          "HLGC Design Table_filled.xlsx",
+    "export.hlgc.params":            "Параметры HLGC-экспорта",
+    "export.hlgc.source":            "Исходная таблица (шаблон)",
+    "export.hlgc.source_ph":         "Выберите .xlsx/.xls таблицу для заполнения…",
+    "export.hlgc.source_dlg":        "Выберите HLGC Design Table",
+    "export.hlgc.mode":              "Режим записи",
+    "export.hlgc.mode.match":        "Обновить совпадающие по № (не добавлять строки)",
+    "export.hlgc.mode.append":       "Обновить + добавить недостающие помещения",
+    "export.hlgc.mode.rebuild":      "Перестроить всю таблицу из проекта",
+    "export.hlgc.only_empty":        "Писать только в пустые ячейки",
+    "export.hlgc.no_source.title":   "Нет шаблона",
+    "export.hlgc.no_source.msg":     ("Укажите исходную HLGC Design Table (.xlsx/.xls), "
+                                        "которую нужно заполнить."),
     "export.default_name":           "Project",
 
     # ========== Panel: Calculation ==========

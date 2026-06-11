@@ -1,0 +1,529 @@
+{
+  "version": 1,
+  "panel_families": [
+    {
+      "brand": "Kermi FK0",
+      "family_prefix": "Стальной панельный",
+      "n_exponent": 1.3,
+      "q_per_m": {
+        "300": {
+          "11": 478,
+          "22": 936,
+          "33": 1366
+        },
+        "400": {
+          "11": 596,
+          "22": 1170,
+          "33": 1696
+        },
+        "500": {
+          "11": 722,
+          "22": 1428,
+          "33": 2076
+        },
+        "600": {
+          "11": 853,
+          "22": 1684,
+          "33": 2453
+        },
+        "900": {
+          "11": 1242,
+          "22": 2454,
+          "33": 3568
+        }
+      },
+      "v_per_m": {
+        "300": {
+          "11": 1.7,
+          "22": 3.1,
+          "33": 4.5
+        },
+        "400": {
+          "11": 2.1,
+          "22": 3.9,
+          "33": 5.6
+        },
+        "500": {
+          "11": 2.6,
+          "22": 4.6,
+          "33": 6.9
+        },
+        "600": {
+          "11": 3.1,
+          "22": 5.5,
+          "33": 8.3
+        },
+        "900": {
+          "11": 4.4,
+          "22": 8.0,
+          "33": 12.1
+        }
+      },
+      "depth_mm": {
+        "11": 65,
+        "22": 100,
+        "33": 155
+      },
+      "lengths_mm": [
+        400,
+        500,
+        600,
+        700,
+        800,
+        900,
+        1000,
+        1200,
+        1400,
+        1600,
+        1800,
+        2000,
+        2300,
+        2600,
+        3000
+      ]
+    },
+    {
+      "brand": "Purmo C",
+      "family_prefix": "Стальной панельный",
+      "n_exponent": 1.3,
+      "q_per_m": {
+        "300": {
+          "11": 471,
+          "22": 922,
+          "33": 1345
+        },
+        "400": {
+          "11": 589,
+          "22": 1158,
+          "33": 1689
+        },
+        "500": {
+          "11": 722,
+          "22": 1428,
+          "33": 2076
+        },
+        "600": {
+          "11": 865,
+          "22": 1712,
+          "33": 2492
+        },
+        "900": {
+          "11": 1245,
+          "22": 2467,
+          "33": 3592
+        }
+      },
+      "v_per_m": {
+        "300": {
+          "11": 1.7,
+          "22": 3.1,
+          "33": 4.5
+        },
+        "400": {
+          "11": 2.1,
+          "22": 3.9,
+          "33": 5.6
+        },
+        "500": {
+          "11": 2.6,
+          "22": 4.6,
+          "33": 6.9
+        },
+        "600": {
+          "11": 3.1,
+          "22": 5.5,
+          "33": 8.3
+        },
+        "900": {
+          "11": 4.4,
+          "22": 8.0,
+          "33": 12.1
+        }
+      },
+      "depth_mm": {
+        "11": 65,
+        "22": 100,
+        "33": 155
+      },
+      "lengths_mm": [
+        400,
+        500,
+        600,
+        700,
+        800,
+        900,
+        1000,
+        1200,
+        1400,
+        1600,
+        1800,
+        2000,
+        2300,
+        2600,
+        3000
+      ]
+    }
+  ],
+  "models": [
+    {
+      "name": "Global Vox 350 (секция)",
+      "family": "Алюминий",
+      "height_mm": 350,
+      "length_mm": 80,
+      "depth_mm": 95,
+      "q_nominal_w": 120,
+      "n_exponent": 1.34,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.2,
+      "weight_kg": 1.0,
+      "note": ""
+    },
+    {
+      "name": "Global Vox 500 (секция)",
+      "family": "Алюминий",
+      "height_mm": 500,
+      "length_mm": 80,
+      "depth_mm": 95,
+      "q_nominal_w": 185,
+      "n_exponent": 1.34,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.27,
+      "weight_kg": 1.45,
+      "note": ""
+    },
+    {
+      "name": "Global Vox 800 (секция)",
+      "family": "Алюминий",
+      "height_mm": 800,
+      "length_mm": 80,
+      "depth_mm": 95,
+      "q_nominal_w": 275,
+      "n_exponent": 1.34,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 12,
+      "water_volume_l": 0.38,
+      "weight_kg": 2.0,
+      "note": ""
+    },
+    {
+      "name": "Sira Alice 350 (секция)",
+      "family": "Алюминий",
+      "height_mm": 350,
+      "length_mm": 80,
+      "depth_mm": 95,
+      "q_nominal_w": 125,
+      "n_exponent": 1.34,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.22,
+      "weight_kg": 1.05,
+      "note": ""
+    },
+    {
+      "name": "Sira Alice 500 (секция)",
+      "family": "Алюминий",
+      "height_mm": 500,
+      "length_mm": 80,
+      "depth_mm": 95,
+      "q_nominal_w": 178,
+      "n_exponent": 1.34,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.27,
+      "weight_kg": 1.42,
+      "note": ""
+    },
+    {
+      "name": "Royal Thermo Indigo 500 (секция)",
+      "family": "Алюминий",
+      "height_mm": 500,
+      "length_mm": 80,
+      "depth_mm": 100,
+      "q_nominal_w": 195,
+      "n_exponent": 1.34,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.28,
+      "weight_kg": 1.55,
+      "note": ""
+    },
+    {
+      "name": "Rifar Base 200 (секция)",
+      "family": "Биметалл",
+      "height_mm": 200,
+      "length_mm": 80,
+      "depth_mm": 100,
+      "q_nominal_w": 104,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.13,
+      "weight_kg": 1.25,
+      "note": ""
+    },
+    {
+      "name": "Rifar Base 350 (секция)",
+      "family": "Биметалл",
+      "height_mm": 350,
+      "length_mm": 80,
+      "depth_mm": 90,
+      "q_nominal_w": 136,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.18,
+      "weight_kg": 1.45,
+      "note": ""
+    },
+    {
+      "name": "Rifar Base 500 (секция)",
+      "family": "Биметалл",
+      "height_mm": 500,
+      "length_mm": 80,
+      "depth_mm": 100,
+      "q_nominal_w": 204,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.2,
+      "weight_kg": 2.0,
+      "note": ""
+    },
+    {
+      "name": "Rifar Monolit 350 (секция)",
+      "family": "Биметалл (моноблок)",
+      "height_mm": 350,
+      "length_mm": 80,
+      "depth_mm": 100,
+      "q_nominal_w": 134,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 12,
+      "water_volume_l": 0.18,
+      "weight_kg": 1.6,
+      "note": ""
+    },
+    {
+      "name": "Rifar Monolit 500 (секция)",
+      "family": "Биметалл (моноблок)",
+      "height_mm": 500,
+      "length_mm": 80,
+      "depth_mm": 100,
+      "q_nominal_w": 196,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 12,
+      "water_volume_l": 0.21,
+      "weight_kg": 2.1,
+      "note": ""
+    },
+    {
+      "name": "Royal Thermo BiLiner 500 (секция)",
+      "family": "Биметалл",
+      "height_mm": 500,
+      "length_mm": 80,
+      "depth_mm": 87,
+      "q_nominal_w": 171,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.2,
+      "weight_kg": 1.95,
+      "note": ""
+    },
+    {
+      "name": "Sira RS Bimetal 500 (секция)",
+      "family": "Биметалл",
+      "height_mm": 500,
+      "length_mm": 80,
+      "depth_mm": 95,
+      "q_nominal_w": 181,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 14,
+      "water_volume_l": 0.21,
+      "weight_kg": 2.0,
+      "note": ""
+    },
+    {
+      "name": "МС-140-300 (секция)",
+      "family": "Чугун",
+      "height_mm": 300,
+      "length_mm": 93,
+      "depth_mm": 140,
+      "q_nominal_w": 120,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 10,
+      "water_volume_l": 1.1,
+      "weight_kg": 5.7,
+      "note": ""
+    },
+    {
+      "name": "МС-140-500 (секция)",
+      "family": "Чугун",
+      "height_mm": 500,
+      "length_mm": 93,
+      "depth_mm": 140,
+      "q_nominal_w": 160,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 10,
+      "water_volume_l": 1.45,
+      "weight_kg": 7.1,
+      "note": ""
+    },
+    {
+      "name": "МС-140-1200 (секция)",
+      "family": "Чугун",
+      "height_mm": 388,
+      "length_mm": 93,
+      "depth_mm": 140,
+      "q_nominal_w": 185,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 10,
+      "water_volume_l": 1.5,
+      "weight_kg": 8.1,
+      "note": ""
+    },
+    {
+      "name": "Konner Modern 500 (секция)",
+      "family": "Чугун",
+      "height_mm": 500,
+      "length_mm": 80,
+      "depth_mm": 80,
+      "q_nominal_w": 110,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 10,
+      "water_volume_l": 0.85,
+      "weight_kg": 4.7,
+      "note": ""
+    },
+    {
+      "name": "Konner Modern 300 (секция)",
+      "family": "Чугун",
+      "height_mm": 300,
+      "length_mm": 80,
+      "depth_mm": 80,
+      "q_nominal_w": 85,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 10,
+      "water_volume_l": 0.65,
+      "weight_kg": 3.8,
+      "note": ""
+    },
+    {
+      "name": "Konner Lux 500 (секция)",
+      "family": "Чугун (дизайн)",
+      "height_mm": 500,
+      "length_mm": 90,
+      "depth_mm": 90,
+      "q_nominal_w": 120,
+      "n_exponent": 1.3,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 8,
+      "water_volume_l": 0.9,
+      "weight_kg": 5.5,
+      "note": ""
+    },
+    {
+      "name": "Универсал ТБ-100 (1 м)",
+      "family": "Конвектор настенный",
+      "height_mm": 250,
+      "length_mm": 1000,
+      "depth_mm": 130,
+      "q_nominal_w": 540,
+      "n_exponent": 1.38,
+      "is_sectional": false,
+      "sections": 1,
+      "max_sections": 1,
+      "water_volume_l": 2.2,
+      "weight_kg": 8,
+      "note": ""
+    },
+    {
+      "name": "Универсал ТБ-200 (1 м)",
+      "family": "Конвектор настенный",
+      "height_mm": 350,
+      "length_mm": 1000,
+      "depth_mm": 130,
+      "q_nominal_w": 820,
+      "n_exponent": 1.38,
+      "is_sectional": false,
+      "sections": 1,
+      "max_sections": 1,
+      "water_volume_l": 2.8,
+      "weight_kg": 11,
+      "note": ""
+    },
+    {
+      "name": "Универсал ТБ-300 (1 м)",
+      "family": "Конвектор настенный",
+      "height_mm": 500,
+      "length_mm": 1000,
+      "depth_mm": 130,
+      "q_nominal_w": 1120,
+      "n_exponent": 1.38,
+      "is_sectional": false,
+      "sections": 1,
+      "max_sections": 1,
+      "water_volume_l": 3.5,
+      "weight_kg": 14,
+      "note": ""
+    },
+    {
+      "name": "Минибрик-15 (внутрипольный)",
+      "family": "Конвектор внутрипольный",
+      "height_mm": 150,
+      "length_mm": 1000,
+      "depth_mm": 200,
+      "q_nominal_w": 750,
+      "n_exponent": 1.4,
+      "is_sectional": false,
+      "sections": 1,
+      "max_sections": 1,
+      "water_volume_l": 1.2,
+      "weight_kg": 15,
+      "note": ""
+    },
+    {
+      "name": "Тёплый пол REHAU 16x2",
+      "family": "Тёплый пол",
+      "height_mm": 0,
+      "length_mm": 100,
+      "depth_mm": 0,
+      "q_nominal_w": 85,
+      "n_exponent": 1.1,
+      "is_sectional": true,
+      "sections": 1,
+      "max_sections": 200,
+      "water_volume_l": 0.2,
+      "weight_kg": 0.3,
+      "note": "Удельная мощность на 1 м² (~80 Вт/м²). max_sections — м²."
+    }
+  ]
+}

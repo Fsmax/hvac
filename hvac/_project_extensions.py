@@ -361,6 +361,25 @@ class V37ExtensionsMixin:
         self.emit("vrf_systems_built")
         return result
 
+    def load_weather(self, path: str):
+        """Загружает EPW-файл с реальным почасовым климатом.
+
+        После загрузки simulate_annual_energy() использует реальные
+        температуры вместо синтетического профиля. Файлы EPW —
+        climate.onebuilding.org / energyplus.net/weather.
+
+        Сохраняет в self.weather_data, возвращает WeatherData.
+        """
+        from hvac.weather import load_epw
+        self.weather_data = load_epw(path)
+        self.emit("weather_loaded")
+        return self.weather_data
+
+    def clear_weather(self) -> None:
+        """Убирает загруженный EPW — симуляция вернётся к синтетике."""
+        self.weather_data = None
+        self.emit("weather_loaded")
+
     def simulate_annual_energy(
         self,
         *,
@@ -371,7 +390,8 @@ class V37ExtensionsMixin:
     ) -> "EnergySimulationResult":
         """Прогон 8760-часовой симуляции для всего проекта.
 
-        Сохраняет результат в self.energy_simulation_result.
+        Если загружен EPW (load_weather) — наружная температура берётся
+        из него. Сохраняет результат в self.energy_simulation_result.
         """
         from hvac.energy_simulation import simulate_year
         result = simulate_year(
@@ -380,9 +400,45 @@ class V37ExtensionsMixin:
             thermal_mass_tau_h=thermal_mass_tau_h,
             heating_setpoint_offset=heating_setpoint_offset,
             cooling_setpoint_offset=cooling_setpoint_offset,
+            weather=getattr(self, "weather_data", None),
         )
         self.energy_simulation_result = result
         self.emit("energy_simulated")
+        return result
+
+    def calculate_comfort(
+        self,
+        seasons=("heating", "cooling"),
+        *,
+        met: float = 1.2,
+        clo=None,
+        v_air_ms: float = 0.1,
+        rh_override=None,
+    ) -> Dict[str, Dict]:
+        """Оценка теплового комфорта PMV/PPD по ISO 7730 (метод Фангера).
+
+        Считает по расчётным уставкам помещений (t_in_heat / t_in_cool);
+        влажность — rh_design помещения или пресет по типу.
+
+        Параметры
+        ---------
+        seasons     : какие сезоны считать ("heating", "cooling").
+        met         : метаболизм, met (1.2 — офисная работа).
+        clo         : одежда, clo; None → 1.0 зимой / 0.5 летом.
+        v_air_ms    : подвижность воздуха, м/с.
+        rh_override : общая влажность % для всех помещений (иначе по типу).
+
+        Сохраняет в self.comfort_results: {season: {space_id: ComfortResult}}.
+        """
+        from hvac import comfort
+        result = {
+            season: comfort.assess_project(
+                self, season, met=met, clo=clo,
+                v_air_ms=v_air_ms, rh_override=rh_override)
+            for season in seasons
+        }
+        self.comfort_results = result
+        self.emit("comfort_calculated")
         return result
 
     def build_equipment_specification(self) -> "Specification":

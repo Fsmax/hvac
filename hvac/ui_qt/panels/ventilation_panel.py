@@ -337,20 +337,24 @@ class _VentFilterProxy(QSortFilterProxyModel):
         self._zone = ""
 
     def set_text(self, t: str) -> None:
+        self.beginFilterChange()
         self._text = (t or "").lower().strip()
-        self.invalidateFilter()
+        self.endFilterChange(QSortFilterProxyModel.Direction.Rows)
 
     def set_level(self, v: str) -> None:
+        self.beginFilterChange()
         self._level = "" if v == _t("filter.all") else v
-        self.invalidateFilter()
+        self.endFilterChange(QSortFilterProxyModel.Direction.Rows)
 
     def set_type(self, v: str) -> None:
+        self.beginFilterChange()
         self._type = "" if v == _t("filter.all") else v
-        self.invalidateFilter()
+        self.endFilterChange(QSortFilterProxyModel.Direction.Rows)
 
     def set_zone(self, v: str) -> None:
+        self.beginFilterChange()
         self._zone = "" if v == _t("filter.all") else v
-        self.invalidateFilter()
+        self.endFilterChange(QSortFilterProxyModel.Direction.Rows)
 
     def filterAcceptsRow(self, source_row: int, _parent: QModelIndex) -> bool:
         sp = self.sourceModel().project.spaces[source_row]

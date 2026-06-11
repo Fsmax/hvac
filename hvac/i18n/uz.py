@@ -280,6 +280,18 @@ UZ: Dict[str, str] = {
     "panel.data.keep_overrides": ("Qayta yuklashda xonalarning qo‘lda "
                                    "kiritilgan o‘zgarishlarini saqlash"),
     "panel.data.btn_load_csv":  "📥  CSV yuklash",
+    "panel.data.btn_revit_import": "🔄  Revit'dan import",
+    "panel.data.revit.tooltip": ("Xona va to'siqlarni ochiq Revit modelidan to'g'ridan-to'g'ri "
+                                  "yuklash (Dynamo'siz). Revit MCP Switch yoqilgan bo'lishi kerak."),
+    "panel.data.revit.pick_dir": "spaces.csv / thermal_all.csv uchun papka",
+    "panel.data.revit.not_connected.title": "Revit mavjud emas",
+    "panel.data.revit.not_connected.body": ("Revit'ga ulanib bo'lmadi (127.0.0.1:8080).\n\n"
+                                  "Tekshiring: Revit model bilan ochiq, lentada "
+                                  "«Revit MCP Switch» yoqilgan."),
+    "panel.data.status.revit_import": "Revit'dan import… (katta model — bir necha daqiqa)",
+    "panel.data.revit.done": ("Revit'dan yuklandi ({source}): {spaces} ta xona, "
+                                  "{thermal} ta chegara qatori"),
+    "panel.data.err.revit":     "Revit'dan import xatosi",
     "panel.data.summary_loaded": ("✓ Yuklandi: {sp} ta xona · "
                                    "{el} ta devor · {co} ta tip konstruksiya"),
     "panel.data.actions.title": "Loyiha",
@@ -1359,6 +1371,7 @@ UZ: Dict[str, str] = {
     "panel.eng.tab.fancoils":        "Fankoyl",
     "panel.eng.tab.vrf":             "VRF/VRV",
     "panel.eng.tab.energy":          "Energiya (8760 soat)",
+    "panel.eng.tab.comfort":         "Komfort PMV/PPD",
     "panel.eng.common.error":        "Xato",
     "panel.eng.common.no_data":      "Ma’lumot yo‘q. «Hisoblash» tugmasini bosing.",
 
@@ -1477,6 +1490,26 @@ UZ: Dict[str, str] = {
     "panel.eng.ac.col.dp":           "ΔP, Pa",
     "panel.eng.ac.status":           "Akustika hisoblandi",
 
+    # Comfort (PMV/PPD, ISO 7730)
+    "panel.eng.cf.info":             ("ISO 7730 bo'yicha issiqlik komforti (Fanger usuli): PMV — "
+                                        "issiqlik sezgisining o'rtacha bahosi (−3…+3), PPD — norozilar "
+                                        "ulushi, %. Kategoriyalar: A (|PMV|<0.2), B (<0.5), C (<0.7). "
+                                        "Hisob xona sozlamalari bo'yicha; GOST 30494 optimumi ≈ B."),
+    "panel.eng.cf.btn_run":          "▶  PMV/PPD hisoblash",
+    "panel.eng.cf.met":              "Metabolizm, met:",
+    "panel.eng.cf.vair":             "Havo harakatchanligi, m/s:",
+    "panel.eng.cf.col.number":       "№",
+    "panel.eng.cf.col.name":         "Xona",
+    "panel.eng.cf.col.t_w":          "t qish, °C",
+    "panel.eng.cf.col.pmv_w":        "PMV qish",
+    "panel.eng.cf.col.ppd_w":        "PPD qish, %",
+    "panel.eng.cf.col.cat_w":        "Kat. qish",
+    "panel.eng.cf.col.t_s":          "t yoz, °C",
+    "panel.eng.cf.col.pmv_s":        "PMV yoz",
+    "panel.eng.cf.col.ppd_s":        "PPD yoz, %",
+    "panel.eng.cf.col.cat_s":        "Kat. yoz",
+    "panel.eng.cf.status":           "Komfort hisoblandi",
+
     # Underfloor
     "panel.eng.uf.pitch":            "Qadam:",
     "panel.eng.uf.cover":            "Qoplama:",
@@ -1580,6 +1613,13 @@ UZ: Dict[str, str] = {
     "panel.eng.en.install":          "Grafikni ko‘rish uchun matplotlib o‘rnating.",
     "panel.eng.en.status_err":       "Simulyatsiya xatosi",
     "panel.eng.en.status":           "Yillik simulyatsiya bajarildi",
+    "panel.eng.en.btn_epw":          "EPW yuklash…",
+    "panel.eng.en.btn_epw_clear":    "✕ EPW olib tashlash",
+    "panel.eng.en.epw_filter":       "EPW ob-havo fayllari (*.epw);;Barcha fayllar (*)",
+    "panel.eng.en.epw_none":         ("Iqlim: hisobiy T dan sintetik profil. "
+                                        "Aniqrog'i — real EPW meteoyili (climate.onebuilding.org)."),
+    "panel.eng.en.epw_loaded":       "Iqlim: EPW {loc} ({tmin:+.1f}…{tmax:+.1f} °C)",
+    "panel.eng.en.epw_err":          "EPW o'qish xatosi",
     "panel.eng.en.empty":            "Ma’lumot yo‘q. «Yilni simulyatsiya qilish» tugmasini bosing.",
     "panel.eng.en.chart.t_year":     "Yillik T (o‘rtacha sutkalik)",
     "panel.eng.en.chart.t_ext":      "T tash., °C",
@@ -1632,6 +1672,10 @@ UZ: Dict[str, str] = {
     "export.fmt.pdf.title":          "PDF: tushuntirish xati",
     "export.fmt.pdf.desc":           "Loyiha ma’lumotlari asosida 12 tagacha bo‘lim.",
     "export.fmt.pdf.name":           "Hisobot_{name}.pdf",
+    "export.fmt.docx.title":         "DOCX: tushuntirish xati (Word)",
+    "export.fmt.docx.desc":          ("PDF dagi bo'limlar, lekin tahrirlanadigan formatda — "
+                                        "ekspertiza talablariga moslashtirish uchun. python-docx kerak."),
+    "export.fmt.docx.name":          "Hisobot_{name}.docx",
     "export.fmt.equipment.title":    "Jihozlar bo‘yicha xulosa jadvali",
     "export.fmt.equipment.desc":     "Xonalar bo‘yicha xulosa + radiator/fankoyl/diffuzor spetsifikatsiyalari.",
     "export.fmt.equipment.name":     "Jihozlar_{name}.xlsx",
@@ -1641,6 +1685,12 @@ UZ: Dict[str, str] = {
                                         "revit_dynamo_apply_results.py ni ishga tushiring — qiymatlar "
                                         "Space/Room parametrlariga yoziladi."),
     "export.fmt.revit.name":         "results_for_revit.csv",
+    "export.fmt.revit_live.title":   "Revit'ga yozish (jonli ko'prik)",
+    "export.fmt.revit_live.desc":    ("Yuklama/sarf/tizimlarni ochiq Revit modelining Spaces "
+                                        "parametrlariga to'g'ridan-to'g'ri yozadi (Revit MCP plagin, "
+                                        "port 8080, Dynamo'siz). CSV artefakt sifatida saqlanadi. "
+                                        "Modelda Project Parameters yaratilgan bo'lishi kerak."),
+    "export.fmt.revit_live.name":    "results_for_revit.csv",
     "export.fmt.spec.title":         "GOST 21.110 bo‘yicha spetsifikatsiya",
     "export.fmt.spec.desc":          ("Jihoz va materiallarning to‘liq spetsifikatsiyasi: qozonlar, AHU, "
                                         "radiatorlar, fankoyl, VRF, nasoslar, baklar, shovqin pasaytirgich, "
@@ -1661,6 +1711,23 @@ UZ: Dict[str, str] = {
     "export.gas.hours":              "Sutkasiga ish soati",
     "export.gas.days_month":         "Oydagi sutkalar",
     "export.gas.heating_days":       "Isitish davri, sutka",
+    "export.fmt.hlgc.title":         "HLGC Design Table (master-jadval)",
+    "export.fmt.hlgc.desc":          ("Loyiha HLGC jadvalini xona raqamlari bo‘yicha yuklamalar bilan "
+                                        "to‘ldiradi («HLGC» varaqi). Excel COM dvigateli formulalar va "
+                                        "uslublarni saqlaydi; Excel bo‘lmasa — openpyxl fallback."),
+    "export.fmt.hlgc.name":          "HLGC Design Table_filled.xlsx",
+    "export.hlgc.params":            "HLGC eksport parametrlari",
+    "export.hlgc.source":            "Manba jadval (shablon)",
+    "export.hlgc.source_ph":         "To‘ldirish uchun .xlsx/.xls jadvalni tanlang…",
+    "export.hlgc.source_dlg":        "HLGC Design Table-ni tanlang",
+    "export.hlgc.mode":              "Yozish rejimi",
+    "export.hlgc.mode.match":        "Raqami mosini yangilash (qator qo‘shmaslik)",
+    "export.hlgc.mode.append":       "Yangilash + yetishmagan xonalarni qo‘shish",
+    "export.hlgc.mode.rebuild":      "Jadvalni loyihadan qayta qurish",
+    "export.hlgc.only_empty":        "Faqat bo‘sh kataklarga yozish",
+    "export.hlgc.no_source.title":   "Shablon yo‘q",
+    "export.hlgc.no_source.msg":     ("To‘ldiriladigan manba HLGC Design Table (.xlsx/.xls) "
+                                        "faylini ko‘rsating."),
     "export.default_name":           "Loyiha",
 
     # ========== Panel: Calculation ==========

@@ -35,6 +35,7 @@ from typing import Dict, List, Optional, TypedDict, TYPE_CHECKING
 if TYPE_CHECKING:
     from hvac.project import HVACProject
     from hvac.models import Space
+    from hvac.weather import WeatherData
 
 
 class _SpaceParams(TypedDict):
@@ -220,6 +221,10 @@ class EnergySimulationResult:
     hourly_q_cool_w: Optional[List[float]] = None
     hourly_t_out_c: Optional[List[float]] = None
 
+    # Источник наружной температуры: "" — синтетический профиль,
+    # иначе город/файл EPW (см. hvac/weather.py).
+    weather_source: str = ""
+
 
 # ============================================================================
 # Главная функция
@@ -232,6 +237,7 @@ def simulate_year(
     thermal_mass_tau_h: float = 12.0,
     heating_setpoint_offset: float = 0.0,
     cooling_setpoint_offset: float = 0.0,
+    weather: Optional["WeatherData"] = None,
 ) -> EnergySimulationResult:
     """Прогоняет 8760-часовую симуляцию для всего проекта.
 
@@ -244,6 +250,9 @@ def simulate_year(
     heating_setpoint_offset : сдвиг уставки отопления на ночь (например -2°C
                               экономит ~5-8% при включённом расписании).
     cooling_setpoint_offset : сдвиг уставки охлаждения (например +2°C ночью).
+    weather                 : реальный почасовой климат из EPW-файла
+                              (hvac/weather.py). None — синтетический
+                              синусоидальный профиль из расчётных T.
     """
     p = project.params
     spaces = [sp for sp in project.spaces if sp.area_m2 > 0]
@@ -253,7 +262,9 @@ def simulate_year(
     result = EnergySimulationResult(
         n_spaces=len(spaces),
         total_area_m2=sum(sp.area_m2 for sp in spaces),
+        weather_source=(weather.location or weather.source) if weather else "",
     )
+    t_out_series = weather.t_dry_bulb_c if weather else None
 
     # Расчётные удельные значения для каждого помещения (для линейного
     # масштабирования с T_out)
@@ -303,9 +314,9 @@ def simulate_year(
     cooling_hours = 0
 
     for h in range(HOURS_IN_YEAR):
-        t_out = synth_outdoor_temperature(
-            p.t_out_heating, p.t_out_cooling, p.daily_amplitude, h,
-        )
+        t_out = (t_out_series[h] if t_out_series is not None
+                 else synth_outdoor_temperature(
+                     p.t_out_heating, p.t_out_cooling, p.daily_amplitude, h))
         if hourly_t is not None:
             hourly_t[h] = t_out
 

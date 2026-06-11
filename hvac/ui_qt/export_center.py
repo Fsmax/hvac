@@ -55,9 +55,24 @@ def _pdf(project: HVACProject, path: str) -> None:
     export_to_pdf(project, path)
 
 
+def _docx(project: HVACProject, path: str) -> None:
+    from hvac.io_docx import export_to_docx
+    export_to_docx(project, path)
+
+
 def _revit_csv(project: HVACProject, path: str) -> None:
     from hvac.io_revit import export_results_for_revit
     export_results_for_revit(project, path)
+
+
+def _revit_live(project: HVACProject, path: str) -> None:
+    """Запись результатов прямо в открытую модель Revit через живой мост.
+
+    CSV сохраняется в path как артефакт; затем тот же файл читает C#-код
+    внутри Revit и пишет значения в Project Parameters категории Spaces.
+    """
+    from hvac.revit_link import write_results_to_revit
+    write_results_to_revit(project, path)
 
 
 def _equipment_xlsx(project: HVACProject, path: str) -> None:
@@ -77,6 +92,41 @@ def _gas_load(project: HVACProject, path: str, **params) -> None:
     export_project_gas_load_pdf(project, path, **params)
 
 
+def _hlgc(project: HVACProject, path: str, **params) -> None:
+    """Заполняет HLGC Design Table. Требует исходный шаблон (source_path).
+
+    Выполняется в фоновом QThread, поэтому для движка Excel COM нужно
+    инициализировать COM в этом потоке (CoInitialize). Если pywin32/Excel
+    недоступны — io_hlgc сам откатится на openpyxl (CoInitialize безвреден)."""
+    from hvac.io_hlgc import export_to_hlgc
+    source_path = (params.get("source_path") or "").strip()
+    if not source_path or not os.path.exists(source_path):
+        raise ValueError(_t("export.hlgc.no_source.msg"))
+    mode = params.get("mode", "append")
+    overwrite_only_empty = bool(params.get("overwrite_only_empty", False))
+
+    co_inited = False
+    try:
+        import pythoncom
+        pythoncom.CoInitialize()
+        co_inited = True
+    except Exception:
+        co_inited = False
+    try:
+        export_to_hlgc(
+            project, source_path, output_path=path,
+            overwrite_only_empty=overwrite_only_empty,
+            preserve_formulas=True, engine="auto", mode=mode,
+        )
+    finally:
+        if co_inited:
+            try:
+                import pythoncom
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
+
+
 FORMATS = [
     ExportFormat(
         "excel", "export.fmt.excel.title", "export.fmt.excel.desc",
@@ -87,6 +137,10 @@ FORMATS = [
         ".pdf", "export.fmt.pdf.name", _pdf,
     ),
     ExportFormat(
+        "docx", "export.fmt.docx.title", "export.fmt.docx.desc",
+        ".docx", "export.fmt.docx.name", _docx,
+    ),
+    ExportFormat(
         "equipment", "export.fmt.equipment.title", "export.fmt.equipment.desc",
         ".xlsx", "export.fmt.equipment.name", _equipment_xlsx,
     ),
@@ -95,12 +149,20 @@ FORMATS = [
         ".csv", "export.fmt.revit.name", _revit_csv,
     ),
     ExportFormat(
+        "revit_live", "export.fmt.revit_live.title", "export.fmt.revit_live.desc",
+        ".csv", "export.fmt.revit_live.name", _revit_live,
+    ),
+    ExportFormat(
         "spec_gost", "export.fmt.spec.title", "export.fmt.spec.desc",
         ".xlsx", "export.fmt.spec.name", _specification,
     ),
     ExportFormat(
         "gas_load", "export.fmt.gas.title", "export.fmt.gas.desc",
         ".pdf", "export.fmt.gas.name", _gas_load,
+    ),
+    ExportFormat(
+        "hlgc", "export.fmt.hlgc.title", "export.fmt.hlgc.desc",
+        ".xlsx", "export.fmt.hlgc.name", _hlgc,
     ),
 ]
 
@@ -165,6 +227,10 @@ class ExportCenter(QDialog):
         # Параметры расчёта газа (видны только для формата «gas_load»)
         self.gas_params = self._make_gas_params()
         outer.addWidget(self.gas_params)
+
+        # Параметры HLGC-экспорта (видны только для формата «hlgc»)
+        self.hlgc_params = self._make_hlgc_params()
+        outer.addWidget(self.hlgc_params)
 
         outer.addSpacing(4)
 
@@ -315,6 +381,75 @@ class ExportCenter(QDialog):
             params["object_name"] = obj
         return params
 
+    def _make_hlgc_params(self) -> QGroupBox:
+        """Поля для экспорта в HLGC Design Table: шаблон + режим записи."""
+        box = QGroupBox(_t("export.hlgc.params"))
+        form = QFormLayout(box)
+
+        # Исходная таблица (шаблон) + кнопка обзора
+        src_row = QHBoxLayout()
+        self.hlgc_source = QLineEdit()
+        self.hlgc_source.setPlaceholderText(_t("export.hlgc.source_ph"))
+        src_row.addWidget(self.hlgc_source, stretch=1)
+        src_browse = QPushButton(_t("export.browse"))
+        src_browse.setCursor(QCursor(Qt.PointingHandCursor))
+        src_browse.clicked.connect(self._browse_hlgc_source)
+        src_row.addWidget(src_browse)
+        src_wrap = QWidget()
+        src_wrap.setLayout(src_row)
+        form.addRow(_t("export.hlgc.source"), src_wrap)
+
+        # Режим записи (radio)
+        self._hlgc_mode_group = QButtonGroup(self)
+        mode_col = QVBoxLayout()
+        mode_col.setSpacing(2)
+        self.hlgc_mode_match = QRadioButton(_t("export.hlgc.mode.match"))
+        self.hlgc_mode_append = QRadioButton(_t("export.hlgc.mode.append"))
+        self.hlgc_mode_rebuild = QRadioButton(_t("export.hlgc.mode.rebuild"))
+        self.hlgc_mode_append.setChecked(True)  # безопасный дефолт
+        for rb, key in ((self.hlgc_mode_match, "match"),
+                        (self.hlgc_mode_append, "append"),
+                        (self.hlgc_mode_rebuild, "rebuild")):
+            rb.setProperty("hlgc_mode", key)
+            self._hlgc_mode_group.addButton(rb)
+            mode_col.addWidget(rb)
+        mode_wrap = QWidget()
+        mode_wrap.setLayout(mode_col)
+        form.addRow(_t("export.hlgc.mode"), mode_wrap)
+
+        self.hlgc_only_empty = QCheckBox(_t("export.hlgc.only_empty"))
+        form.addRow("", self.hlgc_only_empty)
+
+        box.setVisible(False)
+        return box
+
+    def _hlgc_mode(self) -> str:
+        for rb in (self.hlgc_mode_match, self.hlgc_mode_append,
+                   self.hlgc_mode_rebuild):
+            if rb.isChecked():
+                return rb.property("hlgc_mode")
+        return "append"
+
+    def _collect_hlgc_params(self) -> dict:
+        return {
+            "source_path": self.hlgc_source.text().strip(),
+            "mode": self._hlgc_mode(),
+            "overwrite_only_empty": self.hlgc_only_empty.isChecked(),
+        }
+
+    def _browse_hlgc_source(self) -> None:
+        cur = self.hlgc_source.text().strip()
+        path, _f = QFileDialog.getOpenFileName(
+            self, _t("export.hlgc.source_dlg"), cur,
+            "Excel (*.xlsx *.xls)",
+        )
+        if path:
+            self.hlgc_source.setText(path)
+            # Подсказываем путь сохранения: <шаблон>_filled.xlsx
+            base, _ext = os.path.splitext(path)
+            out = base + "_filled.xlsx"
+            self.path_edit.setText(out)
+
     def _current_format(self) -> ExportFormat:
         for k, rb in self._format_widgets.items():
             if rb.isChecked():
@@ -325,6 +460,8 @@ class ExportCenter(QDialog):
         self._suggest_path()
         if hasattr(self, "gas_params"):
             self.gas_params.setVisible(key == "gas_load")
+        if hasattr(self, "hlgc_params"):
+            self.hlgc_params.setVisible(key == "hlgc")
 
     def _suggest_path(self) -> None:
         fmt = self._current_format()
@@ -360,7 +497,21 @@ class ExportCenter(QDialog):
                 _t("export.no_path.msg"))
             return
 
-        params = self._collect_gas_params() if fmt.key == "gas_load" else {}
+        # HLGC требует исходный шаблон-таблицу
+        if fmt.key == "hlgc":
+            src = self.hlgc_source.text().strip()
+            if not src or not os.path.exists(src):
+                QMessageBox.warning(
+                    self, _t("export.hlgc.no_source.title"),
+                    _t("export.hlgc.no_source.msg"))
+                return
+
+        if fmt.key == "gas_load":
+            params = self._collect_gas_params()
+        elif fmt.key == "hlgc":
+            params = self._collect_hlgc_params()
+        else:
+            params = {}
         self.export_btn.setEnabled(False)
         self.cancel_btn.setEnabled(False)
         self.progress.setVisible(True)

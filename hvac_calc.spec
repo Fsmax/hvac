@@ -39,6 +39,10 @@ catalog_files = [
      "hvac/catalogs/data"),
     (str(project_root / "hvac" / "catalogs" / "data" / "kmk_thermal.json"),
      "hvac/catalogs/data"),
+    (str(project_root / "hvac" / "catalogs" / "data" / "radiators.json"),
+     "hvac/catalogs/data"),
+    (str(project_root / "hvac" / "catalogs" / "data" / "fancoils.json"),
+     "hvac/catalogs/data"),
 ]
 
 # Скрытые импорты, которые анализатор может пропустить
@@ -49,6 +53,7 @@ hidden = [
     "matplotlib.backends.backend_qtagg",
     "openpyxl",
     "reportlab",
+    "docx",        # python-docx — импортируется лениво в io_docx
 ]
 
 
