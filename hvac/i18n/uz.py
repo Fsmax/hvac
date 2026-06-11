@@ -1660,6 +1660,10 @@ UZ: Dict[str, str] = {
     "export.fmt.pdf.title":          "PDF: tushuntirish xati",
     "export.fmt.pdf.desc":           "Loyiha ma’lumotlari asosida 12 tagacha bo‘lim.",
     "export.fmt.pdf.name":           "Hisobot_{name}.pdf",
+    "export.fmt.docx.title":         "DOCX: tushuntirish xati (Word)",
+    "export.fmt.docx.desc":          ("PDF dagi bo'limlar, lekin tahrirlanadigan formatda — "
+                                        "ekspertiza talablariga moslashtirish uchun. python-docx kerak."),
+    "export.fmt.docx.name":          "Hisobot_{name}.docx",
     "export.fmt.equipment.title":    "Jihozlar bo‘yicha xulosa jadvali",
     "export.fmt.equipment.desc":     "Xonalar bo‘yicha xulosa + radiator/fankoyl/diffuzor spetsifikatsiyalari.",
     "export.fmt.equipment.name":     "Jihozlar_{name}.xlsx",

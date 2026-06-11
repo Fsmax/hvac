@@ -55,6 +55,11 @@ def _pdf(project: HVACProject, path: str) -> None:
     export_to_pdf(project, path)
 
 
+def _docx(project: HVACProject, path: str) -> None:
+    from hvac.io_docx import export_to_docx
+    export_to_docx(project, path)
+
+
 def _revit_csv(project: HVACProject, path: str) -> None:
     from hvac.io_revit import export_results_for_revit
     export_results_for_revit(project, path)
@@ -120,6 +125,10 @@ FORMATS = [
     ExportFormat(
         "pdf", "export.fmt.pdf.title", "export.fmt.pdf.desc",
         ".pdf", "export.fmt.pdf.name", _pdf,
+    ),
+    ExportFormat(
+        "docx", "export.fmt.docx.title", "export.fmt.docx.desc",
+        ".docx", "export.fmt.docx.name", _docx,
     ),
     ExportFormat(
         "equipment", "export.fmt.equipment.title", "export.fmt.equipment.desc",

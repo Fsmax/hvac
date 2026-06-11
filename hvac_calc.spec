@@ -53,6 +53,7 @@ hidden = [
     "matplotlib.backends.backend_qtagg",
     "openpyxl",
     "reportlab",
+    "docx",        # python-docx — импортируется лениво в io_docx
 ]
 
 

@@ -1650,6 +1650,10 @@ RU: Dict[str, str] = {
     "export.fmt.pdf.title":          "PDF: пояснительная записка",
     "export.fmt.pdf.desc":           "До 12 разделов по заполненным данным проекта.",
     "export.fmt.pdf.name":           "Отчёт_{name}.pdf",
+    "export.fmt.docx.title":         "DOCX: пояснительная записка (Word)",
+    "export.fmt.docx.desc":          ("Те же разделы, что в PDF, но в редактируемом формате — "
+                                        "для доработки под требования экспертизы. Нужен python-docx."),
+    "export.fmt.docx.name":          "Отчёт_{name}.docx",
     "export.fmt.equipment.title":    "Сводная таблица оборудования",
     "export.fmt.equipment.desc":     "Сводка по помещениям + спецификации радиаторов/фанкойлов/диффузоров.",
     "export.fmt.equipment.name":     "Оборудование_{name}.xlsx",
