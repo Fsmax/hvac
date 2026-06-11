@@ -1349,6 +1349,7 @@ RU: Dict[str, str] = {
     "panel.eng.tab.fancoils":        "Фанкойлы",
     "panel.eng.tab.vrf":             "VRF/VRV",
     "panel.eng.tab.energy":          "Энергия (8760 ч)",
+    "panel.eng.tab.comfort":         "Комфорт PMV/PPD",
     "panel.eng.common.error":        "Ошибка",
     "panel.eng.common.no_data":      "Нет данных. Нажмите «Рассчитать».",
 
@@ -1466,6 +1467,26 @@ RU: Dict[str, str] = {
     "panel.eng.ac.col.length":       "Длина, мм",
     "panel.eng.ac.col.dp":           "ΔP, Па",
     "panel.eng.ac.status":           "Акустика рассчитана",
+
+    # Comfort (PMV/PPD, ISO 7730)
+    "panel.eng.cf.info":             ("Тепловой комфорт по ISO 7730 (метод Фангера): PMV — средняя "
+                                        "оценка теплоощущения (−3…+3), PPD — % недовольных. Категории: "
+                                        "A (|PMV|<0.2), B (<0.5), C (<0.7). Расчёт по уставкам "
+                                        "помещений; оптимум ГОСТ 30494 ≈ категория B."),
+    "panel.eng.cf.btn_run":          "▶  Рассчитать PMV/PPD",
+    "panel.eng.cf.met":              "Метаболизм, met:",
+    "panel.eng.cf.vair":             "Подвижность воздуха, м/с:",
+    "panel.eng.cf.col.number":       "№",
+    "panel.eng.cf.col.name":         "Помещение",
+    "panel.eng.cf.col.t_w":          "t зима, °C",
+    "panel.eng.cf.col.pmv_w":        "PMV зима",
+    "panel.eng.cf.col.ppd_w":        "PPD зима, %",
+    "panel.eng.cf.col.cat_w":        "Кат. зима",
+    "panel.eng.cf.col.t_s":          "t лето, °C",
+    "panel.eng.cf.col.pmv_s":        "PMV лето",
+    "panel.eng.cf.col.ppd_s":        "PPD лето, %",
+    "panel.eng.cf.col.cat_s":        "Кат. лето",
+    "panel.eng.cf.status":           "Комфорт рассчитан",
 
     # Underfloor
     "panel.eng.uf.pitch":            "Шаг:",

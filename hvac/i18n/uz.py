@@ -1359,6 +1359,7 @@ UZ: Dict[str, str] = {
     "panel.eng.tab.fancoils":        "Fankoyl",
     "panel.eng.tab.vrf":             "VRF/VRV",
     "panel.eng.tab.energy":          "Energiya (8760 soat)",
+    "panel.eng.tab.comfort":         "Komfort PMV/PPD",
     "panel.eng.common.error":        "Xato",
     "panel.eng.common.no_data":      "Ma’lumot yo‘q. «Hisoblash» tugmasini bosing.",
 
@@ -1476,6 +1477,26 @@ UZ: Dict[str, str] = {
     "panel.eng.ac.col.length":       "Uzunlik, mm",
     "panel.eng.ac.col.dp":           "ΔP, Pa",
     "panel.eng.ac.status":           "Akustika hisoblandi",
+
+    # Comfort (PMV/PPD, ISO 7730)
+    "panel.eng.cf.info":             ("ISO 7730 bo'yicha issiqlik komforti (Fanger usuli): PMV — "
+                                        "issiqlik sezgisining o'rtacha bahosi (−3…+3), PPD — norozilar "
+                                        "ulushi, %. Kategoriyalar: A (|PMV|<0.2), B (<0.5), C (<0.7). "
+                                        "Hisob xona sozlamalari bo'yicha; GOST 30494 optimumi ≈ B."),
+    "panel.eng.cf.btn_run":          "▶  PMV/PPD hisoblash",
+    "panel.eng.cf.met":              "Metabolizm, met:",
+    "panel.eng.cf.vair":             "Havo harakatchanligi, m/s:",
+    "panel.eng.cf.col.number":       "№",
+    "panel.eng.cf.col.name":         "Xona",
+    "panel.eng.cf.col.t_w":          "t qish, °C",
+    "panel.eng.cf.col.pmv_w":        "PMV qish",
+    "panel.eng.cf.col.ppd_w":        "PPD qish, %",
+    "panel.eng.cf.col.cat_w":        "Kat. qish",
+    "panel.eng.cf.col.t_s":          "t yoz, °C",
+    "panel.eng.cf.col.pmv_s":        "PMV yoz",
+    "panel.eng.cf.col.ppd_s":        "PPD yoz, %",
+    "panel.eng.cf.col.cat_s":        "Kat. yoz",
+    "panel.eng.cf.status":           "Komfort hisoblandi",
 
     # Underfloor
     "panel.eng.uf.pitch":            "Qadam:",

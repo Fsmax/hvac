@@ -385,6 +385,41 @@ class V37ExtensionsMixin:
         self.emit("energy_simulated")
         return result
 
+    def calculate_comfort(
+        self,
+        seasons=("heating", "cooling"),
+        *,
+        met: float = 1.2,
+        clo=None,
+        v_air_ms: float = 0.1,
+        rh_override=None,
+    ) -> Dict[str, Dict]:
+        """Оценка теплового комфорта PMV/PPD по ISO 7730 (метод Фангера).
+
+        Считает по расчётным уставкам помещений (t_in_heat / t_in_cool);
+        влажность — rh_design помещения или пресет по типу.
+
+        Параметры
+        ---------
+        seasons     : какие сезоны считать ("heating", "cooling").
+        met         : метаболизм, met (1.2 — офисная работа).
+        clo         : одежда, clo; None → 1.0 зимой / 0.5 летом.
+        v_air_ms    : подвижность воздуха, м/с.
+        rh_override : общая влажность % для всех помещений (иначе по типу).
+
+        Сохраняет в self.comfort_results: {season: {space_id: ComfortResult}}.
+        """
+        from hvac import comfort
+        result = {
+            season: comfort.assess_project(
+                self, season, met=met, clo=clo,
+                v_air_ms=v_air_ms, rh_override=rh_override)
+            for season in seasons
+        }
+        self.comfort_results = result
+        self.emit("comfort_calculated")
+        return result
+
     def build_equipment_specification(self) -> "Specification":
         """Формирует спецификацию по ГОСТ 21.110 по текущему составу проекта.
 

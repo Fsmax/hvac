@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Headless smoke-тест панели «Инженерия».
 
-Проверяет, что панель и все 9 вкладок создаются и переводятся без
+Проверяет, что панель и все 10 вкладок создаются и переводятся без
 ошибок — страховка для разбиения engineering_panel на пакет.
 Пропускается, если Qt недоступен (например CI без графической среды).
 """
@@ -41,7 +41,7 @@ def _project() -> HVACProject:
     return p
 
 
-def test_panel_builds_with_nine_tabs(qapp):
+def test_panel_builds_with_all_tabs(qapp):
     from hvac.ui_qt.bridge import ProjectBridge
     from hvac.ui_qt.panels.engineering_panel import EngineeringPanel
 
@@ -50,7 +50,7 @@ def test_panel_builds_with_nine_tabs(qapp):
 
     tabs = panel.findChild(QTabWidget)
     assert tabs is not None
-    assert tabs.count() == 9
+    assert tabs.count() == len(EngineeringPanel.TAB_KEYS) == 10
 
     # Перевод обходит виджеты всех вкладок — ловит сломанные ссылки.
     panel.retranslate_ui()
