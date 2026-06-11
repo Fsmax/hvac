@@ -1651,6 +1651,23 @@ RU: Dict[str, str] = {
     "export.gas.hours":              "Часов работы в сутки",
     "export.gas.days_month":         "Суток в месяце",
     "export.gas.heating_days":       "Отопительный период, сут",
+    "export.fmt.hlgc.title":         "HLGC Design Table (мастер-таблица)",
+    "export.fmt.hlgc.desc":          ("Заполняет проектную таблицу HLGC нагрузками по номерам "
+                                        "помещений (лист «HLGC»). Движок Excel COM сохраняет формулы "
+                                        "и стили; при отсутствии Excel — fallback на openpyxl."),
+    "export.fmt.hlgc.name":          "HLGC Design Table_filled.xlsx",
+    "export.hlgc.params":            "Параметры HLGC-экспорта",
+    "export.hlgc.source":            "Исходная таблица (шаблон)",
+    "export.hlgc.source_ph":         "Выберите .xlsx/.xls таблицу для заполнения…",
+    "export.hlgc.source_dlg":        "Выберите HLGC Design Table",
+    "export.hlgc.mode":              "Режим записи",
+    "export.hlgc.mode.match":        "Обновить совпадающие по № (не добавлять строки)",
+    "export.hlgc.mode.append":       "Обновить + добавить недостающие помещения",
+    "export.hlgc.mode.rebuild":      "Перестроить всю таблицу из проекта",
+    "export.hlgc.only_empty":        "Писать только в пустые ячейки",
+    "export.hlgc.no_source.title":   "Нет шаблона",
+    "export.hlgc.no_source.msg":     ("Укажите исходную HLGC Design Table (.xlsx/.xls), "
+                                        "которую нужно заполнить."),
     "export.default_name":           "Project",
 
     # ========== Panel: Calculation ==========

@@ -25,6 +25,7 @@
 from __future__ import annotations
 import logging
 import os
+import re
 import shutil
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
@@ -82,6 +83,32 @@ HLGC_SHEET_NAME = "HLGC"
 ROOM_NUMBER_COLUMN = 3
 DATA_START_ROW = 12
 
+
+def _level_order(level: str) -> float:
+    """Физический порядок этажей снизу вверх: B2 → B1 → GFL → MZN/MFL →
+    L02 → L03 → … (а не алфавитный, где MFL падал в конец, а B1 шёл перед B2)."""
+    l = (level or "").strip().upper()
+    if l.startswith("B2"):
+        return -100.0
+    if l.startswith("B1"):
+        return -90.0
+    if l.startswith("GF") or l.startswith("GROUND"):
+        return -80.0
+    if l.startswith(("MFL", "MZN", "MEZ")):
+        return -70.0
+    m = re.match(r'L\s*0*(\d+)', l) or re.match(r'0*(\d+)', l)
+    if m:
+        return float(m.group(1))
+    return 9999.0
+
+
+def _space_sort_key(s):
+    """Сортировка строк HLGC: по физическому этажу, затем по номеру помещения."""
+    num = getattr(s, "number", "") or ""
+    m = re.search(r'(\d+)', num)
+    n = int(m.group(1)) if m else 10 ** 9
+    return (_level_order(getattr(s, "level", "")), n, num)
+
 # Сколько знаков после запятой для каждой колонки
 _ROUND_DIGITS = {
     6: 2, 7: 2, 8: 2,
@@ -93,9 +120,21 @@ _ROUND_DIGITS = {
     31: 1, 32: 1, 33: 1,
 }
 
+# Колонки нагрузок — пишутся только для обслуживаемых помещений
+# (ручная классификация «Тепловой баланс»: Space.is_heated / is_cooled).
+# Помещение, снятое с отопления/охлаждения, оставляет соответствующие
+# колонки нагрузки пустыми. Геометрия/вентиляция/люди пишутся для всех.
+_COOLING_LOAD_COLS = frozenset({21, 22, 23, 24})   # Q_охл явн/скр/итог/уд.
+_HEATING_LOAD_COLS = frozenset({25, 26})           # Q_отопл / уд.
+
 
 def _get_value_for_field(sp: "Space", field: str, col: int = 0):
     """Возвращает значение из Space по имени поля."""
+    # Gate: нагрузку берём только из помещений, помеченных как обслуживаемые.
+    if col in _COOLING_LOAD_COLS and not getattr(sp, "is_cooled", True):
+        return None
+    if col in _HEATING_LOAD_COLS and not getattr(sp, "is_heated", True):
+        return None
     val = None
     if field.startswith("__"):
         if field == "__q_cool_per_m2":
@@ -123,7 +162,7 @@ def _is_com_available() -> bool:
     """Проверяет можно ли использовать Excel COM (pywin32 + Excel установлены)."""
     try:
         import win32com.client
-        excel = win32com.client.Dispatch("Excel.Application")
+        excel = win32com.client.DispatchEx("Excel.Application")
         excel.Quit()
         return True
     except Exception:
@@ -308,10 +347,10 @@ def _export_via_com(project: "HVACProject", source_path: str,
     # Сортируем помещения: сначала по уровню, потом по номеру
     project_spaces_sorted = sorted(
         [sp for sp in project.spaces if sp.number.strip()],
-        key=lambda s: (s.level or "", s.number),
+        key=_space_sort_key,
     )
 
-    excel = win32com.client.Dispatch("Excel.Application")
+    excel = win32com.client.DispatchEx("Excel.Application")
     excel.Visible = False
     excel.DisplayAlerts = False
     excel.ScreenUpdating = False
@@ -577,7 +616,7 @@ def _ensure_xlsx_via_com(source_path: str) -> Tuple[str, bool]:
     # --- Попытка 1: COM (предпочтительно, сохраняет формулы и стили) ---
     try:
         import win32com.client
-        excel = win32com.client.Dispatch("Excel.Application")
+        excel = win32com.client.DispatchEx("Excel.Application")
         excel.Visible = False
         excel.DisplayAlerts = False
         excel.AskToUpdateLinks = False
@@ -721,7 +760,7 @@ def _export_via_openpyxl(project: "HVACProject", source_path: str,
                      for sp in project.spaces if sp.number.strip()}
     project_spaces_sorted = sorted(
         [sp for sp in project.spaces if sp.number.strip()],
-        key=lambda s: (s.level or "", s.number),
+        key=_space_sort_key,
     )
 
     # Сканируем существующие строки

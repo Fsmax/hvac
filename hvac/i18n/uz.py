@@ -1661,6 +1661,23 @@ UZ: Dict[str, str] = {
     "export.gas.hours":              "Sutkasiga ish soati",
     "export.gas.days_month":         "Oydagi sutkalar",
     "export.gas.heating_days":       "Isitish davri, sutka",
+    "export.fmt.hlgc.title":         "HLGC Design Table (master-jadval)",
+    "export.fmt.hlgc.desc":          ("Loyiha HLGC jadvalini xona raqamlari bo‘yicha yuklamalar bilan "
+                                        "to‘ldiradi («HLGC» varaqi). Excel COM dvigateli formulalar va "
+                                        "uslublarni saqlaydi; Excel bo‘lmasa — openpyxl fallback."),
+    "export.fmt.hlgc.name":          "HLGC Design Table_filled.xlsx",
+    "export.hlgc.params":            "HLGC eksport parametrlari",
+    "export.hlgc.source":            "Manba jadval (shablon)",
+    "export.hlgc.source_ph":         "To‘ldirish uchun .xlsx/.xls jadvalni tanlang…",
+    "export.hlgc.source_dlg":        "HLGC Design Table-ni tanlang",
+    "export.hlgc.mode":              "Yozish rejimi",
+    "export.hlgc.mode.match":        "Raqami mosini yangilash (qator qo‘shmaslik)",
+    "export.hlgc.mode.append":       "Yangilash + yetishmagan xonalarni qo‘shish",
+    "export.hlgc.mode.rebuild":      "Jadvalni loyihadan qayta qurish",
+    "export.hlgc.only_empty":        "Faqat bo‘sh kataklarga yozish",
+    "export.hlgc.no_source.title":   "Shablon yo‘q",
+    "export.hlgc.no_source.msg":     ("To‘ldiriladigan manba HLGC Design Table (.xlsx/.xls) "
+                                        "faylini ko‘rsating."),
     "export.default_name":           "Loyiha",
 
     # ========== Panel: Calculation ==========
