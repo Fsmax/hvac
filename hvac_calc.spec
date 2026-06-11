@@ -1,4 +1,4 @@
-# -*- mode: python ; coding: utf-8 -*-
+﻿# -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec для HVAC Calculator.
 
 Сборка:
@@ -42,6 +42,8 @@ catalog_files = [
     (str(project_root / "hvac" / "catalogs" / "data" / "radiators.json"),
      "hvac/catalogs/data"),
     (str(project_root / "hvac" / "catalogs" / "data" / "fancoils.json"),
+     "hvac/catalogs/data"),
+    (str(project_root / "hvac" / "catalogs" / "data" / "fans.json"),
      "hvac/catalogs/data"),
 ]
 

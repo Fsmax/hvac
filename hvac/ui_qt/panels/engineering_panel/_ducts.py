@@ -65,6 +65,10 @@ class _DuctTab(QWidget):
         self.del_edge_btn.clicked.connect(self._delete_selected_edge)
         edit_bar.addWidget(self.del_edge_btn)
         edit_bar.addStretch(1)
+        self.fan_btn = QPushButton(_t("panel.eng.duct.btn_fan"))
+        self.fan_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self.fan_btn.clicked.connect(self._select_fan)
+        edit_bar.addWidget(self.fan_btn)
         self.fan_label = QLabel("")
         self.fan_label.setProperty("role", "muted")
         edit_bar.addWidget(self.fan_label)
@@ -94,6 +98,7 @@ class _DuctTab(QWidget):
         self.add_edge_btn.setText(_t("panel.eng.duct.btn_add"))
         self.edit_edge_btn.setText(_t("panel.eng.duct.btn_edit"))
         self.del_edge_btn.setText(_t("panel.eng.duct.btn_delete"))
+        self.fan_btn.setText(_t("panel.eng.duct.btn_fan"))
         self.summary_table.setHorizontalHeaderLabels(
             [_t(k) for k in self.SUMMARY_KEYS])
         self.edges_table.setHorizontalHeaderLabels(
@@ -259,6 +264,39 @@ class _DuctTab(QWidget):
         net.compute()
         self.bridge.dirtyChanged.emit(True)
         self._refresh()
+
+    def _select_fan(self):
+        """Подбор вентилятора по рабочей точке текущей сети."""
+        from hvac.fan_catalog import select_fans
+        net = self._current_network()
+        if net is None or net.fan_flow_m3_h <= 0:
+            QMessageBox.information(
+                self, _t("panel.eng.duct.fan_title"),
+                _t("panel.eng.duct.no_net_msg"))
+            return
+        picks = select_fans(net.fan_flow_m3_h, net.fan_pressure_required_pa)
+        if not picks:
+            QMessageBox.warning(
+                self, _t("panel.eng.duct.fan_title"),
+                _t("panel.eng.duct.fan_none").format(
+                    q=round(net.fan_flow_m3_h),
+                    dp=round(net.fan_pressure_required_pa)))
+            return
+        lines = []
+        for p in picks:
+            lines.append(_t("panel.eng.duct.fan_pick").format(
+                name=p.model.name, family=p.model.family,
+                p_avail=p.pressure_available_pa,
+                margin=p.pressure_margin_pct,
+                ratio=p.flow_ratio_pct,
+                power=p.model.power_w, noise=p.model.noise_db_a))
+            lines.extend(f"   ⚠ {w}" for w in p.warnings)
+        QMessageBox.information(
+            self, _t("panel.eng.duct.fan_title"),
+            _t("panel.eng.duct.fan_head").format(
+                q=round(net.fan_flow_m3_h),
+                dp=round(net.fan_pressure_required_pa))
+            + "\n\n" + "\n".join(lines))
 
     def _delete_selected_edge(self):
         net = self._current_network()

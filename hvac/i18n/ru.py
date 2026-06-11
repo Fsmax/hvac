@@ -1499,6 +1499,18 @@ RU: Dict[str, str] = {
     "panel.eng.duct.del_title":      "Удалить участок",
     "panel.eng.duct.del_msg":        "Удалить участок «{eid}»?",
     "panel.eng.duct.fan_label":      "Вентилятор: Q = {q} м³/ч, ΔP = {dp} Па",
+    "panel.eng.duct.btn_fan":        "Подобрать вентилятор",
+    "panel.eng.duct.fan_title":      "Подбор вентилятора",
+    "panel.eng.duct.fan_head":       ("Рабочая точка: Q = {q} м³/ч, ΔP = {dp} Па.\n"
+                                        "Каталожный предподбор (парабола по двум точкам) — "
+                                        "финальный подбор по программе изготовителя."),
+    "panel.eng.duct.fan_pick":       ("• {name} ({family}): {p_avail:.0f} Па в точке "
+                                        "(запас {margin:.0f}%, {ratio:.0f}% кривой), "
+                                        "{power:.0f} Вт, {noise:.0f} дБ(А)"),
+    "panel.eng.duct.fan_none":       ("Для точки Q = {q} м³/ч, ΔP = {dp} Па в каталоге "
+                                        "ничего не подошло. Добавьте модели в "
+                                        "~/.hvac_calc/catalogs/ (тип \"fans\") или разбейте "
+                                        "систему на несколько вентиляторов."),
 
     # Hydraulics
     "panel.eng.hyd.h_static":        "Статическая высота:",

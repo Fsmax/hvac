@@ -1509,6 +1509,18 @@ UZ: Dict[str, str] = {
     "panel.eng.duct.del_title":      "Uchastkani o‘chirish",
     "panel.eng.duct.del_msg":        "«{eid}» uchastkani o‘chirish kerakmi?",
     "panel.eng.duct.fan_label":      "Ventilyator: Q = {q} m³/soat, ΔP = {dp} Pa",
+    "panel.eng.duct.btn_fan":        "Ventilyator tanlash",
+    "panel.eng.duct.fan_title":      "Ventilyator tanlash",
+    "panel.eng.duct.fan_head":       ("Ish nuqtasi: Q = {q} m³/soat, ΔP = {dp} Pa.\n"
+                                        "Katalog bo‘yicha oldindan tanlov (ikki nuqtali parabola) — "
+                                        "yakuniy tanlov ishlab chiqaruvchi dasturida."),
+    "panel.eng.duct.fan_pick":       ("• {name} ({family}): nuqtada {p_avail:.0f} Pa "
+                                        "(zaxira {margin:.0f}%, egri {ratio:.0f}%), "
+                                        "{power:.0f} Vt, {noise:.0f} dB(A)"),
+    "panel.eng.duct.fan_none":       ("Q = {q} m³/soat, ΔP = {dp} Pa nuqtasi uchun katalogda "
+                                        "mos model topilmadi. ~/.hvac_calc/catalogs/ ga model "
+                                        "qo‘shing (\"fans\" turi) yoki tizimni bir necha "
+                                        "ventilyatorga bo‘ling."),
 
     # Hydraulics
     "panel.eng.hyd.h_static":        "Statik balandlik:",
