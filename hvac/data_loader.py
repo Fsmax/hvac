@@ -60,6 +60,14 @@ WET_ROOM_KEYWORDS = (
     "санузел", "ванн", "душ", "уборн", "туалет",
 )
 
+# Наружных стен тоньше 100 мм не бывает: всё, что тоньше, — каркасные
+# перегородки (санузлы, обшивки шахт, экраны). Такие стены часто граничат
+# с шахтой/нишей без Space (bsc=1) и без правила массово становились
+# ложно-наружными. Нижняя граница 5 мм страхует от CSV, где толщина
+# случайно выгружена в метрах.
+MIN_EXTERIOR_WALL_THICKNESS_MM = 100.0
+_MIN_PLAUSIBLE_THICKNESS_MM = 5.0
+
 
 def is_wet_space(name: str) -> bool:
     if not name:
@@ -167,6 +175,17 @@ def load_thermal(path: str, spaces: List[Space] = None
         if eid and sid:
             elem_space_map.setdefault(eid, set()).add(sid)
 
+    # Толщина стен по element_id, мм — проёмы наследуют толщину
+    # стены-хозяина (у самих проёмов колонка thickness пустая).
+    wall_thickness_mm: Dict[str, float] = {}
+    for row in raw_rows:
+        if row.get("row_type", "").strip() != "external_wall":
+            continue
+        eid = row.get("element_id", "").strip()
+        thk = parse_area(row.get("thickness")) or 0.0
+        if eid and thk > 0:
+            wall_thickness_mm[eid] = thk
+
     # Подмножество ИСТИННЫХ балконов:
     # (а) заведомые балконы по префиксу/ключевым словам (BAL-/TER-/SHAFT/
     #     «балкон»/«terrace») — включаются СРАЗУ, потому что у типового
@@ -259,10 +278,14 @@ def load_thermal(path: str, spaces: List[Space] = None
         # помещением. Фасад/балкон (Exterior Glazing, Balcony, Storefront)
         # под это правило НЕ попадает и остаётся наружным.
         _glz = fam_lower + " " + type_lower
+        # «shower»/«душ»/«кабин» — стеклянные душевые кабины: моделируются
+        # витражом ВНУТРИ санузла, обе стороны в одном помещении (bsc=1),
+        # поэтому без правила по имени неотличимы от фасадной панели.
         interior_glazing = is_curtain and any(
             kw in _glz for kw in (
                 "interior", "partition", "перегород", "внутрен",
                 "separator", "разделит", "empty",
+                "shower", "душ", "кабин", "cabin",
             ))
         # ВНИМАНИЕ: is_exterior_function — это сигнал ТИПА конструкции
         # (из какого материала собрана стена), а НЕ геометрический факт
@@ -290,6 +313,18 @@ def load_thermal(path: str, spaces: List[Space] = None
                                 and bsc_effective >= 2
                                 and is_wet_space(sp_name))
 
+        # Толщина стены (проём наследует от стены-хозяина): тоньше 100 мм —
+        # каркасная перегородка, фасадом быть не может. Перекрывает
+        # bsc/rbc/function: другая сторона часто шахта или ниша без Space
+        # (bsc=1, rbc=1), из-за чего внутренние санузлы получали «фасад».
+        thk_mm = parse_area(row.get("thickness")) or 0.0
+        if row_type == "opening" and thk_mm <= 0:
+            thk_mm = wall_thickness_mm.get(
+                row.get("host_element_id", "").strip(), 0.0)
+        thin_partition = (not is_curtain
+                          and _MIN_PLAUSIBLE_THICKNESS_MM <= thk_mm
+                          < MIN_EXTERIOR_WALL_THICKNESS_MM)
+
         # Приоритет признаков «наружной»:
         #   1) row_type должен быть external_wall / opening — иначе нет.
         #   2) wet_curtain_artifact → внутренняя (артефакт Revit).
@@ -307,6 +342,10 @@ def load_thermal(path: str, spaces: List[Space] = None
         if row_type in ("external_wall", "opening"):
             if wet_curtain_artifact:
                 # Артефакт Room Bounding — игнорируем витраж у санузла.
+                is_exterior_flag = False
+            elif thin_partition:
+                # Стена тоньше 100 мм (или проём в ней) — перегородка,
+                # независимо от bsc/rbc/флага Dynamo (см. thin_partition).
                 is_exterior_flag = False
             elif not eid:
                 # Нет id элемента — пересчитать геометрию не можем.

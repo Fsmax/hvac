@@ -178,3 +178,56 @@ def test_room_count_does_not_touch_curtain():
     els = _load([_row("RC3", "yes", "Витраж", "curtain (orphan)",
                       bsc=1, rbc=2)])
     assert els["RC3"].is_exterior is True
+
+
+def test_thin_wall_is_internal():
+    """Стена 75 мм + yes + «Наружные слои» + bsc=1 + rbc=1 → перегородка:
+    наружных стен тоньше 100 мм не бывает. Кейс HTL-2602.m (BATHROOM):
+    другая сторона — шахта без Space, внутренний санузел получал 729 Вт
+    теплопотерь через ложный «фасад»."""
+    r = _row("TH1", "yes", "Базовая стена", "Наружные слои", bsc=1, rbc=1)
+    r["thickness"] = "75.00"
+    els = _load([r])
+    assert els["TH1"].is_exterior is False
+
+
+def test_opening_in_thin_wall_is_internal():
+    """Проём (дверь) наследует толщину стены-хозяина: дверь в перегородке
+    75 мм — внутренняя, даже с пометкой hosted by exterior wall."""
+    w = _row("TH2", "yes", "Базовая стена", "Наружные слои", bsc=1)
+    w["thickness"] = "75.00"
+    d = _row("DR1", "yes", "Дверь", "hosted by exterior wall",
+             bsc=1, cat="Двери", row_type="opening")
+    d["thickness"] = ""
+    d["host_element_id"] = "TH2"
+    els = _load([w, d])
+    assert els["TH2"].is_exterior is False
+    assert els["DR1"].is_exterior is False
+
+
+def test_thick_wall_bsc1_stays_exterior():
+    """Контроль: стена 250 мм + yes + «Наружные слои» + bsc=1 + rbc=1 —
+    настоящий фасад, правило толщины её не трогает."""
+    r = _row("TH3", "yes", "Базовая стена", "Наружные слои", bsc=1, rbc=1)
+    r["thickness"] = "250.00"
+    els = _load([r])
+    assert els["TH3"].is_exterior is True
+
+
+def test_shower_cabin_curtain_is_internal():
+    """Витраж «Shower cabin» — стеклянная душевая кабина внутри санузла
+    (обе стороны в одном помещении, bsc=1), не фасадное остекление.
+    Кейс HTL-2602.m: две панели кабины давали 8 м² ложного «фасада»."""
+    r = _row("SH1", "yes", "Витраж", "Наружные слои", bsc=1, rbc=1)
+    r["type"] = "Shower cabin 2"
+    els = _load([r])
+    assert els["SH1"].is_exterior is False
+
+
+def test_meters_encoded_thickness_not_thin():
+    """Толщина, случайно выгруженная в метрах (0.25), не считается
+    «тонкой» — нижняя граница правдоподобности 5 мм."""
+    r = _row("TH4", "yes", "Базовая стена", "Наружные слои", bsc=1, rbc=1)
+    r["thickness"] = "0.25"
+    els = _load([r])
+    assert els["TH4"].is_exterior is True
