@@ -101,6 +101,10 @@ def call(method: str, params: Optional[dict] = None, timeout: float = 75.0):
             try:
                 resp = json.loads(buf.decode("utf-8"))
                 break
+            except UnicodeDecodeError:
+                # chunk оборвал многобайтовый UTF-8 символ (кириллица на
+                # границе recv) — ответ ещё не дочитан, копим дальше
+                continue
             except json.JSONDecodeError:
                 continue
     finally:
