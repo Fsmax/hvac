@@ -55,6 +55,7 @@ if TYPE_CHECKING:
     from hvac.fancoil_catalog import FancoilPick
     from hvac.vrf import VRFSystem
     from hvac.air_heating import AirRoomLoad
+    from hvac.grille_catalog import GrilleRoomPick
 
 
 # Поля Space, которые сохраняются как user override
@@ -157,6 +158,10 @@ class HVACProject(
         self.comfort_results: Dict[str, Dict] = {}
         # Почасовой климат из EPW (hvac/weather.py); None — синтетика
         self.weather_data = None  # type: Optional["WeatherData"]
+
+        # ===== v4.4 =====
+        # {space_id: GrilleRoomPick} — подбор приточных/вытяжных решёток
+        self.grille_picks: Dict[str, "GrilleRoomPick"] = {}
 
     # ---------- Event bus ----------
     def subscribe(self, event: str, callback: Callable) -> None:
@@ -292,22 +297,60 @@ class HVACProject(
         return deduped
 
     def _recompute_net_areas(self) -> None:
-        """Вычитает площади проёмов из площадей стен-хозяев."""
+        """Вычитает площади проёмов из площадей стен-хозяев.
+
+        Одно окно может граничить с несколькими помещениями (зеркальные
+        санузлы/ленточное остекление, общее для двух комнат): в выгрузке
+        Revit element_area — это площадь ВСЕГО оконного элемента, и без
+        деления она ошибочно начисляется каждой комнате целиком. Поэтому
+        площадь окна (категория «Окна») делится на число помещений, которые
+        его делят. Та же (поделённая) площадь вычитается из стены-хозяина.
+        """
+        # Сколько помещений делят каждый оконный элемент
+        window_spaces: Dict[str, set] = {}
+        for el in self.elements:
+            if el.category in ("Окна", "Windows") and el.element_id:
+                window_spaces.setdefault(el.element_id, set()).add(el.space_id)
+
+        def _opening_area(el) -> float:
+            a = max(el.element_area_m2, el.approx_area_m2)
+            if el.category in ("Окна", "Windows"):
+                n = len(window_spaces.get(el.element_id, ())) or 1
+                if n > 1:
+                    return a / n
+            return a
+
         openings_by_host: Dict[str, float] = {}
         for el in self.elements:
             if el.row_type == "opening" and el.is_exterior and el.host_element_id:
                 key = f"{el.space_id}|{el.host_element_id}"
-                openings_by_host[key] = openings_by_host.get(key, 0.0) + max(
-                    el.element_area_m2, el.approx_area_m2
-                )
+                openings_by_host[key] = (openings_by_host.get(key, 0.0)
+                                         + _opening_area(el))
+        # Группируем строки-стены по ключу «помещение|element_id». Одна
+        # стена-хозяин может быть разбита на НЕСКОЛЬКО сегментов (гнутые/
+        # составные стены, ленточное остекление): тогда площадь проёма
+        # вычитается из СУММЫ сегментов ОДИН раз и делится между ними
+        # пропорционально площади. Иначе (старое поведение) проём вычитался
+        # из КАЖДОГО сегмента, многократно занижая площадь стен у длинных
+        # фасадов (напр. OFC-коридоры: вычиталось 147 м² вместо реальных 44).
+        wall_rows: Dict[str, list] = {}
         for el in self.elements:
             if el.row_type == "opening":
-                el.net_area_m2 = max(el.element_area_m2, el.approx_area_m2)
+                el.net_area_m2 = _opening_area(el)
             else:
-                gross = el.approx_area_m2 if el.approx_area_m2 > 0 else el.element_area_m2
-                key = f"{el.space_id}|{el.element_id}"
-                opening = openings_by_host.get(key, 0.0)
-                el.net_area_m2 = max(gross - opening, 0.0)
+                wall_rows.setdefault(f"{el.space_id}|{el.element_id}",
+                                     []).append(el)
+        for key, rows in wall_rows.items():
+            opening = openings_by_host.get(key, 0.0)
+            grosses = [(r, r.approx_area_m2 if r.approx_area_m2 > 0
+                        else r.element_area_m2) for r in rows]
+            total = sum(g for _, g in grosses)
+            if opening <= 0.0 or total <= 0.0:
+                for r, g in grosses:
+                    r.net_area_m2 = max(g, 0.0)
+            else:
+                for r, g in grosses:
+                    r.net_area_m2 = max(g - opening * (g / total), 0.0)
 
     def _mark_corner_rooms(self) -> None:
         """Помечает угловые помещения."""
@@ -504,6 +547,11 @@ class HVACProject(
     def recalculate(self) -> None:
         """Пересчитывает теплопотери и теплопоступления для всех помещений
         выбранным в params.methodology движком."""
+        # Чистые площади стен (за вычетом проёмов) пересчитываем ВСЕГДА, а
+        # не только при CSV-импорте: self_contained-JSON мог быть сохранён с
+        # «сырыми» (не вычтенными) площадями, и тогда добавление любого
+        # элемента давало рассинхрон. Идемпотентно (считает от gross).
+        self._recompute_net_areas()
         self.apply_constructions()
         engine = get_engine(self.params.methodology)
         for sp in self.spaces:

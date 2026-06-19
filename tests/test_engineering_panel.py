@@ -50,7 +50,7 @@ def test_panel_builds_with_all_tabs(qapp):
 
     tabs = panel.findChild(QTabWidget)
     assert tabs is not None
-    assert tabs.count() == len(EngineeringPanel.TAB_KEYS) == 12
+    assert tabs.count() == len(EngineeringPanel.TAB_KEYS) == 13
 
     # Перевод обходит виджеты всех вкладок — ловит сломанные ссылки.
     panel.retranslate_ui()

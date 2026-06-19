@@ -1427,6 +1427,55 @@ RU: Dict[str, str] = {
     "panel.eng.tab.comfort":         "Комфорт PMV/PPD",
     "panel.eng.tab.curtain":         "Тепловые завесы",
     "panel.eng.tab.itp":             "ИТП / ТО",
+    "panel.eng.tab.grilles":         "Решётки",
+
+    # ========== Engineering: подбор решёток (ARKTIKA/Арктос) ==========
+    "panel.eng.grille.info":         ("Подбор воздухораспределительных решёток по каталогу "
+                                        "ARKTIKA/Арктос (изд. 8.02). Главный критерий — звуковая "
+                                        "мощность LwA; дополнительно скорость в живом сечении и "
+                                        "ΔPполн. Каталожный предподбор; финальный — по программе "
+                                        "изготовителя."),
+    "panel.eng.grille.mount":        "Монтаж:",
+    "panel.eng.grille.mount.all":    "Любой",
+    "panel.eng.grille.mount.wall":   "Настенные",
+    "panel.eng.grille.mount.plenum": "С присоед. камерой (-К)",
+    "panel.eng.grille.mount.round_duct": "Для круглых воздуховодов",
+    "panel.eng.grille.mount.slot":   "Щелевые",
+    "panel.eng.grille.mount.transfer": "Переточные",
+    "panel.eng.grille.mount.floor":  "Напольные",
+    "panel.eng.grille.family":       "Серия:",
+    "panel.eng.grille.family.all":   "Все",
+    "panel.eng.grille.lwa":          "Шум LwA ≤",
+    "panel.eng.grille.lwa.unit":     "дБ(А)",
+    "panel.eng.grille.vel":          "Скорость ≤",
+    "panel.eng.grille.vel.unit":     "м/с",
+    "panel.eng.grille.vel.any":      "любая",
+    "panel.eng.grille.size":         "Габарит:",
+    "panel.eng.grille.size.unit":    " мм",
+    "panel.eng.grille.calc.title":   "Калькулятор подбора",
+    "panel.eng.grille.calc.flow":    "Расход L₀, м³/ч:",
+    "panel.eng.grille.calc.btn":     "▶  Подобрать",
+    "panel.eng.grille.calc.empty":   ("Под заданный расход и ограничения ничего не подошло — "
+                                        "ослабьте ограничение по шуму либо смените серию/монтаж."),
+    "panel.eng.grille.proj.title":   "Подбор по помещениям проекта",
+    "panel.eng.grille.proj.btn":     "▶  Подобрать для всех помещений",
+    "panel.eng.grille.proj.status":  "Решётки подобраны: {n} помещ.",
+    "panel.eng.grille.proj.none":    "Нет помещений с заданным вентрасходом (приток/вытяжка).",
+    "panel.eng.grille.col.variant":  "Решётка",
+    "panel.eng.grille.col.size":     "Размер",
+    "panel.eng.grille.col.qty":      "Кол-во",
+    "panel.eng.grille.col.v":        "v, м/с",
+    "panel.eng.grille.col.lwa":      "LwA, дБ(А)",
+    "panel.eng.grille.col.dp":       "ΔP, Па",
+    "panel.eng.grille.col.throw":    "Дальноб., м",
+    "panel.eng.grille.col.note":     "Примечание",
+    "panel.eng.grille.col.no":       "№",
+    "panel.eng.grille.col.room":     "Помещение",
+    "panel.eng.grille.col.qs":       "Приток, м³/ч",
+    "panel.eng.grille.col.gs":       "Приточная решётка",
+    "panel.eng.grille.col.qe":       "Вытяжка, м³/ч",
+    "panel.eng.grille.col.ge":       "Вытяжная решётка",
+    "panel.eng.grille.dash":         "—",
 
     # ========== Engineering: воздушно-тепловые завесы ==========
     "panel.eng.cu.info":             ("Подбор воздушно-тепловой завесы шиберующего типа "

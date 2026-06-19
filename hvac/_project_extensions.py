@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from hvac.vrf import VRFSystem
     from hvac.energy_simulation import EnergySimulationResult
     from hvac.specification import Specification
+    from hvac.grille_catalog import GrilleRoomPick
 
 
 class V37ExtensionsMixin:
@@ -264,6 +265,46 @@ class V37ExtensionsMixin:
                 picks[sp.space_id] = pick
         self.radiator_picks = picks
         self.emit("radiators_selected")
+        return picks
+
+    def select_grilles_for_all_spaces(
+        self,
+        *,
+        max_lwa: float = 35.0,
+        mount: Optional[str] = None,
+        families: Optional[List[str]] = None,
+        max_velocity: Optional[float] = None,
+        max_dp: Optional[float] = None,
+        max_a_mm: Optional[int] = None,
+        max_b_mm: Optional[int] = None,
+    ) -> Dict[str, "GrilleRoomPick"]:
+        """Подбор приточной и вытяжной решётки каждому помещению.
+
+        Берётся вентрасход помещения (Space.supply_m3h / exhaust_m3h);
+        для каждого ненулевого направления подбирается решётка по расходу
+        с ограничением шума LwA ≤ max_lwa (и опц. скорости/ΔP). Семейство
+        и тип монтажа фильтруются параметрами mount/families.
+
+        Результат пишется в self.grille_picks {space_id: GrilleRoomPick}
+        для помещений, где подобрана хотя бы одна решётка.
+        """
+        from hvac.grille_catalog import select_grilles_for_room
+
+        picks: Dict[str, "GrilleRoomPick"] = {}
+        for sp in self.spaces:
+            sup = getattr(sp, "supply_m3h", 0.0) or 0.0
+            exh = getattr(sp, "exhaust_m3h", 0.0) or 0.0
+            if sup <= 0 and exh <= 0:
+                continue
+            rp = select_grilles_for_room(
+                sup, exh, max_lwa=max_lwa, mount=mount, families=families,
+                max_velocity=max_velocity, max_dp=max_dp,
+                max_a_mm=max_a_mm, max_b_mm=max_b_mm,
+            )
+            if rp.supply is not None or rp.exhaust is not None:
+                picks[sp.space_id] = rp
+        self.grille_picks = picks
+        self.emit("grilles_selected")
         return picks
 
     def design_underfloor_loops(

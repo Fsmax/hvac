@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict
+from typing import Optional
 from hvac.project import HVACProject
 from hvac.models import Space, BoundaryElement
 from hvac.room_equipment import (
@@ -192,6 +193,9 @@ def save_project(project: HVACProject, path: str,
             getattr(project, "fancoil_picks", {})),
         "vrf_systems": _serialize_vrf_systems(
             getattr(project, "vrf_systems", {})),
+        # ===== v4.4 =====
+        "grille_picks": _serialize_grille_picks(
+            getattr(project, "grille_picks", {})),
     }
 
     if self_contained:
@@ -405,6 +409,73 @@ def _deserialize_radiator_picks(data: dict) -> dict:
             actual_power_w=d.get("actual_power_w", 0.0),
             margin_pct=d.get("margin_pct", 0.0),
             note=d.get("note", ""),
+        )
+    return out
+
+
+def _serialize_grille_pick(p) -> Optional[dict]:
+    """GrillePick → dict (или None)."""
+    if p is None:
+        return None
+    return {
+        "family_code": p.model.family_code,
+        "size_label": p.model.size_label(),
+        "label": p.model.label(),
+        "mount": p.model.mount,
+        "n_units": p.n_units,
+        "l0_per_unit": p.l0_per_unit,
+        "l0_total": p.l0_total,
+        "velocity": p.velocity,
+        "lwa": p.lwa,
+        "dp": p.dp,
+        "throw_05": p.throw_05,
+        "warnings": list(p.warnings),
+    }
+
+
+def _serialize_grille_picks(picks: dict) -> dict:
+    """{space_id: GrilleRoomPick} → сериализованное представление.
+
+    Хранится «снимок» подбора (модель восстанавливается по каталогу при
+    загрузке через _deserialize_grille_picks).
+    """
+    out = {}
+    for sid, rp in picks.items():
+        out[sid] = {
+            "supply": _serialize_grille_pick(getattr(rp, "supply", None)),
+            "exhaust": _serialize_grille_pick(getattr(rp, "exhaust", None)),
+        }
+    return out
+
+
+def _deserialize_grille_pick(d: Optional[dict]):
+    if not d:
+        return None
+    from hvac.grille_catalog import GRILLE_CATALOG, GrillePick
+    by_key = {(m.family_code, m.size_label()): m for m in GRILLE_CATALOG}
+    model = by_key.get((d.get("family_code", ""), d.get("size_label", "")))
+    if model is None:
+        return None        # каталог изменился — снимок не восстановим
+    return GrillePick(
+        model=model,
+        n_units=d.get("n_units", 1),
+        l0_per_unit=d.get("l0_per_unit", 0.0),
+        l0_total=d.get("l0_total", 0.0),
+        velocity=d.get("velocity", 0.0),
+        lwa=d.get("lwa"),
+        dp=d.get("dp"),
+        throw_05=d.get("throw_05"),
+        warnings=list(d.get("warnings", [])),
+    )
+
+
+def _deserialize_grille_picks(data: dict) -> dict:
+    from hvac.grille_catalog import GrilleRoomPick
+    out = {}
+    for sid, d in (data or {}).items():
+        out[sid] = GrilleRoomPick(
+            supply=_deserialize_grille_pick(d.get("supply")),
+            exhaust=_deserialize_grille_pick(d.get("exhaust")),
         )
     return out
 
@@ -997,6 +1068,8 @@ def load_project(project: HVACProject, path: str) -> None:
         data.get("fancoil_picks", {}) or {})
     project.vrf_systems = _deserialize_vrf_systems(
         data.get("vrf_systems", {}) or {})
+    project.grille_picks = _deserialize_grille_picks(
+        data.get("grille_picks", {}) or {})
 
     # Self-contained ветка перезаписывает project.elements списком из JSON —
     # индекс elements_by_space становится устаревшим. В ветке load(CSV)
