@@ -37,15 +37,21 @@ asosida hisoblash dasturi.
 Buyruqlar satrida (CMD yoki PowerShell):
 
 ```bash
-pip install openpyxl matplotlib reportlab pytest
+pip install -r requirements.txt
+# yoki qo'lda:
+pip install PySide6 matplotlib openpyxl reportlab python-docx
 ```
 
-| Kutubxona   | Vazifasi                              | Majburiymi |
-|-------------|----------------------------------------|------------|
-| openpyxl    | Excelga eksport                        | Ha         |
-| matplotlib  | Grafiklar (10-tab)                     | Ha         |
-| reportlab   | PDF hisoboti                           | Ha         |
-| pytest      | Testlar (rivojlanuvchilar uchun)       | Yo'q       |
+| Kutubxona     | Vazifasi                          | Majburiymi |
+|---------------|-----------------------------------|------------|
+| PySide6       | GUI (Qt6) — oyna rejimi uchun     | Ha         |
+| matplotlib    | Grafiklar (10-tab), i-d diagramma | Ha         |
+| openpyxl      | Excelga eksport (14 varaq)        | Ha         |
+| reportlab     | PDF hisoboti                      | Ha         |
+| python-docx   | Word (.docx) eksporti             | Ha         |
+
+Ishlab chiqish vositalari (`pytest`, `ruff`, `mypy`) — `requirements-dev.txt`
+faylida, dasturni ishlatish uchun kerak emas.
 
 ### Dasturni ishga tushirish
 

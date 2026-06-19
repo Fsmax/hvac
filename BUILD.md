@@ -10,7 +10,7 @@ pyinstaller hvac_calc.spec
 Готовый дистрибутив: `dist/HVAC Calculator/`.
 Запуск: `dist/HVAC Calculator/HVAC Calculator.exe`.
 
-Размер ~120 МБ (PySide6 + matplotlib + openpyxl + reportlab).
+Размер ~120 МБ (PySide6 + matplotlib + openpyxl + reportlab + python-docx).
 
 ### Опции
 

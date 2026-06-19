@@ -15,7 +15,7 @@
 Расчётное ядро без изменений — все ваши проекты v3.x открываются.
 
 ```bash
-pip install PySide6 matplotlib openpyxl reportlab
+pip install PySide6 matplotlib openpyxl reportlab python-docx
 python hvac_calc.py
 ```
 
@@ -173,12 +173,22 @@ hvac_v4/
 ## Зависимости
 
 ```bash
-pip install openpyxl matplotlib pytest
+pip install -r requirements.txt
+# или вручную:
+pip install PySide6 matplotlib openpyxl reportlab python-docx
 ```
 
-`openpyxl` — обязательно для Excel-экспорта.
-`matplotlib` — обязательно для вкладки «Графики».
-`pytest` — для запуска тестов (не нужен для работы программы).
+| Пакет         | Версия | Зачем                                        |
+|---------------|--------|----------------------------------------------|
+| `PySide6`     | ≥6.10  | GUI на Qt6 — обязательно для оконного режима  |
+| `matplotlib`  | ≥3.10  | Вкладка «Графики», i-d диаграмма              |
+| `openpyxl`    | ≥3.1   | Экспорт в Excel (14 листов)                  |
+| `reportlab`   | ≥4.5   | PDF-отчёт «Пояснительная записка»            |
+| `python-docx` | ≥1.1   | Экспорт в Word (.docx)                        |
+
+Инструменты разработки (`pytest`, `ruff`, `mypy`) — в `requirements-dev.txt`,
+для работы программы не нужны. Регенерация каталога решёток
+(`tools/arktika_grilles`) дополнительно требует `PyMuPDF` (`fitz`).
 
 ## Как добавить новую функцию
 
@@ -315,4 +325,4 @@ mypy                  # статическая типизация расчётн
 
 **Версия:** 4.0
 **Дата:** 2026
-**Совместимость:** Revit 2024+, Python 3.10+, PySide6 6.x
+**Совместимость:** Revit 2024+, Python 3.10+, PySide6 6.10+
