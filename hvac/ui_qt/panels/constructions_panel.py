@@ -445,7 +445,12 @@ class ConstructionsPanel(QWidget):
         self.table.setModel(self.proxy)
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        # Поячейковое выделение (как в «Помещениях»/«Вентиляции»): нужно для
+        # копирования/вставки/протяжки одиночных ячеек. При SelectRows клик
+        # выделял всю строку — Ctrl+C копировал все 11 колонок, а вставка
+        # попадала на нередактируемые колонки и ничего не меняла (копир./вставка
+        # фактически не работали).
+        self.table.setSelectionBehavior(QAbstractItemView.SelectItems)
         self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.verticalHeader().setVisible(False)
         self.table.verticalHeader().setDefaultSectionSize(28)
@@ -512,10 +517,14 @@ class ConstructionsPanel(QWidget):
         self._refresh_count()
 
     def _selected_source_rows(self) -> List[int]:
-        rows = set()
-        for idx in self.table.selectionModel().selectedRows():
-            rows.add(self.proxy.mapToSource(idx).row())
-        return sorted(rows)
+        sel = self.table.selectionModel()
+        if sel is None:
+            return []
+        # selectedIndexes(), а не selectedRows(): при поячейковом выделении
+        # «строка целиком» не выделяется, но строку каждой выбранной ячейки
+        # учитываем для групповых операций (bulk-U, пресет, слои, удаление).
+        return sorted({self.proxy.mapToSource(idx).row()
+                       for idx in sel.selectedIndexes()})
 
     def _show_context_menu(self, pos) -> None:
         if not self.project.constructions:

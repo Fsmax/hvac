@@ -324,6 +324,29 @@ def test_constructions_paste_u_column(qapp):
     assert all(abs(c.u_value - 0.15) < 1e-9 for c in m._items)
 
 
+def test_constructions_cell_selection(qapp):
+    """Excel-режим: поячейковое выделение. При SelectRows клик выделял всю
+    строку — Ctrl+C копировал все колонки, а вставка падала на нередактируемых
+    (копир./вставка не работали в «Конструкциях»)."""
+    from PySide6.QtWidgets import QAbstractItemView
+    panel = _constr_panel(_constr_project())
+    assert panel.table.selectionBehavior() == QAbstractItemView.SelectItems
+
+
+def test_constructions_bulk_uses_cell_selection(qapp):
+    """Групповые операции (bulk-U/пресет/слои) собирают строки из выделенных
+    ячеек (selectedIndexes), а не из selectedRows() — иначе при поячейковом
+    выделении список был бы пуст и кнопки «не видели» выделение."""
+    p = _constr_project()
+    panel = _constr_panel(p)
+    m = panel.model
+    sm = panel.table.selectionModel()
+    sm.clearSelection()
+    for r in (0, 2):
+        sm.select(panel.proxy.index(r, m.COL_U), QItemSelectionModel.Select)
+    assert panel._selected_source_rows() == [0, 2]
+
+
 # ======================= Вентиляция =======================
 
 def _vent_project(n=3):

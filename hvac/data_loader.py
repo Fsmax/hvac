@@ -271,6 +271,13 @@ def load_thermal(path: str, spaces: List[Space] = None
         type_lower = row.get("type", "").strip().lower()
         func_lower = row.get("function", "").strip().lower()
         is_curtain = "витраж" in fam_lower or "curtain" in fam_lower
+        # Окно (категория «Окна»/«Windows») — это всегда фасадное остекление.
+        # В модели Chorsu окна сидят в тонкой фасадной панели CHR-FCD (~40 мм) и
+        # выгружаются Dynamo с is_exterior_wall=no, из-за чего правило
+        # thin_partition и ветка bsc<=1 ошибочно переводили их во внутренние
+        # (см. ниже). Межкомнатных «окон» в проекте нет — все семейства
+        # (CHR-WND-*/CWW) фасадные, поэтому окно всегда наружное.
+        is_window = cat in ("Окна", "Windows") or cat.lower() == "windows"
         # Витраж, тип которого ЯВНО внутренний/не-фасадный (по имени типа из
         # Revit): стеклянная перегородка (Interior Partition), разделитель
         # (Separator) или пустой curtain wall. Такой витраж НЕ считается
@@ -342,7 +349,11 @@ def load_thermal(path: str, spaces: List[Space] = None
         #      сигналы Dynamo + типа конструкции.
         is_exterior_flag = False
         if row_type in ("external_wall", "opening"):
-            if wet_curtain_artifact:
+            if is_window:
+                # Фасадное остекление — наружное всегда, независимо от толщины
+                # стены-хозяина и флага Dynamo (см. определение is_window).
+                is_exterior_flag = True
+            elif wet_curtain_artifact:
                 # Артефакт Room Bounding — игнорируем витраж у санузла.
                 is_exterior_flag = False
             elif thin_partition:

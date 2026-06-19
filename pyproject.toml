@@ -64,6 +64,7 @@ files = [
     "hvac/underfloor.py",
     "hvac/heating_hydraulics.py",
     "hvac/radiator_catalog.py",
+    "hvac/grille_catalog.py",
     "hvac/specification.py",
     "hvac/energy.py",
     "hvac/energy_simulation.py",

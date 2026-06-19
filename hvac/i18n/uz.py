@@ -1436,6 +1436,56 @@ UZ: Dict[str, str] = {
     "panel.eng.tab.comfort":         "Komfort PMV/PPD",
     "panel.eng.tab.curtain":         "Issiqlik pardalari",
     "panel.eng.tab.itp":             "IIP / IA",
+    "panel.eng.tab.grilles":         "Panjaralar",
+
+    # ========== Engineering: panjaralarni tanlash (ARKTIKA/Arktos) ==========
+    "panel.eng.grille.info":         ("Havo taqsimlovchi panjaralarni ARKTIKA/Arktos katalogi "
+                                        "bo‘yicha tanlash (8.02-nashr). Asosiy mezon — tovush "
+                                        "quvvati LwA; qo‘shimcha — yashash kesimidagi tezlik va "
+                                        "ΔPto‘liq. Katalog bo‘yicha dastlabki tanlov; yakuniy — "
+                                        "ishlab chiqaruvchi dasturi bo‘yicha."),
+    "panel.eng.grille.mount":        "O‘rnatish:",
+    "panel.eng.grille.mount.all":    "Har qanday",
+    "panel.eng.grille.mount.wall":   "Devorli",
+    "panel.eng.grille.mount.plenum": "Kamerali (-K)",
+    "panel.eng.grille.mount.round_duct": "Dumaloq kanallar uchun",
+    "panel.eng.grille.mount.slot":   "Tirqishli",
+    "panel.eng.grille.mount.transfer": "O‘tkazuvchi",
+    "panel.eng.grille.mount.floor":  "Pol panjaralari",
+    "panel.eng.grille.family":       "Seriya:",
+    "panel.eng.grille.family.all":   "Barchasi",
+    "panel.eng.grille.lwa":          "Shovqin LwA ≤",
+    "panel.eng.grille.lwa.unit":     "dB(A)",
+    "panel.eng.grille.vel":          "Tezlik ≤",
+    "panel.eng.grille.vel.unit":     "m/s",
+    "panel.eng.grille.vel.any":      "har qanday",
+    "panel.eng.grille.size":         "O‘lcham:",
+    "panel.eng.grille.size.unit":    " mm",
+    "panel.eng.grille.calc.title":   "Tanlash kalkulyatori",
+    "panel.eng.grille.calc.flow":    "Sarf L₀, m³/soat:",
+    "panel.eng.grille.calc.btn":     "▶  Tanlash",
+    "panel.eng.grille.calc.empty":   ("Berilgan sarf va cheklovlar uchun hech narsa mos kelmadi — "
+                                        "shovqin cheklovini yumshating yoki seriya/o‘rnatishni "
+                                        "o‘zgartiring."),
+    "panel.eng.grille.proj.title":   "Loyiha xonalari bo‘yicha tanlash",
+    "panel.eng.grille.proj.btn":     "▶  Barcha xonalar uchun tanlash",
+    "panel.eng.grille.proj.status":  "Panjaralar tanlandi: {n} xona",
+    "panel.eng.grille.proj.none":    "Havo sarfi (kelish/chiqish) berilgan xonalar yo‘q.",
+    "panel.eng.grille.col.variant":  "Panjara",
+    "panel.eng.grille.col.size":     "O‘lcham",
+    "panel.eng.grille.col.qty":      "Soni",
+    "panel.eng.grille.col.v":        "v, m/s",
+    "panel.eng.grille.col.lwa":      "LwA, dB(A)",
+    "panel.eng.grille.col.dp":       "ΔP, Pa",
+    "panel.eng.grille.col.throw":    "Uzoqlik, m",
+    "panel.eng.grille.col.note":     "Izoh",
+    "panel.eng.grille.col.no":       "№",
+    "panel.eng.grille.col.room":     "Xona",
+    "panel.eng.grille.col.qs":       "Kelish, m³/soat",
+    "panel.eng.grille.col.gs":       "Kelish panjarasi",
+    "panel.eng.grille.col.qe":       "Chiqish, m³/soat",
+    "panel.eng.grille.col.ge":       "Chiqish panjarasi",
+    "panel.eng.grille.dash":         "—",
 
     # ========== Engineering: havo-issiqlik pardalari ==========
     "panel.eng.cu.info":             ("Shiberlovchi havo-issiqlik pardasini tanlash "

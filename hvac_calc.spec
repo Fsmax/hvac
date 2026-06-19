@@ -45,6 +45,8 @@ catalog_files = [
      "hvac/catalogs/data"),
     (str(project_root / "hvac" / "catalogs" / "data" / "fans.json"),
      "hvac/catalogs/data"),
+    (str(project_root / "hvac" / "catalogs" / "data" / "grilles.json"),
+     "hvac/catalogs/data"),
 ]
 
 # Скрытые импорты, которые анализатор может пропустить
