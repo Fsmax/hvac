@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor, QDoubleValidator
@@ -103,10 +102,10 @@ class AirBalancePanel(QWidget):
             setattr(self, f"_mode_btn_{key}", b)
         head.addStretch(1)
         self.expand_btn = QPushButton(_t("panel.airbalance.btn.expand"))
-        self.expand_btn.clicked.connect(lambda: self.tree.expandAll())
+        self.expand_btn.clicked.connect(self._expand_all)
         head.addWidget(self.expand_btn)
         self.collapse_btn = QPushButton(_t("panel.airbalance.btn.collapse"))
-        self.collapse_btn.clicked.connect(lambda: self.tree.collapseAll())
+        self.collapse_btn.clicked.connect(self._collapse_all)
         head.addWidget(self.collapse_btn)
         outer.addLayout(head)
 
@@ -327,6 +326,12 @@ class AirBalancePanel(QWidget):
         self.bridge.dirtyChanged.emit(True)
 
     # ================= домен / i18n =================
+    def _expand_all(self) -> None:
+        self.tree.expandAll()
+
+    def _collapse_all(self) -> None:
+        self.tree.collapseAll()
+
     def _set_mode(self, mode: str) -> None:
         if mode == self._group_mode:
             return

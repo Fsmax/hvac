@@ -20,9 +20,9 @@ from typing import Any, List
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QHBoxLayout, QHeaderView,
-    QInputDialog, QLabel, QLineEdit, QMenu, QMessageBox, QPushButton,
-    QSplitter, QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
+    QAbstractItemView, QComboBox, QDialog, QHBoxLayout, QInputDialog,
+    QLabel, QLineEdit, QMenu, QMessageBox, QPushButton, QSplitter,
+    QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QWidget,
 )
 
@@ -737,8 +737,11 @@ class BlocksPanel(QWidget):
         for r in range(self.table.rowCount()):
             it = self.table.item(r, RC_NUM)
             sp = by_id.get(it.data(Qt.UserRole)) if it else None
-            visible = sp is not None
-            if visible and lvl:
+            if sp is None:
+                self.table.setRowHidden(r, True)
+                continue
+            visible = True
+            if lvl:
                 visible = (sp.level or "") == lvl
             if visible and blk:
                 b = getattr(sp, "block", "") or none_label
