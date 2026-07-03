@@ -31,6 +31,7 @@ C#-запись результатов — порт hvac-mcp/revit_writeback.py 
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import socket
@@ -288,7 +289,7 @@ if(li!=null){try{var ld=li.GetLinkDocument();var lid=seg.LinkElementId;if(ld!=nu
 if(el==null)continue;
 double len=-1;try{len=seg.GetCurve().Length*0.3048;}catch{}
 bool isWall=false;try{isWall=el.Category!=null&&el.Category.Id.Value==(long)(int)BuiltInCategory.OST_Walls;}catch{}
-if(isWall&&len>=0&&len<0.5)continue;
+bool shortWall=isWall&&len>=0&&len<0.5;
 string key=ln+"|"+el.Id.Value.ToString(CI);
 int bc;if(!bsc.TryGetValue(key,out bc))bc=1;
 var ti=TI(el);
@@ -300,7 +301,7 @@ seenK.Add(key);
 var gf=(ti[0]+" "+ti[1]).ToLowerInvariant();
 if(gf.Contains("витраж")||gf.Contains("curtain")||gf.Contains("balcony"))glz.Add(sp.Id.Value);
 string cat="";try{cat=el.Category!=null?(el.Category.Name??""):"";}catch{}
-Row(new[]{sid,sn,sm,sl,"external_wall",ext?"yes":"no",el.Id.Value.ToString(CI),ln,cat,ti[0],ti[1],Lv(el),len>=0?Nm(len):"",sh,(len>=0&&shd>0)?Nm(len*shd):"",EA(el),ti[4],ti[2],ti[3],"",bc.ToString(CI),orient});
+if(!shortWall)Row(new[]{sid,sn,sm,sl,"external_wall",ext?"yes":"no",el.Id.Value.ToString(CI),ln,cat,ti[0],ti[1],Lv(el),len>=0?Nm(len):"",sh,(len>=0&&shd>0)?Nm(len*shd):"",EA(el),ti[4],ti[2],ti[3],"",bc.ToString(CI),orient});
 var ho=el as HostObject;
 if(ho==null)continue;
 IList<ElementId> ins=null;try{ins=ho.FindInserts(true,false,false,false);}catch{}
@@ -526,18 +527,449 @@ return new { updated_spaces = updated, written_params = written, missing_spaces 
 _IMPORT_TEMP_FILES = ("_bsc.tsv", "_seen.txt", "_glz.txt")
 
 
-def import_from_revit(folder: str, collect_orphans: bool = True,
+# ============================================================================
+# Чистая геометрическая привязка фасадного остекления (заменяет orphan-проход)
+# ============================================================================
+# Для каждой навесной стены (Curtain, без внутренних типов) из АВТОРИТЕТНОГО
+# источника блока сэмплит фронт (11 точек × обе стороны, марш вглубь сквозь
+# балкон до отапл. комнаты) и раскидывает реальную HOST_AREA по комнатам
+# пропорционально доле попавших точек. Это убивает двойной учёт (один источник
+# на физ. фасад), завышение (площадь по фронту, а не целиком в каждую комнату)
+# и чинит подиум (storefront без Room Bounding достаёт залы за ним).
+#
+# Источник по блокам (подтверждено по модели Chorsu, 2026-06-21):
+#   отель/подиум → FCD (CHR_Balcony / CHR_Storefront),
+#   офис/резиденции → ARC (GLZ-O* / M_Exterior Glazing).
+# parameters[0] = имя уровня (подстрока), parameters[1] = токены через запятую.
+GLAZING_SOURCE_TOKENS = ["FCD-00-HTL", "FCD-00-BMG", "ARC-00-OFF", "ARC-00-RES"]
+
+CLEAN_GLAZING_CS = r'''
+string lvl=(string)parameters[0];
+string toks=(string)parameters[1];
+var CI=System.Globalization.CultureInfo.InvariantCulture;
+var sps=new List<Autodesk.Revit.DB.Mechanical.Space>();
+var bbs=new List<BoundingBoxXYZ>();
+var unc=new List<bool>();
+foreach(Element e in new FilteredElementCollector(document).OfCategory(BuiltInCategory.OST_MEPSpaces).WhereElementIsNotElementType()){
+var sp=e as Autodesk.Revit.DB.Mechanical.Space;if(sp==null)continue;
+var ap=sp.get_Parameter(BuiltInParameter.ROOM_AREA);if(ap==null||ap.AsDouble()<=1e-6)continue;
+string ln="";try{var l=document.GetElement(sp.LevelId);if(l!=null)ln=l.Name??"";}catch{}
+if(lvl!=""&&!ln.Contains(lvl))continue;
+var bb=sp.get_BoundingBox(null);if(bb==null)continue;
+string nu="";try{var pn=sp.get_Parameter(BuiltInParameter.ROOM_NUMBER);if(pn!=null)nu=(pn.AsString()??"").ToUpperInvariant();}catch{}
+bool uc=nu.StartsWith("OFC-")||nu.StartsWith("BAL-")||nu.StartsWith("TER-")||nu.StartsWith("SHAFT");
+sps.Add(sp);bbs.Add(bb);unc.Add(uc);}
+var sb=new System.Text.StringBuilder();
+if(sps.Count==0)return sb.ToString();
+double tn0=0;try{var pos=document.ActiveProjectLocation.GetProjectPosition(XYZ.Zero);if(pos!=null)tn0=pos.Angle;}catch{}
+double ca=Math.Cos(tn0),sa=Math.Sin(tn0);
+string[] intkw=new[]{"interior","partition","перегород","внутрен","separator","разделит","empty","not defined","shower","душ","кабин","cabin","core","balustrade","ограждени","перил"};
+double FT=0.092903040;double OFF=1.6404;int N=11;
+foreach(var tok in toks.Split(',')){
+Document ld=null;Transform tf=Transform.Identity;
+foreach(Element e in new FilteredElementCollector(document).OfClass(typeof(RevitLinkInstance))){
+var li=e as RevitLinkInstance;if(li==null)continue;string nm=li.Name??"";if(!nm.Contains(tok))continue;
+try{ld=li.GetLinkDocument();tf=li.GetTotalTransform();}catch{}if(ld!=null)break;}
+if(ld==null)continue;
+foreach(Element e in new FilteredElementCollector(ld).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType()){
+var w=e as Wall;if(w==null)continue;
+string tnm="";string kind="";
+try{var t=ld.GetElement(w.GetTypeId());if(t!=null){tnm=t.Name??"";var wt=t as WallType;if(wt!=null)kind=wt.Kind.ToString();}}catch{}
+if(kind!="Curtain")continue;
+string low=tnm.ToLowerInvariant();bool bad=false;foreach(var k in intkw)if(low.Contains(k)){bad=true;break;}if(bad)continue;
+double area=0;try{var p=w.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);if(p!=null&&p.StorageType==StorageType.Double)area=p.AsDouble();}catch{}if(area<=0)continue;
+Curve cv=null;try{var lc=w.Location as LocationCurve;if(lc!=null)cv=lc.Curve;}catch{}if(cv==null)continue;
+XYZ nrm=null;try{nrm=w.Orientation;}catch{}if(nrm==null)continue;
+XYZ ng=tf.OfVector(nrm);double nl=Math.Sqrt(ng.X*ng.X+ng.Y*ng.Y+ng.Z*ng.Z);if(nl<1e-9)continue;ng=new XYZ(ng.X/nl,ng.Y/nl,ng.Z/nl);
+var tally=new Dictionary<int,int>();
+for(int i=0;i<N;i++){
+double t=(double)i/(N-1);
+XYZ pl;try{pl=cv.Evaluate(t,true);}catch{continue;}
+XYZ pg=tf.OfPoint(pl);
+int hit=-1;double hd=1e9;
+double[] steps=new[]{1.6404,4.9213,8.2021};
+for(int s=0;s<2;s++){
+double sign=s==0?1.0:-1.0;
+for(int si=0;si<steps.Length;si++){
+double st=steps[si];
+XYZ q=new XYZ(pg.X+sign*st*ng.X,pg.Y+sign*st*ng.Y,pg.Z);
+int found=-1;
+for(int j=0;j<sps.Count;j++){
+var bb=bbs[j];
+if(q.X<bb.Min.X-OFF||q.X>bb.Max.X+OFF||q.Y<bb.Min.Y-OFF||q.Y>bb.Max.Y+OFF||q.Z<bb.Min.Z-OFF||q.Z>bb.Max.Z+OFF)continue;
+bool ins=false;try{ins=sps[j].IsPointInSpace(q);}catch{}
+if(ins){found=j;break;}}
+if(found<0)continue;
+if(unc[found])continue;
+if(st<hd){hd=st;hit=found;}
+break;}}
+if(hit>=0){int c;tally.TryGetValue(hit,out c);tally[hit]=c+1;}}
+if(tally.Count==0)continue;
+double am2=area*FT;
+double rx=ng.X*ca+ng.Y*sa,ry=-ng.X*sa+ng.Y*ca;
+double az=Math.Atan2(rx,ry)*180.0/Math.PI;if(az<0)az+=360.0;
+foreach(var kv in tally){
+double a=am2*((double)kv.Value/N);
+var sp=sps[kv.Key];
+sb.Append(sp.Id.Value.ToString(CI));sb.Append('\t');sb.Append(w.Id.Value.ToString(CI));sb.Append('\t');
+sb.Append(tok);sb.Append('\t');sb.Append(tnm.Replace('\t',' '));sb.Append('\t');
+sb.Append(a.ToString("0.00",CI));sb.Append('\t');sb.Append(az.ToString("0.0",CI));sb.Append('\n');}}}
+return sb.ToString();
+'''
+
+
+def export_clean_glazing(folder: str, timeout: float = 180.0) -> List[dict]:
+    """Чистые строки остекления (по одному уровню за вызов моста).
+
+    Читает spaces.csv в folder (уровни + номер/имя помещения), гоняет
+    CLEAN_GLAZING_CS по каждому уровню и возвращает список dict-строк в
+    схеме thermal_all. function='curtain (orphan)' → загрузчик доверяет им
+    как фасаду, минуя bsc-эвристики (иначе поделённый по комнатам фасад
+    с bsc>=2 был бы помечен внутренним).
+    """
+    folder = str(folder)
+    sp_by_id: Dict[str, tuple] = {}
+    levels: List[str] = []
+    seen_lvl = set()
+    with open(os.path.join(folder, "spaces.csv"),
+              encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            sid = (row.get("id") or "").strip()
+            lvl = (row.get("level") or "").strip()
+            sp_by_id[sid] = (row.get("number", ""), row.get("name", ""), lvl)
+            if lvl and lvl not in seen_lvl:
+                seen_lvl.add(lvl)
+                levels.append(lvl)
+    toks = ",".join(GLAZING_SOURCE_TOKENS)
+    rows: List[dict] = []
+    for lvl in levels:
+        res = send_code(CLEAN_GLAZING_CS, parameters=[lvl, toks],
+                        transaction_mode="none", timeout=timeout)
+        text = res if isinstance(res, str) else (str(res) if res else "")
+        for line in text.splitlines():
+            p = line.split("\t")
+            if len(p) < 6:
+                continue
+            num, name, splvl = sp_by_id.get(p[0].strip(), ("", "", lvl))
+            rows.append({
+                "space_id": p[0].strip(), "space_number": num,
+                "space_name": name, "space_level": splvl or lvl,
+                "row_type": "external_wall", "is_exterior_wall": "yes",
+                "element_id": p[1], "link_model": p[2], "category": "Стены",
+                "family": "Витраж", "type": p[3], "element_level": lvl,
+                "boundary_length_m": "", "space_height_m": "",
+                "approx_area_m2": p[4], "element_area": p[4], "thickness": "",
+                "function": "curtain (orphan)", "thermal_value": "",
+                "host_element_id": "", "boundary_space_count": "1",
+                "orientation_deg": p[5], "room_boundary_count": "0",
+            })
+    return rows
+
+
+def rebuild_thermal_clean(folder: str, timeout: float = 180.0) -> dict:
+    """Пересобирает thermal_all.csv с чистым остеклением.
+
+    Выбрасывает ВСЕ строки навесных стен (family содержит «Витраж»/curtain:
+    фасад, перегородки, душевые, ядро, старые orphan/boundary-привязки) и
+    дописывает чистые строки из export_clean_glazing. Глухие стены, спандрел
+    (Базовая стена), окна, двери, проёмы — сохраняются без изменений.
+    """
+    folder = str(folder)
+    thermal_csv = os.path.join(folder, "thermal_all.csv")
+    with open(thermal_csv, encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = list(reader.fieldnames or [])
+        kept: List[dict] = []
+        dropped = 0
+        for row in reader:
+            fam = (row.get("family", "") or "").lower()
+            if "витраж" in fam or "curtain" in fam:
+                dropped += 1
+                continue
+            kept.append(row)
+    clean = export_clean_glazing(folder, timeout=timeout)
+    for c in clean:
+        for k in c:
+            if k not in fieldnames:
+                fieldnames.append(k)
+    with open(thermal_csv, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        for row in kept:
+            w.writerow({k: row.get(k, "") for k in fieldnames})
+        for c in clean:
+            w.writerow({k: c.get(k, "") for k in fieldnames})
+    return {"clean_glazing_rows": len(clean), "dropped_curtain_rows": dropped,
+            "total_rows": len(kept) + len(clean)}
+
+
+# ============================================================================
+# Геометрический тест внешней стороны глухих стен (внутр. как наружная)
+# ============================================================================
+# Для каждой глухой (не Curtain) граничной стены ОТАПЛИВАЕМОГО помещения
+# сэмплит ВНЕШНЮЮ сторону и проверяет, не лежит ли там другое ОТАПЛИВАЕМОЕ
+# помещение — MEP-пространство ИЛИ ARC-комната (коридоры/ядра/лестницы без
+# MEP). Если да → verdict "int" (внутренняя перегородка), даже если bsc/
+# функция/rbc считают её наружной (другой face стены — иной element_id, и
+# счётчики по element_id промахиваются). Ловит толстые стены ядра/лестниц,
+# типизированные как «Наружные». parameters[0]=уровень, [1]=ARC-токены.
+ARC_ROOM_TOKENS = "ARC-00-HTL,ARC-00-OFF,ARC-00-RES,ARC-00-BMG"
+
+WALL_VERDICT_CS = r'''
+string lvl=(string)parameters[0];
+string arcToks=(string)parameters[1];
+var CI=System.Globalization.CultureInfo.InvariantCulture;
+var sps=new List<Autodesk.Revit.DB.Mechanical.Space>();
+var sbb=new List<BoundingBoxXYZ>();
+var sH=new List<bool>();
+double zmin=1e9,zmax=-1e9;
+foreach(Element e in new FilteredElementCollector(document).OfCategory(BuiltInCategory.OST_MEPSpaces).WhereElementIsNotElementType()){
+var sp=e as Autodesk.Revit.DB.Mechanical.Space;if(sp==null)continue;
+var ap=sp.get_Parameter(BuiltInParameter.ROOM_AREA);if(ap==null||ap.AsDouble()<=1e-6)continue;
+string ln="";try{var l=document.GetElement(sp.LevelId);if(l!=null)ln=l.Name??"";}catch{}
+if(lvl!=""&&!ln.Contains(lvl))continue;
+var bb=sp.get_BoundingBox(null);if(bb==null)continue;
+string nu="";try{var pn=sp.get_Parameter(BuiltInParameter.ROOM_NUMBER);if(pn!=null)nu=(pn.AsString()??"").ToUpperInvariant();}catch{}
+bool uc=nu.StartsWith("OFC-")||nu.StartsWith("BAL-")||nu.StartsWith("TER-")||nu.StartsWith("SHAFT");
+sps.Add(sp);sbb.Add(bb);sH.Add(!uc);
+if(bb.Min.Z<zmin)zmin=bb.Min.Z;if(bb.Max.Z>zmax)zmax=bb.Max.Z;}
+var sb=new System.Text.StringBuilder();
+if(sps.Count==0)return sb.ToString();
+var rms=new List<Autodesk.Revit.DB.Architecture.Room>();
+var rtf=new List<Transform>();
+var rbx=new List<BoundingBoxXYZ>();
+var rH=new List<bool>();
+foreach(var tok in arcToks.Split(',')){
+Document ld=null;Transform tf=Transform.Identity;
+foreach(Element e in new FilteredElementCollector(document).OfClass(typeof(RevitLinkInstance))){
+var li=e as RevitLinkInstance;if(li==null)continue;string nm=li.Name??"";if(!nm.Contains(tok))continue;
+try{ld=li.GetLinkDocument();tf=li.GetTotalTransform();}catch{}if(ld!=null)break;}
+if(ld==null)continue;
+double dz=tf.Origin.Z;
+foreach(Element e in new FilteredElementCollector(ld).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()){
+var rm=e as Autodesk.Revit.DB.Architecture.Room;if(rm==null)continue;
+if(rm.Area<=1e-6)continue;
+var bb=rm.get_BoundingBox(null);if(bb==null)continue;
+if(bb.Max.Z+dz<zmin-3.0||bb.Min.Z+dz>zmax+3.0)continue;
+string nu="";try{var pn=rm.get_Parameter(BuiltInParameter.ROOM_NUMBER);if(pn!=null)nu=(pn.AsString()??"").ToUpperInvariant();}catch{}
+bool uc=nu.StartsWith("OFC-")||nu.StartsWith("BAL-")||nu.StartsWith("TER-")||nu.StartsWith("SHAFT");
+rms.Add(rm);rtf.Add(tf);rbx.Add(bb);rH.Add(!uc);}}
+var bopt=new SpatialElementBoundaryOptions();
+double IN=1.64,OUT=2.62;
+for(int si=0;si<sps.Count;si++){
+if(!sH[si])continue;
+var sp=sps[si];long sid=sp.Id.Value;
+IList<IList<BoundarySegment>> loops=null;try{loops=sp.GetBoundarySegments(bopt);}catch{}
+if(loops==null)continue;
+var done=new HashSet<long>();
+foreach(var loop in loops)foreach(var seg in loop){
+Element host=null;try{var hid=seg.ElementId;if(hid!=ElementId.InvalidElementId)host=document.GetElement(hid);}catch{}
+Element wel=host;var li=host as RevitLinkInstance;
+if(li!=null){try{var ld=li.GetLinkDocument();var lid=seg.LinkElementId;if(ld!=null&&lid!=ElementId.InvalidElementId){var le=ld.GetElement(lid);if(le!=null)wel=le;}}catch{}}
+var w=wel as Wall;if(w==null)continue;
+try{var t=wel.Document.GetElement(wel.GetTypeId());var wt=t as WallType;if(wt!=null&&wt.Kind==WallKind.Curtain)continue;}catch{}
+long wid=wel.Id.Value;if(done.Contains(wid))continue;
+Curve cv=null;try{cv=seg.GetCurve();}catch{}if(cv==null)continue;
+XYZ mp;try{mp=cv.Evaluate(0.5,true);}catch{continue;}
+XYZ d;try{d=cv.ComputeDerivatives(0.5,true).BasisX.Normalize();}catch{continue;}
+XYZ nrm=new XYZ(d.Y,-d.X,0.0);
+double nl=Math.Sqrt(nrm.X*nrm.X+nrm.Y*nrm.Y);if(nl<1e-9)continue;nrm=new XYZ(nrm.X/nl,nrm.Y/nl,0.0);
+XYZ a=new XYZ(mp.X+nrm.X*IN,mp.Y+nrm.Y*IN,mp.Z);
+XYZ b=new XYZ(mp.X-nrm.X*IN,mp.Y-nrm.Y*IN,mp.Z);
+bool aIn=false,bIn=false;try{aIn=sp.IsPointInSpace(a);}catch{}try{bIn=sp.IsPointInSpace(b);}catch{}
+XYZ od=nrm;if(aIn&&!bIn)od=new XYZ(-nrm.X,-nrm.Y,0.0);
+XYZ outer=new XYZ(mp.X+od.X*OUT,mp.Y+od.Y*OUT,mp.Z);
+string verdict="ext";
+for(int j=0;j<sps.Count;j++){if(j==si||!sH[j])continue;var bb=sbb[j];
+if(outer.X<bb.Min.X-IN||outer.X>bb.Max.X+IN||outer.Y<bb.Min.Y-IN||outer.Y>bb.Max.Y+IN||outer.Z<bb.Min.Z-IN||outer.Z>bb.Max.Z+IN)continue;
+bool ins=false;try{ins=sps[j].IsPointInSpace(outer);}catch{}if(ins){verdict="int";break;}}
+if(verdict=="ext"){
+for(int j=0;j<rms.Count;j++){if(!rH[j])continue;
+XYZ ol;try{ol=rtf[j].Inverse.OfPoint(outer);}catch{ol=outer;}
+var bb=rbx[j];
+if(ol.X<bb.Min.X-IN||ol.X>bb.Max.X+IN||ol.Y<bb.Min.Y-IN||ol.Y>bb.Max.Y+IN||ol.Z<bb.Min.Z-IN||ol.Z>bb.Max.Z+IN)continue;
+bool ins=false;try{ins=rms[j].IsPointInRoom(ol);}catch{}if(ins){verdict="int";break;}}}
+done.Add(wid);
+sb.Append(sid.ToString(CI));sb.Append('\t');sb.Append(wid.ToString(CI));sb.Append('\t');sb.Append(verdict);sb.Append('\n');
+}}
+return sb.ToString();
+'''
+
+
+def export_wall_verdicts(folder: str, timeout: float = 240.0) -> Dict[tuple, str]:
+    """Геом-вердикты внешней стороны глухих стен по уровням.
+
+    Возвращает {(space_id, element_id): "int"|"ext"}. "int" = внешняя
+    сторона упирается в отапл. помещение/ARC-комнату (внутренняя стена).
+    """
+    folder = str(folder)
+    levels: List[str] = []
+    seen = set()
+    with open(os.path.join(folder, "spaces.csv"),
+              encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            lvl = (row.get("level") or "").strip()
+            if lvl and lvl not in seen:
+                seen.add(lvl)
+                levels.append(lvl)
+    verdicts: Dict[tuple, str] = {}
+    for lvl in levels:
+        res = send_code(WALL_VERDICT_CS, parameters=[lvl, ARC_ROOM_TOKENS],
+                        transaction_mode="none", timeout=timeout)
+        text = res if isinstance(res, str) else (str(res) if res else "")
+        for line in text.splitlines():
+            p = line.split("\t")
+            if len(p) >= 3:
+                verdicts[(p[0], p[1])] = p[2]
+    return verdicts
+
+
+def tag_wall_exterior(folder: str, timeout: float = 240.0) -> dict:
+    """Дописывает в thermal_all.csv колонку geom_exterior для глухих стен
+    по геом-вердиктам (export_wall_verdicts). Загрузчик переводит
+    geom_exterior=="int" во внутренние (высший приоритет)."""
+    folder = str(folder)
+    verdicts = export_wall_verdicts(folder, timeout=timeout)
+    thermal_csv = os.path.join(folder, "thermal_all.csv")
+    with open(thermal_csv, encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = list(reader.fieldnames or [])
+        rows = list(reader)
+    if "geom_exterior" not in fieldnames:
+        fieldnames.append("geom_exterior")
+    n_int = 0
+    for row in rows:
+        fam = (row.get("family", "") or "").lower()
+        if row.get("row_type", "").strip() != "external_wall":
+            continue
+        if "витраж" in fam or "curtain" in fam:
+            continue
+        v = verdicts.get((row.get("space_id", "").strip(),
+                          row.get("element_id", "").strip()))
+        if v:
+            row["geom_exterior"] = v
+            if v == "int":
+                n_int += 1
+    with open(thermal_csv, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        for row in rows:
+            w.writerow({k: row.get(k, "") for k in fieldnames})
+    return {"verdicts": len(verdicts), "tagged_internal": n_int}
+
+
+# ============================================================================
+# Кровля: помещения под наружным покрытием (нет ОТАПЛИВАЕМОГО пространства
+# сверху → потолок выходит под кровлю/небо). Заменяет ломкий по уровням
+# _auto_detect_floors_roofs (брал алфавитно верхний уровень — мимо подиума и
+# верхушек башни). Луч вверх от LocationPoint на +2..6 м, IsPointInSpace по
+# всем пространствам; неотапл. сверху (OFC-/BAL-/TER-/SHAFT) не блокируют.
+# ============================================================================
+
+ROOF_DETECT_CS = r'''
+var CI=System.Globalization.CultureInfo.InvariantCulture;
+var sps=new List<Autodesk.Revit.DB.Mechanical.Space>();
+var bbs=new List<BoundingBoxXYZ>();
+var heated=new List<bool>();
+foreach(Element e in new FilteredElementCollector(document).OfCategory(BuiltInCategory.OST_MEPSpaces).WhereElementIsNotElementType()){
+var sp=e as Autodesk.Revit.DB.Mechanical.Space;if(sp==null)continue;
+var ap=sp.get_Parameter(BuiltInParameter.ROOM_AREA);if(ap==null||ap.AsDouble()<=1e-6)continue;
+var bb=sp.get_BoundingBox(null);if(bb==null)continue;
+string nu="";try{var pn=sp.get_Parameter(BuiltInParameter.ROOM_NUMBER);if(pn!=null)nu=(pn.AsString()??"").ToUpperInvariant();}catch{}
+bool uc=nu.StartsWith("OFC-")||nu.StartsWith("BAL-")||nu.StartsWith("TER-")||nu.StartsWith("SHAFT");
+sps.Add(sp);bbs.Add(bb);heated.Add(!uc);}
+var sb=new System.Text.StringBuilder();
+double[] offs=new[]{6.56,9.84,13.12,16.40,19.69};
+for(int i=0;i<sps.Count;i++){
+if(!heated[i])continue;
+var bb=bbs[i];var sp=sps[i];
+double px,py;try{var lp=(sp.Location as LocationPoint).Point;px=lp.X;py=lp.Y;}catch{px=(bb.Min.X+bb.Max.X)*0.5;py=(bb.Min.Y+bb.Max.Y)*0.5;}
+bool above=false;
+foreach(var off in offs){
+double qz=bb.Min.Z+off;
+for(int j=0;j<sps.Count;j++){
+if(j==i||!heated[j])continue;var b2=bbs[j];
+if(qz<b2.Min.Z-0.5||qz>b2.Max.Z+0.5)continue;
+if(px<b2.Min.X-0.5||px>b2.Max.X+0.5||py<b2.Min.Y-0.5||py>b2.Max.Y+0.5)continue;
+bool ins=false;try{ins=sps[j].IsPointInSpace(new XYZ(px,py,qz));}catch{}
+if(ins){above=true;break;}}
+if(above)break;}
+if(!above)sb.Append(sp.Id.Value.ToString(CI)).Append('\n');}
+return sb.ToString();
+'''
+
+
+def detect_roof_spaces(timeout: float = 400.0) -> set:
+    """Множество space_id (str) помещений, над которыми НЕТ отапливаемого
+    пространства (потолок под кровлю/небо). Требует открытой модели Revit."""
+    res = send_code(ROOF_DETECT_CS, transaction_mode="none", timeout=timeout)
+    text = res if isinstance(res, str) else (str(res) if res else "")
+    return {ln.strip() for ln in text.splitlines() if ln.strip()}
+
+
+def tag_roof_spaces(folder: str, timeout: float = 400.0) -> dict:
+    """Дописывает в spaces.csv колонку under_roof (1 — под кровлей) по
+    геометрии открытой модели. Загрузчик переводит under_roof=1 → has_roof.
+    Шаг импорта (вызывается из import_from_revit)."""
+    folder = str(folder)
+    roof_ids = detect_roof_spaces(timeout=timeout)
+    spaces_csv = os.path.join(folder, "spaces.csv")
+    with open(spaces_csv, encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = list(reader.fieldnames or [])
+        rows = list(reader)
+    if "under_roof" not in fieldnames:
+        fieldnames.append("under_roof")
+    n = 0
+    for row in rows:
+        if (row.get("id", "") or "").strip() in roof_ids:
+            row["under_roof"] = "1"
+            n += 1
+        else:
+            row.setdefault("under_roof", "")
+    with open(spaces_csv, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        for row in rows:
+            w.writerow({k: row.get(k, "") for k in fieldnames})
+    return {"under_roof_tagged": n}
+
+
+def apply_roof_flags(project: "HVACProject", timeout: float = 400.0) -> dict:
+    """Проставляет has_roof по геометрии открытой модели для уже загруженного
+    проекта (существующий JSON, без ре-импорта). Не трогает user_modified.
+    Возвращает {detected, applied}."""
+    roof_ids = detect_roof_spaces(timeout=timeout)
+    applied = 0
+    for sp in project.spaces:
+        # has_roof — геометрический факт (есть ли покрытие над помещением),
+        # а не пользовательская правка: применяем и к user_modified (флаг
+        # стоит на ~четверти помещений из-за прежних правок окон/температур).
+        if str(getattr(sp, "space_id", "")) in roof_ids and not sp.has_roof:
+            sp.has_roof = True
+            applied += 1
+    return {"detected": len(roof_ids), "applied": applied}
+
+
+def import_from_revit(folder: str, clean_glazing: bool = True,
+                      wall_geom: bool = True,
+                      roof_detect: bool = True,
+                      collect_orphans: bool = False,
                       timeout: float = 600.0) -> dict:
     """Выгружает spaces.csv + thermal_all.csv из открытой модели Revit.
 
-    Выполняется в три прохода (см. докстринг модуля) — каждый C#-вызов
-    укладывается в 8-КБ буфер плагина. Колонки CSV идентичны
-    Dynamo-скрипту revit_dynamo_hvac_write_csv.py.
+    Проходы 1-2 (помещения + границы) + чистая геом-привязка остекления
+    (clean_glazing=True, по умолчанию): см. rebuild_thermal_clean. Старый
+    orphan-проход доступен через clean_glazing=False, collect_orphans=True
+    (обратная совместимость).
 
     Возвращает сводку: {spaces_rows, thermal_rows, orphan_rows,
-    source, spaces_csv, thermal_csv}.
+    clean_glazing_rows, source, spaces_csv, thermal_csv}.
     """
     folder = str(folder)
+    rg = {"clean_glazing_rows": 0, "total_rows": 0}
+    wg = {"tagged_internal": 0}
+    rf = {"under_roof_tagged": 0}
     try:
         r1 = send_code(EXPORT_CS_SPACES, parameters=[folder],
                        transaction_mode="none", timeout=timeout)
@@ -548,11 +980,17 @@ def import_from_revit(folder: str, collect_orphans: bool = True,
         if not isinstance(r2, dict):
             raise RuntimeError(f"Проход 2: неожиданный ответ Revit: {r2!r}")
         r3 = {"orphan_rows": 0}
-        if collect_orphans:
+        if clean_glazing:
+            rg = rebuild_thermal_clean(folder, timeout=timeout)
+        elif collect_orphans:
             r3 = send_code(EXPORT_CS_ORPHANS, parameters=[folder],
                            transaction_mode="none", timeout=timeout)
             if not isinstance(r3, dict):
                 raise RuntimeError(f"Проход 3: неожиданный ответ Revit: {r3!r}")
+        if wall_geom:
+            wg = tag_wall_exterior(folder, timeout=timeout)
+        if roof_detect:
+            rf = tag_roof_spaces(folder, timeout=timeout)
     finally:
         for name in _IMPORT_TEMP_FILES:
             try:
@@ -560,10 +998,17 @@ def import_from_revit(folder: str, collect_orphans: bool = True,
             except OSError:
                 pass
     orphans = int(r3.get("orphan_rows", 0))
+    if clean_glazing:
+        thermal_rows = int(rg.get("total_rows", 0))
+    else:
+        thermal_rows = int(r2.get("thermal_rows", 0)) + orphans
     return {
         "spaces_rows": int(r1.get("spaces_rows", 0)),
-        "thermal_rows": int(r2.get("thermal_rows", 0)) + orphans,
+        "thermal_rows": thermal_rows,
         "orphan_rows": orphans,
+        "clean_glazing_rows": int(rg.get("clean_glazing_rows", 0)),
+        "wall_internal_tagged": int(wg.get("tagged_internal", 0)),
+        "under_roof_tagged": int(rf.get("under_roof_tagged", 0)),
         "source": r1.get("source", ""),
         "spaces_csv": os.path.join(folder, "spaces.csv"),
         "thermal_csv": os.path.join(folder, "thermal_all.csv"),

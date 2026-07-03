@@ -4,6 +4,7 @@
 import pytest
 from hvac.catalogs.room_types import (
     auto_detect_room_type, apply_room_type_defaults, ROOM_TYPE_PRESETS,
+    is_non_heated_type, is_non_cooled_type,
 )
 from hvac.models import Space
 
@@ -58,7 +59,7 @@ class TestApplyDefaults:
                    level="L1", area_m2=20.0, volume_m3=60.0,
                    room_type="Офис")
         apply_room_type_defaults(sp)
-        assert sp.t_in_heat == 20
+        assert sp.t_in_heat == 22   # design criteria заказчика (BOH/офис, зима 22°C)
         assert sp.t_in_cool == 24
         assert sp.lighting_w_m2 == 12
         # 20 / 10 = 2 человека
@@ -81,3 +82,65 @@ class TestApplyDefaults:
             for key in required:
                 assert key in preset, \
                     f"Тип '{room_type}' не содержит '{key}'"
+
+
+class TestNonHeatedType:
+    """Классификация неотапливаемых типов (для «Тепловой баланс» → «Авто»)."""
+
+    @pytest.mark.parametrize("room_type", [
+        "Лифт / шахта", "Гараж / автостоянка", "Балкон / терраса",
+        "Технич. помещение", "Холодильная камера",
+    ])
+    def test_non_heated(self, room_type):
+        assert is_non_heated_type(room_type) is True
+
+    @pytest.mark.parametrize("room_type", [
+        "Склад", "Лестница", "Офис", "Санузел", "Серверная",
+        "Гостиничный номер", "Пожаробезопасная зона", "Прочее",
+    ])
+    def test_heated(self, room_type):
+        assert is_non_heated_type(room_type) is False
+
+    def test_unknown_type_is_heated(self):
+        """Неизвестный тип → фолбэк «Прочее» (18 °C) → отапливается."""
+        assert is_non_heated_type("Совершенно неизвестный тип") is False
+
+    def test_threshold_matches_presets(self):
+        """Признак согласован с t_in_heat пресета (порог 5 °C)."""
+        from hvac.catalogs.room_types import NON_HEATED_MAX_T_HEAT
+        for room_type, preset in ROOM_TYPE_PRESETS.items():
+            expected = preset["t_in_heat"] <= NON_HEATED_MAX_T_HEAT
+            assert is_non_heated_type(room_type) is expected, room_type
+
+
+class TestNonCooledType:
+    """Классификация неохлаждаемых типов (симметрично отоплению)."""
+
+    @pytest.mark.parametrize("room_type", [
+        "Лифт / шахта", "Гараж / автостоянка", "Балкон / терраса",
+        "Технич. помещение",
+    ])
+    def test_non_cooled(self, room_type):
+        assert is_non_cooled_type(room_type) is True
+
+    @pytest.mark.parametrize("room_type", [
+        "Офис", "Гостиничный номер", "Санузел", "Серверная", "Прочее",
+        "Лестница", "Склад",
+    ])
+    def test_cooled(self, room_type):
+        assert is_non_cooled_type(room_type) is False
+
+    def test_cold_room_is_cooled_not_heated(self):
+        """Холодильная камера: не отапливается, но охлаждается активно."""
+        assert is_non_heated_type("Холодильная камера") is True
+        assert is_non_cooled_type("Холодильная камера") is False
+
+    def test_unknown_type_is_cooled(self):
+        assert is_non_cooled_type("Совершенно неизвестный тип") is False
+
+    def test_threshold_matches_presets(self):
+        """Признак согласован с t_in_cool пресета (порог 30 °C)."""
+        from hvac.catalogs.room_types import NON_COOLED_MIN_T_COOL
+        for room_type, preset in ROOM_TYPE_PRESETS.items():
+            expected = preset["t_in_cool"] >= NON_COOLED_MIN_T_COOL
+            assert is_non_cooled_type(room_type) is expected, room_type

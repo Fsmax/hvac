@@ -56,10 +56,14 @@ from hvac.ui_qt.panels.zones_panel import (
 
 _ROOM_COL_KEYS = [
     "panel.zones.rcol.number", "panel.zones.rcol.level", "panel.zones.rcol.name",
-    "panel.zones.rcol.area", "panel.zones.rcol.load", "panel.zones.rcol.system",
-    "panel.zones.rcol.circuit",
+    "panel.zones.rcol.area", "panel.zones.rcol.load",
+    "panel.sysworkspace.rcol.exhaust", "panel.sysworkspace.rcol.hood",
+    "panel.zones.rcol.system", "panel.zones.rcol.circuit",
     "panel.sysworkspace.rcol.air", "panel.sysworkspace.rcol.device",
 ]
+# Индексы колонок «Вытяжка»/«Зонт» — видимы только в домене вентиляции.
+_COL_EXHAUST = 5
+_COL_HOOD = 6
 
 
 def _level_num(level: str) -> float:
@@ -228,6 +232,13 @@ class SystemsWorkspacePanel(QWidget):
         self.zone_filter.currentTextChanged.connect(lambda *_: self._filter())
         flt.addWidget(self.zone_filter)
 
+        self._block_filter_lbl = QLabel(_t("panel.blocks.filter.block"))
+        flt.addWidget(self._block_filter_lbl)
+        self.block_filter = QComboBox()
+        self.block_filter.setMinimumWidth(100)
+        self.block_filter.currentTextChanged.connect(lambda *_: self._filter())
+        flt.addWidget(self.block_filter)
+
         self.node_filter_cb = QCheckBox(_t("panel.sysworkspace.filter_node"))
         self.node_filter_cb.stateChanged.connect(lambda *_: self._filter())
         flt.addWidget(self.node_filter_cb)
@@ -249,8 +260,9 @@ class SystemsWorkspacePanel(QWidget):
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
         self.table.cellDoubleClicked.connect(self._edit_room_device)
-        for i, w in enumerate([60, 64, 200, 70, 100, 130, 130, 56, 200]):
+        for i, w in enumerate([60, 64, 200, 70, 100, 90, 90, 130, 130, 56, 200]):
             self.table.setColumnWidth(i, w)
+        self._apply_domain_columns()
         right_l.addWidget(self.table, stretch=1)
 
         brow = QHBoxLayout()
@@ -284,6 +296,12 @@ class SystemsWorkspacePanel(QWidget):
         heads = [_t(k) for k in _ROOM_COL_KEYS]
         heads[4] = _t(_LOAD_KEY[self._domain])
         return heads
+
+    def _apply_domain_columns(self) -> None:
+        """Колонки «Вытяжка»/«Зонт» имеют смысл только для вентиляции."""
+        vent = self._domain == "ventilation"
+        self.table.setColumnHidden(_COL_EXHAUST, not vent)
+        self.table.setColumnHidden(_COL_HOOD, not vent)
 
     def _selected_rows(self) -> list[int]:
         sel = self.table.selectionModel()
@@ -382,6 +400,7 @@ class SystemsWorkspacePanel(QWidget):
             return
         self._domain = domain
         self.table.setHorizontalHeaderLabels(self._room_headers())
+        self._apply_domain_columns()
         self._refresh()
 
     # ================= CRUD дерева =================
@@ -567,8 +586,45 @@ class SystemsWorkspacePanel(QWidget):
             menu.addAction(s, lambda _c=False, n=s: self._assign_to_system(n))
         menu.addSeparator()
         menu.addAction(_t("panel.zones.menu.new_system"), self._assign_new_system)
+        if self._domain == "ventilation":
+            # Раздельная привязка: приток и вытяжка комнаты — разным системам
+            # (две независимые установки на одно помещение).
+            menu.addSeparator()
+            for flow, key in (("supply", "panel.zones.menu.assign_supply"),
+                              ("exhaust", "panel.zones.menu.assign_exhaust")):
+                sub = menu.addMenu(_t(key))
+                for s in self._systems_sorted():
+                    sub.addAction(s, lambda _c=False, f=flow, n=s:
+                                  self._assign_flow_system(f, n))
+            menu.addAction(_t("panel.zones.menu.clear_split"),
+                           self._clear_flow_split)
         menu.exec(self.assign_sys_btn.mapToGlobal(
             self.assign_sys_btn.rect().bottomLeft()))
+
+    def _assign_flow_system(self, flow: str, system_name: str) -> None:
+        ids = self._selected_ids()
+        if not ids:
+            self._warn_no_selection()
+            return
+        self._push_undo(ids)
+        n = self.project.assign_rooms_flow_system(flow, ids, system_name)
+        self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+        self.bridge.statusMessage.emit(
+            _t("panel.zones.status.assigned_flow").format(flow=flow, n=n), 4000)
+
+    def _clear_flow_split(self) -> None:
+        ids = self._selected_ids()
+        if not ids:
+            self._warn_no_selection()
+            return
+        self._push_undo(ids)
+        n = (self.project.assign_rooms_flow_system("supply", ids, "")
+             + self.project.assign_rooms_flow_system("exhaust", ids, ""))
+        self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+        self.bridge.statusMessage.emit(
+            _t("panel.zones.status.assigned_flow").format(flow="—", n=n), 4000)
 
     def _assign_new_system(self) -> None:
         name, ok = QInputDialog.getText(
@@ -776,7 +832,13 @@ class SystemsWorkspacePanel(QWidget):
         for sp in self.project.spaces:
             sv = getattr(sp, sys_field, "")
             cv = getattr(sp, circ_field, "")
-            if sv:
+            if domain == "ventilation":
+                # Раздельная привязка: комната числится за каждой системой,
+                # которую касается хотя бы один её расход.
+                for z in {sp.vent_system_supply, sp.vent_system_exhaust}:
+                    if z:
+                        sys_count[z] = sys_count.get(z, 0) + 1
+            elif sv:
                 sys_count[sv] = sys_count.get(sv, 0) + 1
             if cv:
                 circ_count[cv] = circ_count.get(cv, 0) + 1
@@ -827,21 +889,40 @@ class SystemsWorkspacePanel(QWidget):
             ld = _NumTableItem(load_txt, load)
             ld.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.table.setItem(r, 4, ld)
-            self.table.setItem(r, 5, QTableWidgetItem(getattr(sp, sys_field, "") or ""))
-            self.table.setItem(r, 6, QTableWidgetItem(getattr(sp, circ_field, "") or ""))
+            # вытяжка / зонт — показываем только в режиме вентиляции (колонки
+            # 5/6 скрыты в отоплении/холоде); пусто при нулевом расходе.
+            exh_v = getattr(sp, "exhaust_m3h", 0.0) or 0.0
+            exh = _NumTableItem(f"{exh_v:.0f}" if (is_flow and exh_v) else "", exh_v)
+            exh.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.table.setItem(r, _COL_EXHAUST, exh)
+            hood_v = getattr(sp, "hood_m3h", 0.0) or 0.0
+            hood = _NumTableItem(f"{hood_v:.0f}" if (is_flow and hood_v) else "", hood_v)
+            hood.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.table.setItem(r, _COL_HOOD, hood)
+            sys_txt = getattr(sp, sys_field, "") or ""
+            if is_flow:
+                # Раздельная привязка притока/вытяжки — показываем в скобках.
+                split = [f"П→{sp.system_supply}" if getattr(sp, "system_supply", "") else "",  # i18n-allow (код П/В)
+                         f"В→{sp.system_exhaust}" if getattr(sp, "system_exhaust", "") else ""]  # i18n-allow (код П/В)
+                split = [x for x in split if x]
+                if split:
+                    sys_txt = (sys_txt + " " if sys_txt else "") + "(" + ", ".join(split) + ")"
+            self.table.setItem(r, 7, QTableWidgetItem(sys_txt))
+            self.table.setItem(r, 8, QTableWidgetItem(getattr(sp, circ_field, "") or ""))
             air = QTableWidgetItem(_air_marker(sp))
             air.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(r, 7, air)
-            self.table.setItem(r, 8, QTableWidgetItem(
+            self.table.setItem(r, 9, air)
+            self.table.setItem(r, 10, QTableWidgetItem(
                 _device_for_domain(domain, sp.room_equipment)))
         self.table.setSortingEnabled(True)
         self._refresh_filter_options()
         self._filter()
 
     def _refresh_filter_options(self) -> None:
-        """Пересобирает опции выпадающих фильтров (этаж/тип/зона) из текущих
-        помещений, сохраняя выбранное значение. Зона = система активного
-        домена (отопление/холод/вентиляция)."""
+        """Пересобирает опции выпадающих фильтров (этаж/тип/зона/блок) из
+        текущих помещений, сохраняя выбранное значение. Зона = система
+        активного домена (отопление/холод/вентиляция)."""
+        from hvac.blocks import block_of, blocks_in_project
         sys_field, _circ = self.project.zoning_space_fields(self._domain)
         levels = sorted({s.level for s in self.project.spaces if s.level},
                         key=_level_num)
@@ -849,10 +930,14 @@ class SystemsWorkspacePanel(QWidget):
                         if s.room_type})
         zones = sorted({getattr(s, sys_field, "") for s in self.project.spaces
                         if getattr(s, sys_field, "")})
+        blocks = blocks_in_project(self.project)
+        if any(not block_of(s) for s in self.project.spaces):
+            blocks = blocks + [_t("panel.blocks.none")]
         all_label = _t("filter.all")
         for combo, items in ((self.level_filter, levels),
                              (self.type_filter, types),
-                             (self.zone_filter, zones)):
+                             (self.zone_filter, zones),
+                             (self.block_filter, blocks)):
             current = combo.currentText() or all_label
             combo.blockSignals(True)
             combo.clear()
@@ -911,6 +996,10 @@ class SystemsWorkspacePanel(QWidget):
         typ = "" if typ == all_label else typ
         zone = self.zone_filter.currentText()
         zone = "" if zone == all_label else zone
+        blk = self.block_filter.currentText()
+        blk = "" if blk == all_label else blk
+        no_block_label = _t("panel.blocks.none")
+        from hvac.blocks import block_of
         by_id = {sp.space_id: sp for sp in self.project.spaces}
         for r in range(self.table.rowCount()):
             visible = True
@@ -922,6 +1011,8 @@ class SystemsWorkspacePanel(QWidget):
                 elif typ and (getattr(sp, "room_type", "") or "") != typ:
                     visible = False
                 elif zone and (getattr(sp, sys_field, "") or "") != zone:
+                    visible = False
+                elif blk and (block_of(sp) or no_block_label) != blk:
                     visible = False
             if visible and only and kind and sp is not None:
                 if kind == "system":

@@ -74,7 +74,7 @@ class TestResidential:
         living = [r for r in tpl.rooms
                   if r.room_type == "Жилая комната"]
         kitchens = [r for r in tpl.rooms
-                    if r.room_type == "Ресторан / кухня"]
+                    if r.room_type == "Кухня"]
         # Каждая квартира — 2 жилые + 1 кухня (24 квартиры = 48 жилых)
         assert len(living) >= 40
         assert len(kitchens) >= 20

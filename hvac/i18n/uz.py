@@ -30,6 +30,7 @@ UZ: Dict[str, str] = {
     "sidebar.home":          "Bosh sahifa",
     "sidebar.data":          "Loyiha ma'lumotlari",
     "sidebar.spaces":        "Xonalar",
+    "sidebar.blocks":        "Bloklar",
     "sidebar.constructions": "Konstruksiyalar",
     "sidebar.calculation":   "Yuklamalar hisobi",
     "sidebar.ventilation":   "Ventilyatsiya",
@@ -37,6 +38,7 @@ UZ: Dict[str, str] = {
     "sidebar.zones":         "Zonalar va tizimlar",
     "sidebar.equipment":     "Jihozlar",
     "sidebar.balance":       "Issiqlik balansi",
+    "sidebar.airbalance":    "Havo balansi",
     "sidebar.room_equipment":"Xonalardagi jihozlar",
     "sidebar.smoke":         "Tutun chiqarish",
     "sidebar.charts":        "Grafiklar",
@@ -448,6 +450,16 @@ UZ: Dict[str, str] = {
     "panel.spaces.bulk.no_selection":   ("Hech qanday xona tanlanmagan. "
                                           "Qatorlarni (Ctrl/Shift) tanlab, qayta urinib ko‘ring."),
     "panel.spaces.bulk.applied":        "Guruhli tahrir: {n} ta yangilandi",
+    # Xona turini nomi bo‘yicha qayta aniqlash
+    "panel.spaces.redetect.menu":       "Turlarni qayta aniqlash («Boshqa» uchun)",
+    "panel.spaces.redetect.none":       ("Nomi bo‘yicha turini aniqlab "
+                                          "bo‘ladigan «Boshqa» xonalar yo‘q."),
+    "panel.spaces.redetect.confirm":    ("{n} ta «Boshqa» xona turi nomi "
+                                          "bo‘yicha aniqlansinmi? Qo‘lda "
+                                          "kiritilganlar saqlanadi, ventilyatsiya "
+                                          "qayta hisoblanadi."),
+    "panel.spaces.redetect.done":       ("Aniqlangan turlar: {n}. "
+                                          "Ventilyatsiya qayta hisoblandi."),
     # Tanlangan xonalar to‘sig‘i (ichki / tashqi)
     "panel.spaces.env.menu":            "Tanlangan xonalar to‘sig‘i",
     "panel.spaces.env.make_internal":   "🏠 Ichki qilish",
@@ -932,6 +944,10 @@ UZ: Dict[str, str] = {
     "panel.zones.menu.new_circuit":      "➕ Yangi kontur…",
     "panel.zones.menu.no_circuits":      "(hozircha kontur yo‘q)",
     "panel.zones.menu.unassign_circuit": "✖ Kontursiz",
+    "panel.zones.menu.assign_supply":    "Oqim kirish alohida →",
+    "panel.zones.menu.assign_exhaust":   "So‘rish alohida →",
+    "panel.zones.menu.clear_split":      "✖ Alohida kirish/so‘rishni olib tashlash",
+    "panel.zones.status.assigned_flow":  "Alohida bog‘lash ({flow}): {n}",
     "panel.zones.status.assigned_sys":   "Tizimga belgilandi: {n}",
     "panel.zones.status.assigned_circ":  "Konturga belgilandi: {n}",
     "panel.zones.status.cleared":        "Belgilash olib tashlandi: {n}",
@@ -950,6 +966,8 @@ UZ: Dict[str, str] = {
     "panel.sysworkspace.tree.name":  "Manba / kontur",
     "panel.sysworkspace.tree.kw":    "kVt",
     "panel.sysworkspace.rcol.device":"Jihoz",
+    "panel.sysworkspace.rcol.exhaust":"So‘rg‘i, m³/soat",
+    "panel.sysworkspace.rcol.hood":  "Zont, m³/soat",
     "panel.sysworkspace.btn.device": "Jihoz…",
     "panel.sysworkspace.filter_node":"Faqat tanlangan tugun",
     "panel.sysworkspace.summary.none":"Chapdan manba yoki konturni tanlang",
@@ -1010,7 +1028,13 @@ UZ: Dict[str, str] = {
     "panel.detail.f.cop":        "COP / EER",
     "panel.detail.f.capacity":   "Birlik quvvati, kVt (0 — avto)",
     "panel.detail.f.units":      "Agregatlar soni",
-    "panel.detail.src.required": "Kerak {req} kVt (yuklama {q} kVt × zaxira {m})",
+    "panel.detail.src.block_heat": ("«{block}» bloki issiqlik balansi: "
+                                    "xonalar {rooms} + kirish qurilmalari "
+                                    "{ahu} + IIT {dhw} = <b>{q} kVt</b>"),
+    "panel.detail.src.block_cool": ("«{block}» bloki issiqlik balansi: "
+                                    "xonalar {rooms} + kirish qurilmalari "
+                                    "{ahu} = <b>{q} kVt</b>"),
+    "panel.detail.src.required":"Kerak {req} kVt (yuklama {q} kVt × zaxira {m})",
     "panel.detail.src.picked_auto":   "Tanlov (avto): {unit} kVt × {n}",
     "panel.detail.src.picked_manual": "Tanlov (qo‘lda): {unit} kVt × {n} · {model}",
     "panel.detail.src.ahu":      "shu jumladan AHU kaloriferlari/sovutgichlari: {q} kVt",
@@ -1026,6 +1050,8 @@ UZ: Dict[str, str] = {
     "panel.equipws.btn.add": "Qo‘shish",
     "panel.equipws.col.name":"Jihoz",
     "panel.equipws.col.power":"Tanlov",
+    "panel.equipws.menu.block": "🏗 Blok",
+    "panel.equipws.grp.kw":   "Σ {kw} kVt",
     "panel.equipws.add.boiler":  "Qozon / issiqlik manbai",
     "panel.equipws.add.chiller": "Chiller / sovuq manbai",
 
@@ -1981,6 +2007,142 @@ UZ: Dict[str, str] = {
     "panel.calc.summary.exhaust":   "Σ so‘rish",
 
     # ===== Panel: Balance («Issiqlik balansi» bo‘limi) =====
+    "panel.airbalance.title":        "Havo balansi",
+    "panel.airbalance.hint":         ("Qavatlar (yoki tizimlar) bo‘yicha kelar-so‘rg‘i "
+                                       "havo balansi. Xona qatorlarida sarflarni "
+                                       "tahrirlang; nomutanosiblik rang bilan belgilangan. "
+                                       "Balans = kelish − (so‘rg‘i + zont)."),
+    "panel.airbalance.group.level":  "Qavatlar bo‘yicha",
+    "panel.airbalance.group.system": "Tizimlar bo‘yicha",
+    "panel.airbalance.btn.expand":   "Yoyish",
+    "panel.airbalance.btn.collapse": "Yig‘ish",
+    "panel.airbalance.filter.system": "Tizim:",
+    "panel.airbalance.filter.block": "Blok:",
+    "panel.airbalance.col.node":     "Qavat / xona",
+    "panel.airbalance.col.supply":   "Kelish",
+    "panel.airbalance.col.exhaust":  "So‘rg‘i",
+    "panel.airbalance.col.hood":     "Zont",
+    "panel.airbalance.col.extract":  "Chiqarish",
+    "panel.airbalance.col.balance":  "Balans",
+    "panel.airbalance.col.pct":      "%",
+    "panel.airbalance.summary":      ("Bino:  kelish {sup}  ·  chiqarish {ext}  ·  "
+                                       "balans {bal} m³/soat  ({pct}%)"),
+    "panel.airbalance.none":         "(tizimsiz)",
+
+    # ----- «Bloklar» bo'limi -----
+    "panel.blocks.title":            "Bino bloklari",
+    "panel.blocks.hint":             ("QO'LDA bo'lish: pastda xonalarni ajrating "
+                                      "(sarlavha bosish bilan saralash, qidiruv, Sath/Blok "
+                                      "filtrlari) → «Blok belgilash» (mavjud / yangi / "
+                                      "olib tashlash). BLOKLAR: yaratish — «➕ Blok»; "
+                                      "nomini o'zgartirish — svodkada blok qatoriga ikki "
+                                      "marta bosish (yoki o'ng klik → ✏); o'chirish — o'ng "
+                                      "klik → ✖. Qurilma blokini qatoriga o'ng klik bilan "
+                                      "almashtiring. «1./2.» tugmalari — avto-yordamchilar: "
+                                      "faqat bo'shni to'ldiradi, qo'ldagilarga tegmaydi."),
+    "panel.blocks.btn.assign_rooms":   "1. Xonalar bloklarga",
+    "panel.blocks.btn.assign_systems": "2. Tizimlar bloklarga",
+    "panel.blocks.btn.reassign":     "Hammasini qayta aniqlash",
+    "panel.blocks.btn.recalc_ahu":   "Qurilmalarni qayta hisoblash",
+    "panel.blocks.col.name":         "Blok / qurilma",
+    "panel.blocks.col.rooms":        "Xonalar",
+    "panel.blocks.col.area":         "S, m²",
+    "panel.blocks.col.qh_rooms":     "Q isitish xona, kVt",
+    "panel.blocks.col.qc_rooms":     "Q sovutish xona, kVt",
+    "panel.blocks.col.qh_ahu":       "Q kalorifer, kVt",
+    "panel.blocks.col.qc_ahu":       "Q sovutgich, kVt",
+    "panel.blocks.col.qh_total":     "Q isitish JAMI, kVt",
+    "panel.blocks.col.qc_total":     "Q sovutish JAMI, kVt",
+    "panel.blocks.col.supply":       "Kirish, m³/soat",
+    "panel.blocks.col.exhaust":      "So'rish, m³/soat",
+    "panel.blocks.none":             "(bloksiz)",
+    "panel.blocks.status.assigned":  "Blok aniqlandi: {n} xona",
+    "panel.blocks.status.assigned_sys": "Blok belgilandi: {n} tizim",
+    "panel.blocks.status.rooms_set": "«{b}» bloki: {n} xona belgilandi",
+    "panel.blocks.menu.set_block":   "{name} qurilmasining bloki:",
+    "panel.blocks.menu.auto":        "(avto)",
+    "panel.blocks.menu.new_block":   "➕ Yangi blok…",
+    "panel.blocks.menu.clear_block": "✖ Blokni olib tashlash",
+    "panel.blocks.menu.block_actions": "«{name}» bloki",
+    "panel.blocks.menu.rename_block":  "✏ Blok nomini o'zgartirish…",
+    "panel.blocks.menu.delete_block":  "✖ Blokni o'chirish…",
+    "panel.blocks.dlg.block_name":   "Blok nomi:",
+    "panel.blocks.btn.set_block":    "Blok belgilash",
+    "panel.blocks.btn.new_block":    "➕ Blok",
+    "panel.blocks.confirm.delete_block": ("«{name}» bloki o'chirilsinmi? Xonalar: "
+                                          "{rooms}, tizimlar: {sys} — bloksiz qoladi."),
+    "panel.blocks.status.block_created":  "«{name}» bloki yaratildi",
+    "panel.blocks.status.block_exists":   "«{name}» bloki allaqachon bor",
+    "panel.blocks.status.block_renamed":  ("«{old}» → «{new}» bloki: xonalar "
+                                           "{rooms}, tizimlar {sys}"),
+    "panel.blocks.status.block_deleted":  ("«{name}» bloki o'chirildi: {rooms} xona "
+                                           "va {sys} tizimdan olindi"),
+    "panel.blocks.rooms.col.number": "№",
+    "panel.blocks.rooms.col.name":   "Nomi",
+    "panel.blocks.rooms.col.level":  "Sath",
+    "panel.blocks.rooms.col.type":   "Turi",
+    "panel.blocks.rooms.col.block":  "Blok",
+    "panel.blocks.rooms.col.area":   "S, m²",
+    "panel.blocks.rooms.col.supply": "Kirish",
+    "panel.blocks.rooms.col.exhaust":"So'rish",
+    "panel.blocks.rooms.count":      "{total} dan {visible} ko'rinmoqda",
+    "panel.blocks.confirm.reassign": ("BARCHA xonalarda blok qayta aniqlansinmi? "
+                                      "Qo'lda belgilanganlar qayta yoziladi."),
+    "panel.blocks.summary.line":     ("Bloklar: {blocks}  ·  xonalar {rooms} "
+                                      "(bloksiz {no_block})  ·  Q isitish {qh} kVt  ·  "
+                                      "Q sovutish {qc} kVt  ·  IIT {dhw} kVt  ·  "
+                                      "kirish {sup} / so'rish {exh} m³/soat"),
+    "panel.blocks.ahu.serves":       "  → xizmat qiladi: {list} m³/soat",
+    "panel.blocks.filter.block":     "Blok:",
+    "panel.blocks.col.dhw":          "IIT, kVt",
+    "panel.blocks.menu.dhw":         "🚿 IIT yuklamasi…",
+    "panel.blocks.dlg.dhw_title":    "«{block}» bloki IIT",
+    "panel.blocks.dlg.dhw_hint":     ("IIT sarfi VK-dasturida hisoblanadi — "
+                                      "bu yerga blok qozonxonasiga tayyor "
+                                      "yuklama kiritiladi."),
+    "panel.blocks.dlg.dhw_kw":       "IIT yuklamasi, kVt (0 — olib tashlash):",
+    "panel.blocks.dlg.dhw_v":        "Sarf, m³/kun (ma'lumot uchun):",
+    "panel.blocks.dhw.sys_name":     "IIT-{block}",
+    "panel.blocks.dhw.manual_note":  "qo'lda kiritilgan (IIT hisobi VK-dasturida)",
+    "panel.blocks.status.dhw_set":     "IIT «{block}»: {kw} kVt",
+    "panel.blocks.status.dhw_removed": "IIT «{block}» olib tashlandi",
+    "panel.blocks.src.pick_fmt":     "{name} · {n} × {kw} kVt — {model}",
+    "panel.blocks.dhw.fmt":          "{name} · {v} m³/kun",
+    "panel.blocks.menu.pick_boilers":  "🔥 Katalogdan qozon tanlash…",
+    "panel.blocks.menu.pick_chillers": "❄ Katalogdan chiller tanlash…",
+    "panel.blocks.src.boiler_name":  "Qozonlar {block}",
+    "panel.blocks.src.chiller_name": "Chillerlar {block}",
+    "panel.blocks.status.source_set": "{sys}: {n} × {kw} kVt — {model}",
+
+    # ---- qozon/chiller katalogidan tanlash dialogi ----
+    "panel.srcpick.title.heating":   "Qozonlar katalogi — tanlash",
+    "panel.srcpick.title.cooling":   "Chillerlar katalogi — tanlash",
+    "panel.srcpick.f.required":      "Talab etilgan quvvat, kVt:",
+    "panel.srcpick.f.reserve":       "+1 zaxira agregat (N+1)",
+    "panel.srcpick.search.ph":       "Qidiruv: model, ishlab chiqaruvchi, tur…",
+    "panel.srcpick.col.model":       "Model",
+    "panel.srcpick.col.manufacturer":"Ishlab chiqaruvchi",
+    "panel.srcpick.col.family":      "Tur",
+    "panel.srcpick.col.q":           "kVt/agregat",
+    "panel.srcpick.col.eff":         "FIK",
+    "panel.srcpick.col.eer":         "EER",
+    "panel.srcpick.col.units":       "N ishchi",
+    "panel.srcpick.col.total":       "Σ kVt",
+    "panel.srcpick.col.margin":      "Zaxira, %",
+    "panel.srcpick.col.note":        "Izoh",
+    "panel.srcpick.hint": ("Katalogdagi tipik ma'lumotlar — dastlabki tanlash "
+                           "uchun; yakuniy tiporazmerni ishlab chiqaruvchi "
+                           "dasturi bo'yicha aniqlashtiring. O'z modellaringiz: "
+                           "~/.hvac_calc/catalogs/*.json "
+                           "(type: \"boilers\" / \"chillers\")."),
+    "panel.srcpick.ctx.block":  ("«{block}» bloki: yuklama {q} kVt × "
+                                 "zaxira {m}"),
+    "panel.srcpick.ctx.block_dhw": ("«{block}» bloki: isitish+vent. {q} kVt "
+                                    "+ IIT {dhw} kVt, zaxira ×{m}"),
+    "panel.srcpick.ctx.system": ("«{name}» manbai: {q} kVt talab etiladi "
+                                 "(yuklama × zaxira)"),
+    "panel.detail.btn.catalog":      "Katalogdan tanlash…",
+
     "panel.balance.title":   "Issiqlik balansi",
     "panel.balance.hint":    ("Qaysi xonalar isitiladi va sovutilishini "
                                "belgilang — yakun xonalar va kelish "

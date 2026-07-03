@@ -346,7 +346,7 @@ class SpacesTableModel(EditableTableModelMixin, QAbstractTableModel):
 
 
 class SpacesFilterProxy(QSortFilterProxyModel):
-    """Текстовый поиск + фильтры по этажу/типу/зоне."""
+    """Текстовый поиск + фильтры по этажу/типу/зоне/блоку."""
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -354,6 +354,7 @@ class SpacesFilterProxy(QSortFilterProxyModel):
         self._level = ""
         self._type = ""
         self._zone = ""
+        self._block = ""
         self.setDynamicSortFilter(True)
 
     def set_text(self, t: str) -> None:
@@ -376,6 +377,11 @@ class SpacesFilterProxy(QSortFilterProxyModel):
         self._zone = "" if v == _t("filter.all") else v
         self.endFilterChange(QSortFilterProxyModel.Direction.Rows)
 
+    def set_block(self, v: str) -> None:
+        self.beginFilterChange()
+        self._block = "" if v == _t("filter.all") else v
+        self.endFilterChange(QSortFilterProxyModel.Direction.Rows)
+
     def filterAcceptsRow(self, source_row: int,
                          _parent: QModelIndex) -> bool:
         model = self.sourceModel()
@@ -388,6 +394,14 @@ class SpacesFilterProxy(QSortFilterProxyModel):
             return False
         if self._zone and (sp.system_heating or "") != self._zone:
             return False
+        if self._block:
+            from hvac.blocks import block_of
+            b = block_of(sp)
+            if self._block == _t("panel.blocks.none"):
+                if b:
+                    return False
+            elif b != self._block:
+                return False
         if self._text:
             hay = " ".join((sp.number, sp.name, sp.level,
                             sp.room_type, sp.system_heating or "")).lower()
@@ -653,6 +667,12 @@ class SpacesPanel(QWidget):
         toolbar.addWidget(_label_with_widget(self._zone_filter_lbl,
                                               self.zone_filter))
 
+        self.block_filter = QComboBox()
+        self.block_filter.setMinimumWidth(110)
+        self._block_filter_lbl = QLabel(_t("panel.blocks.filter.block"))
+        toolbar.addWidget(_label_with_widget(self._block_filter_lbl,
+                                              self.block_filter))
+
         toolbar.addStretch(1)
 
         # Кнопки ручного управления
@@ -778,6 +798,7 @@ class SpacesPanel(QWidget):
         self.level_filter.currentTextChanged.connect(self.proxy.set_level)
         self.type_filter.currentTextChanged.connect(self.proxy.set_type)
         self.zone_filter.currentTextChanged.connect(self.proxy.set_zone)
+        self.block_filter.currentTextChanged.connect(self.proxy.set_block)
 
         self.bridge.dataLoaded.connect(self._refresh_filter_options)
         self.bridge.projectLoaded.connect(self._refresh_filter_options)
@@ -791,17 +812,22 @@ class SpacesPanel(QWidget):
 
     # ---- Реакция на события ----
     def _refresh_filter_options(self, *args: Any) -> None:
+        from hvac.blocks import block_of, blocks_in_project
         levels = sorted({s.level for s in self.project.spaces if s.level})
         types = sorted({s.room_type for s in self.project.spaces
                         if s.room_type})
         zones = sorted({s.system_heating for s in self.project.spaces
                         if s.system_heating})
+        blocks = blocks_in_project(self.project)
+        if any(not block_of(s) for s in self.project.spaces):
+            blocks = blocks + [_t("panel.blocks.none")]
 
         all_label = _t("filter.all")
         for combo, items in (
             (self.level_filter, levels),
             (self.type_filter, types),
             (self.zone_filter, zones),
+            (self.block_filter, blocks),
         ):
             current = combo.currentText() or all_label
             combo.blockSignals(True)
@@ -839,7 +865,7 @@ class SpacesPanel(QWidget):
             # Сбрасываем фильтры (сигналы combo/search обновят прокси).
             self.search.clear()
             for combo in (self.level_filter, self.type_filter,
-                          self.zone_filter):
+                          self.zone_filter, self.block_filter):
                 combo.setCurrentIndex(0)
             pidx = self.proxy.mapFromSource(src)
         if pidx.isValid():
@@ -924,6 +950,9 @@ class SpacesPanel(QWidget):
         act_internal.setEnabled(bool(rows))
         act_external.setEnabled(bool(rows))
         menu.addSeparator()
+        act_redetect = menu.addAction(_t("panel.spaces.redetect.menu"))
+        act_redetect.setEnabled(bool(self.project.spaces))
+        menu.addSeparator()
         act_copy = menu.addAction(_t("tableedit.ctx.copy"))
         act_paste = menu.addAction(_t("tableedit.ctx.paste"))
         act_fill = menu.addAction(_t("tableedit.ctx.fill_down"))
@@ -944,6 +973,8 @@ class SpacesPanel(QWidget):
             self._set_rooms_exterior(False)
         elif chosen is act_external:
             self._set_rooms_exterior(True)
+        elif chosen is act_redetect:
+            self._redetect_types()
         elif chosen is act_copy:
             from hvac.ui_qt.widgets.table_clipboard import (
                 copy_selection_to_clipboard,
@@ -957,6 +988,41 @@ class SpacesPanel(QWidget):
             self._edit.undo()
         elif chosen is act_redo:
             self._edit.redo()
+
+    def _redetect_types(self) -> None:
+        """Переопределяет тип помещения авто-определением по названию.
+
+        Действует на выделенные строки (или на все помещения, если выделения
+        нет). Трогает только помещения с типом «Прочее» и без ручной правки
+        (user_modified) — чтобы не сбивать уже выставленные/проверенные типы.
+        Применяет тепловые дефолты нового типа и пересчитывает вентиляцию.
+        """
+        from hvac.catalogs.room_types import auto_detect_room_type
+        rows = self._selected_source_rows()
+        scope = ([self.project.spaces[r] for r in rows] if rows
+                 else list(self.project.spaces))
+        default = "Прочее"  # i18n-allow (значение-данные: ключ типа помещения)
+        targets = [sp for sp in scope
+                   if not sp.user_modified and sp.room_type == default
+                   and auto_detect_room_type(sp.name) != default]
+        if not targets:
+            QMessageBox.information(self, _t("panel.spaces.redetect.menu"),
+                                    _t("panel.spaces.redetect.none"))
+            return
+        if QMessageBox.question(
+                self, _t("panel.spaces.redetect.menu"),
+                _t("panel.spaces.redetect.confirm").format(n=len(targets)),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        ) != QMessageBox.Yes:
+            return
+        for sp in targets:
+            sp.room_type = auto_detect_room_type(sp.name)
+            apply_room_type_defaults(sp)
+        self.project.calculate_ventilation()
+        self.model._full_reset()
+        self.bridge.dirtyChanged.emit(True)
+        self.bridge.statusMessage.emit(
+            _t("panel.spaces.redetect.done").format(n=len(targets)), 6000)
 
     def _on_row_changed(self, current: QModelIndex, _previous: QModelIndex) -> None:
         sp: Optional[Space] = None

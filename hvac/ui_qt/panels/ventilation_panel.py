@@ -335,6 +335,7 @@ class _VentFilterProxy(QSortFilterProxyModel):
         self._level = ""
         self._type = ""
         self._zone = ""
+        self._block = ""
 
     def set_text(self, t: str) -> None:
         self.beginFilterChange()
@@ -356,18 +357,36 @@ class _VentFilterProxy(QSortFilterProxyModel):
         self._zone = "" if v == _t("filter.all") else v
         self.endFilterChange(QSortFilterProxyModel.Direction.Rows)
 
+    def set_block(self, v: str) -> None:
+        self.beginFilterChange()
+        self._block = "" if v == _t("filter.all") else v
+        self.endFilterChange(QSortFilterProxyModel.Direction.Rows)
+
     def filterAcceptsRow(self, source_row: int, _parent: QModelIndex) -> bool:
         sp = self.sourceModel().project.spaces[source_row]
+        if self._block:
+            from hvac.blocks import block_of
+            b = block_of(sp)
+            if self._block == _t("panel.blocks.none"):
+                if b:
+                    return False
+            elif b != self._block:
+                return False
         if self._level and (sp.level or "") != self._level:
             return False
         if self._type and (sp.room_type or "") != self._type:
             return False
-        if self._zone and (sp.system_ventilation or "") != self._zone:
+        if self._zone and self._zone not in (
+                sp.system_ventilation or "",
+                getattr(sp, "system_supply", "") or "",
+                getattr(sp, "system_exhaust", "") or ""):
             return False
         if self._text:
             hay = " ".join((sp.number, sp.name, sp.level or "",
                             sp.room_type or "",
-                            sp.system_ventilation or "")).lower()
+                            sp.system_ventilation or "",
+                            getattr(sp, "system_supply", "") or "",
+                            getattr(sp, "system_exhaust", "") or "")).lower()
             if self._text not in hay:
                 return False
         return True
@@ -440,6 +459,12 @@ class VentilationPanel(QWidget):
         self.zone_filter = QComboBox()
         self.zone_filter.setMinimumWidth(120)
         flt.addWidget(self.zone_filter)
+
+        self._block_filter_lbl = QLabel(_t("panel.blocks.filter.block"))
+        flt.addWidget(self._block_filter_lbl)
+        self.block_filter = QComboBox()
+        self.block_filter.setMinimumWidth(100)
+        flt.addWidget(self.block_filter)
         outer.addLayout(flt)
 
         # Таблица
@@ -450,6 +475,7 @@ class VentilationPanel(QWidget):
         self.level_filter.currentTextChanged.connect(self.proxy.set_level)
         self.type_filter.currentTextChanged.connect(self.proxy.set_type)
         self.zone_filter.currentTextChanged.connect(self.proxy.set_zone)
+        self.block_filter.currentTextChanged.connect(self.proxy.set_block)
 
         self.table = QTableView()
         self.table.setModel(self.proxy)
@@ -691,18 +717,26 @@ class VentilationPanel(QWidget):
         )
 
     def _refresh_filter_options(self, *args: Any) -> None:
-        """Пересобирает опции фильтров (этаж/тип/зона) из текущих помещений,
-        сохраняя выбор; этажи сортируются численно. Зона = система
-        вентиляции (system_ventilation)."""
+        """Пересобирает опции фильтров (этаж/тип/зона/блок) из текущих
+        помещений, сохраняя выбор; этажи сортируются численно. Зона = система
+        вентиляции (system_ventilation + раздельные supply/exhaust)."""
+        from hvac.blocks import block_of, blocks_in_project
         spaces = self.project.spaces
         levels = sorted({s.level for s in spaces if s.level}, key=_floor_num)
         types = sorted({s.room_type for s in spaces if s.room_type})
-        zones = sorted({s.system_ventilation for s in spaces
-                        if s.system_ventilation})
+        zones = sorted({z for s in spaces
+                        for z in (s.system_ventilation,
+                                  getattr(s, "system_supply", ""),
+                                  getattr(s, "system_exhaust", ""))
+                        if z})
+        blocks = blocks_in_project(self.project)
+        if any(not block_of(s) for s in spaces):
+            blocks = blocks + [_t("panel.blocks.none")]
         all_label = _t("filter.all")
         for combo, items in ((self.level_filter, levels),
                              (self.type_filter, types),
-                             (self.zone_filter, zones)):
+                             (self.zone_filter, zones),
+                             (self.block_filter, blocks)):
             current = combo.currentText() or all_label
             combo.blockSignals(True)
             combo.clear()

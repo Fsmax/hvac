@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "comment": "Типовые ряды серий чиллеров. Холодопроизводительность и EER — каталожные номиналы (35 °C наружного / 7-12 °C вода) для предподбора; точный типоразмер и рабочая точка уточняются по программе подбора производителя.",
+  "models": [
+    {
+      "name": "30RB-162",
+      "manufacturer": "Carrier",
+      "family": "Возд. охл., спиральные компрессоры",
+      "q_kw": 162,
+      "eer": 2.9,
+      "cooling": "air",
+      "compressor": "scroll",
+      "refrigerant": "R410A",
+      "note": ""
+    },
+    {
+      "name": "30RB-232",
+      "manufacturer": "Carrier",
+      "family": "Возд. охл., спиральные компрессоры",
+      "q_kw": 232,
+      "eer": 2.9,
+      "cooling": "air",
+      "compressor": "scroll",
+      "refrigerant": "R410A",
+      "note": ""
+    },
+    {
+      "name": "30RB-302",
+      "manufacturer": "Carrier",
+      "family": "Возд. охл., спиральные компрессоры",
+      "q_kw": 302,
+      "eer": 2.9,
+      "cooling": "air",
+      "compressor": "scroll",
+      "refrigerant": "R410A",
+      "note": ""
+    },
+    {
+      "name": "30RB-402",
+      "manufacturer": "Carrier",
+      "family": "Возд. охл., спиральные компрессоры",
+      "q_kw": 402,
+      "eer": 2.9,
+      "cooling": "air",
+      "compressor": "scroll",
+      "refrigerant": "R410A",
+      "note": ""
+    },
+    {
+      "name": "30RB-502",
+      "manufacturer": "Carrier",
+      "family": "Возд. охл., спиральные компрессоры",
+      "q_kw": 502,
+      "eer": 2.9,
+      "cooling": "air",
+      "compressor": "scroll",
+      "refrigerant": "R410A",
+      "note": ""
+    },
+    {
+      "name": "30RB-602",
+      "manufacturer": "Carrier",
+      "family": "Возд. охл., спиральные компрессоры",
+      "q_kw": 602,
+      "eer": 2.9,
+      "cooling": "air",
+      "compressor": "scroll",
+      "refrigerant": "R410A",
+      "note": ""
+    },
+    {
+      "name": "30RB-702",
+      "manufacturer": "Carrier",
+      "family": "Возд. охл., спиральные компрессоры",
+      "q_kw": 702,
+      "eer": 2.9,
+      "cooling": "air",
+      "compressor": "scroll",
+      "refrigerant": "R410A",
+      "note": ""
+    },
+    {
+      "name": "30RB-802",
+      "manufacturer": "Carrier",
+      "family": "Возд. охл., спиральные компрессоры",
+      "q_kw": 802,
+      "eer": 2.9,
+      "cooling": "air",
+      "compressor": "scroll",
+      "refrigerant": "R410A",
+      "note": ""
+    },
+    {
+      "name": "EWAD400TZ",
+      "manufacturer": "Daikin",
+      "family": "Возд. охл., винтовые компрессоры",
+      "q_kw": 400,
+      "eer": 3.1,
+      "cooling": "air",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": ""
+    },
+    {
+      "name": "EWAD600TZ",
+      "manufacturer": "Daikin",
+      "family": "Возд. охл., винтовые компрессоры",
+      "q_kw": 600,
+      "eer": 3.1,
+      "cooling": "air",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": ""
+    },
+    {
+      "name": "EWAD800TZ",
+      "manufacturer": "Daikin",
+      "family": "Возд. охл., винтовые компрессоры",
+      "q_kw": 800,
+      "eer": 3.1,
+      "cooling": "air",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": ""
+    },
+    {
+      "name": "EWAD1000TZ",
+      "manufacturer": "Daikin",
+      "family": "Возд. охл., винтовые компрессоры",
+      "q_kw": 1000,
+      "eer": 3.1,
+      "cooling": "air",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": ""
+    },
+    {
+      "name": "EWAD1250TZ",
+      "manufacturer": "Daikin",
+      "family": "Возд. охл., винтовые компрессоры",
+      "q_kw": 1250,
+      "eer": 3.1,
+      "cooling": "air",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": ""
+    },
+    {
+      "name": "EWAD1500TZ",
+      "manufacturer": "Daikin",
+      "family": "Возд. охл., винтовые компрессоры",
+      "q_kw": 1500,
+      "eer": 3.1,
+      "cooling": "air",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": ""
+    },
+    {
+      "name": "EWAD1800TZ",
+      "manufacturer": "Daikin",
+      "family": "Возд. охл., винтовые компрессоры",
+      "q_kw": 1800,
+      "eer": 3.1,
+      "cooling": "air",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": ""
+    },
+    {
+      "name": "EWAD2100TZ",
+      "manufacturer": "Daikin",
+      "family": "Возд. охл., винтовые компрессоры",
+      "q_kw": 2100,
+      "eer": 3.1,
+      "cooling": "air",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": ""
+    },
+    {
+      "name": "30XW 552",
+      "manufacturer": "Carrier",
+      "family": "Вод. охл., винтовые компрессоры",
+      "q_kw": 550,
+      "eer": 5.0,
+      "cooling": "water",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": "требуется градирня/сухая градирня"
+    },
+    {
+      "name": "30XW 802",
+      "manufacturer": "Carrier",
+      "family": "Вод. охл., винтовые компрессоры",
+      "q_kw": 800,
+      "eer": 5.0,
+      "cooling": "water",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": "требуется градирня/сухая градирня"
+    },
+    {
+      "name": "30XW 1152",
+      "manufacturer": "Carrier",
+      "family": "Вод. охл., винтовые компрессоры",
+      "q_kw": 1150,
+      "eer": 5.0,
+      "cooling": "water",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": "требуется градирня/сухая градирня"
+    },
+    {
+      "name": "30XW 1402",
+      "manufacturer": "Carrier",
+      "family": "Вод. охл., винтовые компрессоры",
+      "q_kw": 1400,
+      "eer": 5.0,
+      "cooling": "water",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": "требуется градирня/сухая градирня"
+    },
+    {
+      "name": "30XW 1712",
+      "manufacturer": "Carrier",
+      "family": "Вод. охл., винтовые компрессоры",
+      "q_kw": 1700,
+      "eer": 5.0,
+      "cooling": "water",
+      "compressor": "screw",
+      "refrigerant": "R134a",
+      "note": "требуется градирня/сухая градирня"
+    },
+    {
+      "name": "19XR 1400",
+      "manufacturer": "Carrier",
+      "family": "Вод. охл., центробежный компрессор",
+      "q_kw": 1400,
+      "eer": 5.8,
+      "cooling": "water",
+      "compressor": "centrifugal",
+      "refrigerant": "R134a",
+      "note": "требуется градирня"
+    },
+    {
+      "name": "19XR 2000",
+      "manufacturer": "Carrier",
+      "family": "Вод. охл., центробежный компрессор",
+      "q_kw": 2000,
+      "eer": 5.8,
+      "cooling": "water",
+      "compressor": "centrifugal",
+      "refrigerant": "R134a",
+      "note": "требуется градирня"
+    },
+    {
+      "name": "19XR 2800",
+      "manufacturer": "Carrier",
+      "family": "Вод. охл., центробежный компрессор",
+      "q_kw": 2800,
+      "eer": 5.8,
+      "cooling": "water",
+      "compressor": "centrifugal",
+      "refrigerant": "R134a",
+      "note": "требуется градирня"
+    },
+    {
+      "name": "19XR 3500",
+      "manufacturer": "Carrier",
+      "family": "Вод. охл., центробежный компрессор",
+      "q_kw": 3500,
+      "eer": 5.8,
+      "cooling": "water",
+      "compressor": "centrifugal",
+      "refrigerant": "R134a",
+      "note": "требуется градирня"
+    }
+  ]
+}

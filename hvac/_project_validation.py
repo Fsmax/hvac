@@ -94,7 +94,8 @@ class ValidationMixin:
                     f"Очень высокая ACH={sp.ach_inf} у '{sp.number}'",
                     sp.space_id)
             if sp.equipment_w_m2 > 300 and sp.room_type not in (
-                    "Серверная", "Технич. помещение", "Ресторан / кухня"):
+                    "Серверная", "Технич. помещение", "Горячий цех",
+                    "Ресторан / зал", "Кухня"):
                 add("info", "Параметры",
                     f"Высокая мощность оборудования {sp.equipment_w_m2} Вт/м² "
                     f"у '{sp.number}' (тип: {sp.room_type})", sp.space_id)

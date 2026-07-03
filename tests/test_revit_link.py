@@ -150,28 +150,56 @@ def _fake_pass_send(calls):
 
 
 class TestWrappers:
-    def test_import_runs_three_passes(self, monkeypatch, tmp_path):
+    def test_import_default_clean_glazing(self, monkeypatch, tmp_path):
+        # По умолчанию: проходы SPACES + THERMAL, затем чистая привязка
+        # остекления (rebuild_thermal_clean), БЕЗ старого orphan-прохода.
         calls = []
         monkeypatch.setattr(revit_link, "send_code", _fake_pass_send(calls))
+        monkeypatch.setattr(revit_link, "rebuild_thermal_clean",
+                            lambda folder, timeout=180.0: {
+                                "clean_glazing_rows": 7,
+                                "dropped_curtain_rows": 5, "total_rows": 82})
+        monkeypatch.setattr(revit_link, "tag_wall_exterior",
+                            lambda folder, timeout=240.0: {
+                                "verdicts": 50, "tagged_internal": 9})
+        monkeypatch.setattr(revit_link, "tag_roof_spaces",
+                            lambda folder, timeout=400.0: {"under_roof_tagged": 4})
         res = revit_link.import_from_revit(str(tmp_path))
+        assert [c[0] for c in calls] == [
+            revit_link.EXPORT_CS_SPACES,
+            revit_link.EXPORT_CS_THERMAL,
+        ]
+        # проходы read-only и получают папку
+        assert all(c[2] == "none" for c in calls)
+        assert all(c[1] == [str(tmp_path)] for c in calls)
+        assert res["spaces_rows"] == 10
+        assert res["thermal_rows"] == 82
+        assert res["clean_glazing_rows"] == 7
+        assert res["wall_internal_tagged"] == 9
+        assert res["orphan_rows"] == 0
+        assert res["source"] == "Spaces (MEP)"
+        assert res["spaces_csv"].endswith("spaces.csv")
+
+    def test_import_legacy_orphans(self, monkeypatch, tmp_path):
+        # clean_glazing=False + collect_orphans=True → старые три прохода.
+        calls = []
+        monkeypatch.setattr(revit_link, "send_code", _fake_pass_send(calls))
+        res = revit_link.import_from_revit(str(tmp_path), clean_glazing=False,
+                                           wall_geom=False, roof_detect=False,
+                                           collect_orphans=True)
         assert [c[0] for c in calls] == [
             revit_link.EXPORT_CS_SPACES,
             revit_link.EXPORT_CS_THERMAL,
             revit_link.EXPORT_CS_ORPHANS,
         ]
-        # все проходы read-only и получают папку
-        assert all(c[2] == "none" for c in calls)
-        assert all(c[1] == [str(tmp_path)] for c in calls)
-        assert res["spaces_rows"] == 10
         assert res["thermal_rows"] == 82        # 80 + 2 orphan
         assert res["orphan_rows"] == 2
-        assert res["source"] == "Spaces (MEP)"
-        assert res["spaces_csv"].endswith("spaces.csv")
 
-    def test_import_no_orphans_two_passes(self, monkeypatch, tmp_path):
+    def test_import_no_glazing_two_passes(self, monkeypatch, tmp_path):
         calls = []
         monkeypatch.setattr(revit_link, "send_code", _fake_pass_send(calls))
-        res = revit_link.import_from_revit(str(tmp_path),
+        res = revit_link.import_from_revit(str(tmp_path), clean_glazing=False,
+                                           wall_geom=False, roof_detect=False,
                                            collect_orphans=False)
         assert len(calls) == 2
         assert res["thermal_rows"] == 80
@@ -181,9 +209,65 @@ class TestWrappers:
         for name in revit_link._IMPORT_TEMP_FILES:
             (tmp_path / name).write_text("x", encoding="utf-8")
         monkeypatch.setattr(revit_link, "send_code", _fake_pass_send([]))
+        monkeypatch.setattr(revit_link, "rebuild_thermal_clean",
+                            lambda folder, timeout=180.0: {
+                                "clean_glazing_rows": 0, "total_rows": 0})
+        monkeypatch.setattr(revit_link, "tag_wall_exterior",
+                            lambda folder, timeout=240.0: {"tagged_internal": 0})
+        monkeypatch.setattr(revit_link, "tag_roof_spaces",
+                            lambda folder, timeout=400.0: {"under_roof_tagged": 0})
         revit_link.import_from_revit(str(tmp_path))
         for name in revit_link._IMPORT_TEMP_FILES:
             assert not (tmp_path / name).exists(), f"{name} не удалён"
+
+    def test_rebuild_thermal_clean_replaces_curtain(self, monkeypatch,
+                                                    tmp_path):
+        # thermal_all с глухой стеной + старым витражом: глухая остаётся,
+        # витраж выкидывается, чистый дописывается.
+        thermal = tmp_path / "thermal_all.csv"
+        thermal.write_text(
+            "space_id,row_type,is_exterior_wall,element_id,link_model,"
+            "category,family,type,element_area,function,boundary_space_count\n"
+            "1,external_wall,no,11,L,Стены,Базовая стена,W1,10,Внутр,2\n"
+            "1,external_wall,yes,22,L,Стены,Витраж,M_Exterior Glazing,9,,2\n",
+            encoding="utf-8-sig")
+        monkeypatch.setattr(revit_link, "export_clean_glazing",
+                            lambda folder, timeout=180.0: [{
+                                "space_id": "1", "row_type": "external_wall",
+                                "is_exterior_wall": "yes", "element_id": "22",
+                                "family": "Витраж", "type": "CHR_Balcony",
+                                "element_area": "4.5",
+                                "function": "curtain (orphan)"}])
+        res = revit_link.rebuild_thermal_clean(str(tmp_path))
+        assert res["dropped_curtain_rows"] == 1
+        assert res["clean_glazing_rows"] == 1
+        text = thermal.read_text(encoding="utf-8-sig")
+        assert "Базовая стена" in text           # глухая стена сохранена
+        assert "CHR_Balcony" in text             # чистый витраж добавлен
+        assert "M_Exterior Glazing" not in text  # старый витраж выкинут
+
+    def test_tag_wall_exterior_adds_column(self, monkeypatch, tmp_path):
+        # geom_exterior проставляется глухим стенам по вердиктам; витраж
+        # и не-стены не трогаются.
+        thermal = tmp_path / "thermal_all.csv"
+        thermal.write_text(
+            "space_id,row_type,is_exterior_wall,element_id,family,type\n"
+            "1,external_wall,yes,11,Базовая стена,W_core\n"
+            "1,external_wall,yes,12,Базовая стена,W_facade\n"
+            "1,external_wall,yes,22,Витраж,CHR_Balcony\n",
+            encoding="utf-8-sig")
+        monkeypatch.setattr(revit_link, "export_wall_verdicts",
+                            lambda folder, timeout=240.0: {
+                                ("1", "11"): "int", ("1", "12"): "ext"})
+        res = revit_link.tag_wall_exterior(str(tmp_path))
+        assert res["tagged_internal"] == 1
+        import csv as _csv
+        with open(thermal, encoding="utf-8-sig", newline="") as f:
+            rows = {r["element_id"]: r for r in _csv.DictReader(f)}
+        assert "geom_exterior" in rows["11"]
+        assert rows["11"]["geom_exterior"] == "int"   # стена ядра
+        assert rows["12"]["geom_exterior"] == "ext"   # фасадная глухая
+        assert rows["22"].get("geom_exterior", "") == ""  # витраж не трогаем
 
     def test_write_results_creates_csv_and_sends(self, monkeypatch, tmp_path):
         calls = {}

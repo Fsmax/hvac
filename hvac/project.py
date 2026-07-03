@@ -68,6 +68,18 @@ _OVERRIDABLE_FIELDS = [
 ]
 
 
+def round_to_step(value: float, step: float) -> float:
+    """Округление до БЛИЖАЙШЕГО кратного step (полудённое — .5 вверх).
+
+    Примеры (step=10): 160.9→160, 164→160, 165→170, 166→170.
+    step<=0 — возвращает value без изменений.
+    """
+    if step <= 0:
+        return value
+    import math
+    return math.floor(value / step + 0.5) * step
+
+
 class HVACProject(
     ManualEntryMixin,
     SmokeSystemsMixin,
@@ -115,12 +127,22 @@ class HVACProject(
         # Индекс {space_id: [elements]} для горячих циклов расчётных движков.
         # Ленивый: пересобирается при первом обращении после инвалидации.
         self._elements_by_space: Dict[str, List[BoundaryElement]] = {}
+        # Индекс смежности: Revit-id стены (element_id) -> [space_id соседей].
+        # Стену делят помещения по обе стороны — у каждого свой BoundaryElement
+        # с тем же element_id. Используется для теплопотерь через внутренние
+        # перегородки (sp50.heat_loss). Тот же флаг dirty, что и у _elements.
+        self._spaces_by_wall_eid: Dict[str, List[str]] = {}
         self._elements_index_dirty: bool = True
 
         # Каталоги систем
         self.ventilation_systems: Dict[str, "VentilationSystem"] = {}
         self.heating_systems: Dict[str, "HeatingSystem"] = {}
         self.cooling_systems: Dict[str, "CoolingSystem"] = {}
+
+        # Реестр блоков здания (раздел «Блоки»): созданные пользователем
+        # имена, в т.ч. пока пустые. Блоки, назначенные помещениям/системам,
+        # видны и без реестра — см. hvac/blocks.py.
+        self.blocks: List[str] = []
 
         # Контуры внутри систем (радиаторы, тёплый пол, фанкойлы, калориферы)
         self.heating_circuits: Dict[str, "HeatingCircuit"] = {}
@@ -194,10 +216,32 @@ class HVACProject(
 
     def _rebuild_elements_index(self) -> None:
         idx: Dict[str, List[BoundaryElement]] = defaultdict(list)
+        wall_idx: Dict[str, List[str]] = defaultdict(list)
         for el in self.elements:
             idx[el.space_id].append(el)
+            # Смежность только по реальным стенам (не проёмам) с Revit-id.
+            eid = getattr(el, "element_id", "") or ""
+            if eid and el.row_type == "external_wall":
+                wall_idx[eid].append(el.space_id)
         self._elements_by_space = dict(idx)
+        self._spaces_by_wall_eid = dict(wall_idx)
         self._elements_index_dirty = False
+
+    def wall_neighbor_space_ids(self, element_id: str,
+                                exclude_space_id: str) -> List[str]:
+        """Возвращает уникальные space_id помещений, граничащих с данной стеной
+        (по общему Revit-id element_id), кроме самого помещения. Пусто, если
+        стена выходит наружу / сосед без MEP-пространства."""
+        if self._elements_index_dirty:
+            self._rebuild_elements_index()
+        out: List[str] = []
+        seen = set()
+        for sid in self._spaces_by_wall_eid.get(element_id or "", ()):
+            if sid == exclude_space_id or sid in seen:
+                continue
+            seen.add(sid)
+            out.append(sid)
+        return out
 
     def elements_for(self, space_id: str) -> List[BoundaryElement]:
         """Возвращает список ограждений помещения через ленивый индекс.
@@ -342,8 +386,23 @@ class HVACProject(
                                      []).append(el)
         for key, rows in wall_rows.items():
             opening = openings_by_host.get(key, 0.0)
-            grosses = [(r, r.approx_area_m2 if r.approx_area_m2 > 0
-                        else r.element_area_m2) for r in rows]
+            # Грубая площадь стены = approx (длина границы × высота помещения).
+            # У террас, парапетов и частичных стен approx завышает реальную
+            # грань: если element_area меньше И на стене нет проёмов (их
+            # вычитаем отдельно ниже) — берём реальную element_area. Для стен,
+            # общих с несколькими помещениями, element_area = ВСЯ стена
+            # (больше посегментного approx), поэтому approx<element и правило
+            # НЕ срабатывает (помещение корректно видит лишь свой сегмент).
+            grosses = []
+            for r in rows:
+                a = r.approx_area_m2
+                if a > 0:
+                    e = r.element_area_m2
+                    if opening <= 0.0 and e > 0 and a > e:
+                        a = e
+                    grosses.append((r, a))
+                else:
+                    grosses.append((r, r.element_area_m2))
             total = sum(g for _, g in grosses)
             if opening <= 0.0 or total <= 0.0:
                 for r, g in grosses:
@@ -581,7 +640,78 @@ class HVACProject(
         # до перекрывающего теплопотери/теплопоступления (max с вентиляцией).
         from hvac.air_heating import apply_air_heating
         apply_air_heating(self)
+        # Баланс перетока: приток номера/донора поднимается под вытяжку смежных
+        # вытяжных помещений (санузлов), чтобы наружный makeup-воздух грел
+        # калорифер приточки донора, а не «терялся» (см. _balance_transfer_air).
+        self._balance_transfer_air()
+        # Округление итоговых расходов до БЛИЖАЙШЕГО кратного
+        # params.round_airflow_m3h, если задано. После воздушного отопления,
+        # чтобы округлять окончательный расход. Ручные расходы не трогаем.
+        step = getattr(self.params, "round_airflow_m3h", 0.0) or 0.0
+        if step > 0:
+            for sp in self.spaces:
+                if sp.vent_user_modified:
+                    continue
+                sp.supply_m3h = round_to_step(sp.supply_m3h, step)
+                sp.exhaust_m3h = round_to_step(sp.exhaust_m3h, step)
+                sp.hood_m3h = round_to_step(sp.hood_m3h, step)
+                sp.ach_calculated = (sp.supply_m3h / sp.volume_m3
+                                     if sp.volume_m3 else 0.0)
+                if sp.ventilation_breakdown:
+                    sp.ventilation_breakdown["supply_m3h"] = sp.supply_m3h
+                    sp.ventilation_breakdown["exhaust_m3h"] = sp.exhaust_m3h
+                    sp.ventilation_breakdown["hood_m3h"] = sp.hood_m3h
         self.emit("ventilation_done", skipped=skipped)
+
+    def _balance_transfer_air(self) -> dict:
+        """Поднимает приток помещений-доноров под вытяжку смежных вытяжных
+        помещений (санузлов, exhaust_only): переток идёт из номера/донора, и
+        наружный воздух для него греет калорифер ПРИТОЧКИ донора — иначе этот
+        makeup нигде не учитывается (приток номера < вытяжки санузла).
+
+        Правило (выбор пользователя): приток донора = max(своя норма; Σ вытяжки
+        обслуживаемых санузлов) — «вытяжка номера» трактуется как переток в
+        санузел, отдельного канала у номера нет. Сосед — по общему Revit-id
+        стены (wall_neighbor_space_ids). Если санузел граничит с несколькими
+        донорами (приток>0) — его вытяжка делится между ними поровну.
+        """
+        served: Dict[str, float] = defaultdict(float)
+        for sp in self.spaces:
+            if sp.vent_user_modified:
+                continue
+            deficit = ((sp.exhaust_m3h or 0.0) + (sp.hood_m3h or 0.0)
+                       - (sp.supply_m3h or 0.0))
+            if deficit <= 1.0:
+                continue
+            donors, seen = [], set()
+            for e in self.elements_for(sp.space_id):
+                if e.is_exterior or e.row_type != "external_wall":
+                    continue
+                for nid in self.wall_neighbor_space_ids(e.element_id, sp.space_id):
+                    if nid in seen:
+                        continue
+                    seen.add(nid)
+                    nb = self._space_by_id.get(nid)
+                    if nb and not nb.vent_user_modified and (nb.supply_m3h or 0) > 0:
+                        donors.append(nb)
+            if not donors:
+                continue
+            share = deficit / len(donors)
+            for d in donors:
+                served[d.space_id] += share
+        boosted, added = 0, 0.0
+        for sid, need in served.items():
+            sp = self._space_by_id.get(sid)
+            if sp and need > (sp.supply_m3h or 0.0):
+                added += need - (sp.supply_m3h or 0.0)
+                sp.supply_m3h = need
+                sp.ach_calculated = (sp.supply_m3h / sp.volume_m3
+                                     if sp.volume_m3 else 0.0)
+                if sp.ventilation_breakdown is not None:
+                    sp.ventilation_breakdown["supply_m3h"] = sp.supply_m3h
+                    sp.ventilation_breakdown["transfer_makeup_m3h"] = round(need, 1)
+                boosted += 1
+        return {"rooms_boosted": boosted, "added_m3h": added}
 
     def compute_air_heating(self) -> Dict[str, "AirRoomLoad"]:
         """Подбор расхода приточки по нагрузке для помещений с воздушным
@@ -690,8 +820,8 @@ class HVACProject(
         }
         zone_attr = attr_map.get(system, "system_heating")
         result: Dict[str, Dict] = {}
-        for sp in self.spaces:
-            zone = getattr(sp, zone_attr, "") or "(не назначено)"
+
+        def _bucket(zone: str) -> Dict:
             if zone not in result:
                 result[zone] = {
                     "n_spaces": 0, "area_m2": 0.0,
@@ -700,14 +830,71 @@ class HVACProject(
                     "supply_m3h": 0.0, "exhaust_m3h": 0.0,
                     "hood_m3h": 0.0,
                 }
-            r = result[zone]
-            r["n_spaces"] += 1
-            r["area_m2"] += sp.area_m2
-            r["q_heating_w"] += sp.heat_loss_w
-            r["q_cooling_w"] += sp.heat_gain_w
-            r["q_sensible_w"] += sp.heat_gain_sensible_w
-            r["q_latent_w"] += sp.heat_gain_latent_w
-            r["supply_m3h"] += sp.supply_m3h
-            r["exhaust_m3h"] += sp.exhaust_m3h
-            r["hood_m3h"] += sp.hood_m3h
+            return result[zone]
+
+        for sp in self.spaces:
+            if system == "ventilation":
+                # Раздельная привязка: приток и вытяжка помещения могут
+                # принадлежать разным системам (Space.system_supply/exhaust).
+                z_sup = sp.vent_system_supply or "(не назначено)"
+                z_exh = sp.vent_system_exhaust or "(не назначено)"
+                zones = {z_sup, z_exh}
+            else:
+                z_sup = z_exh = getattr(sp, zone_attr, "") or "(не назначено)"
+                zones = {z_sup}
+            for zone in zones:
+                r = _bucket(zone)
+                r["n_spaces"] += 1
+                r["area_m2"] += sp.area_m2
+                r["q_heating_w"] += sp.heat_loss_w
+                r["q_cooling_w"] += sp.heat_gain_w
+                r["q_sensible_w"] += sp.heat_gain_sensible_w
+                r["q_latent_w"] += sp.heat_gain_latent_w
+            _bucket(z_sup)["supply_m3h"] += sp.supply_m3h
+            _bucket(z_exh)["exhaust_m3h"] += sp.exhaust_m3h
+            _bucket(z_exh)["hood_m3h"] += sp.hood_m3h
         return result
+
+    # ---------- Блоки здания ----------
+    def assign_blocks(self, overwrite: bool = False) -> int:
+        """ШАГ 1: автозаполнение Space.block (раздел «Блоки»)."""
+        from hvac import blocks
+        n = blocks.assign_blocks(self, overwrite=overwrite)
+        if n:
+            self.emit("zones_changed")
+        return n
+
+    def assign_system_blocks(self, overwrite: bool = False) -> int:
+        """ШАГ 2: блок каждой системе (VentilationSystem.block и др.)."""
+        from hvac import blocks
+        n = blocks.assign_system_blocks(self, overwrite=overwrite)
+        if n:
+            self.emit("zones_changed")
+        return n
+
+    def create_block(self, name: str) -> bool:
+        """Создаёт (регистрирует) блок; может оставаться пустым."""
+        from hvac import blocks
+        ok = blocks.create_block(self, name)
+        if ok:
+            self.emit("zones_changed")
+        return ok
+
+    def rename_block(self, old: str, new: str) -> Dict[str, int]:
+        """Переименовывает блок у помещений/систем/в реестре (слияние ок)."""
+        from hvac import blocks
+        stats = blocks.rename_block(self, old, new)
+        self.emit("zones_changed")
+        return stats
+
+    def delete_block(self, name: str) -> Dict[str, int]:
+        """Удаляет блок: помещения/системы остаются без блока."""
+        from hvac import blocks
+        stats = blocks.delete_block(self, name)
+        self.emit("zones_changed")
+        return stats
+
+    def get_block_summary(self, ahu_loads=None) -> Dict[str, Dict]:
+        """Сводка нагрузок по блокам: помещения + установки раздельно."""
+        from hvac import blocks
+        return blocks.block_summary(self, ahu_loads)

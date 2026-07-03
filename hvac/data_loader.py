@@ -106,6 +106,10 @@ def load_spaces(path: str) -> List[Space]:
                 area_m2=parse_area(row.get("area")),
                 volume_m3=parse_area(row.get("volume")),
                 height_m=parse_number(row.get("height")) or 0.0,
+                # under_roof=1 из revit_link.tag_roof_spaces (геом. детект:
+                # над помещением нет отапл. пространства). Заменяет ломкий
+                # _auto_detect_floors_roofs по уровням.
+                has_roof=(row.get("under_roof", "") or "").strip() == "1",
             )
             # Конвертация высоты из мм в м, если выгрузилось в мм
             if sp.height_m > 100:
@@ -142,9 +146,13 @@ def load_thermal(path: str, spaces: List[Space] = None
     ofc_ambiguous_ids: Set[str] = set()
     # Карта: space_id → имя помещения, для проверки на «мокрое»
     sid_to_name: Dict[str, str] = {}
+    # Карта: space_id → уровень, для отсечения вертикальных соседей
+    # (фасад навесной стены делит этажи, это не межкомнатная перегородка)
+    sid_to_level: Dict[str, str] = {}
     if spaces:
         for sp in spaces:
             sid_to_name[sp.space_id] = sp.name or ""
+            sid_to_level[sp.space_id] = sp.level or ""
             if not is_unconditioned_number(sp.number, sp.name):
                 continue
             unconditioned_ids.add(sp.space_id)
@@ -226,6 +234,21 @@ def load_thermal(path: str, spaces: List[Space] = None
         others = all_spaces - {current_space_id}
         return sum(1 for s in others if s not in truly_unconditioned_ids)
 
+    def same_level_conditioned_neighbors(elem_id: str,
+                                         current_space_id: str) -> int:
+        """Сколько ОТАПЛИВАЕМЫХ соседей на ТОМ ЖЕ уровне делят элемент.
+        Межкомнатная перегородка имеет соседа на своём этаже; навесной
+        фасад, идущий вертикально через этажи, — нет (его делят одинаковые
+        помещения на соседних этажах). Если карта уровней пуста (нет spaces)
+        — возвращаем общий счётчик, чтобы не ослаблять старое правило."""
+        if not sid_to_level:
+            return conditioned_neighbors(elem_id, current_space_id)
+        cur = sid_to_level.get(current_space_id, "")
+        all_spaces = elem_space_map.get(elem_id, set())
+        return sum(1 for s in all_spaces - {current_space_id}
+                   if s not in truly_unconditioned_ids
+                   and sid_to_level.get(s, "") == cur)
+
     elems: List[BoundaryElement] = []
     for row in raw_rows:
         cat = row.get("category", "").strip()
@@ -246,6 +269,10 @@ def load_thermal(path: str, spaces: List[Space] = None
         row_type = row.get("row_type", "").strip()
         eid = row.get("element_id", "").strip()
         sid = row.get("space_id", "").strip()
+        # Геометрический вердикт внешней стороны (revit_link.export_wall_
+        # verdicts): "int" — за стеной отапл. помещение/коридор-ARC →
+        # внутренняя. Колонки может не быть в старых CSV → "".
+        geom_ext = (row.get("geom_exterior") or "").strip()
 
         # Эффективный bsc: если CSV говорит 1, но elem_space_map знает
         # больше соседей — берём реальное число. Это страхует от старых
@@ -296,6 +323,33 @@ def load_thermal(path: str, spaces: List[Space] = None
                 "separator", "разделит", "empty",
                 "shower", "душ", "кабин", "cabin", "core",
             ))
+        # Витраж с ЯВНО фасадным типом (Storefront / Balcony / фасадное
+        # остекление). Длинный фасад в Revit — это ОДИН элемент, граничащий
+        # сразу с несколькими отапл. комнатами (bsc>=2..6), из-за чего
+        # геометрическое правило «общий с отапл. помещением → перегородка»
+        # (ветка bsc>=2 ниже) ошибочно метило его внутренним и он выпадал
+        # из теплопотерь. Storefront/Balcony по определению — улица, не
+        # межкомнатная перегородка, поэтому форсим наружный, перекрывая
+        # геометрию. interior_glazing проверяется РАНЬШЕ, так что стеклянная
+        # перегородка/душевая/ядро под это правило не попадут.
+        facade_glazing = is_curtain and any(
+            kw in _glz for kw in (
+                "storefront", "витрин", "facade", "фасад",
+                "balcony", "балкон", "loggia", "лоджия",
+            ))
+        # Непрозрачный спандрел навесного фасада (алюминий/гипс между
+        # стёклами). Семейство «Базовая стена» (is_curtain=False), но это
+        # фасад: делит этажи вертикально так же, как витраж. По имени типа
+        # из проекта Chorsu: «CHR-MZN-Wall_Aluminium + Drywall» и т.п.
+        facade_spandrel = (not interior_glazing) and any(
+            kw in _glz for kw in ("alumin", "spandrel", "спандрел"))
+        # Orphan-витраж из экспорта (function="curtain (orphan)"): фасадная
+        # панель, добавленная отдельным проходом (не попала в
+        # GetBoundarySegments) и УЖЕ поделённая по фронту между залами этажа.
+        # Это всегда наружный фасад → наружный независимо от bsc/соседей
+        # (после деления он общий с залами того же этажа, и геометрическое
+        # правило bsc>=2 иначе ошибочно пометило бы его внутренним).
+        is_orphan_facade = is_curtain and "orphan" in func_lower
         # ВНИМАНИЕ: is_exterior_function — это сигнал ТИПА конструкции
         # (из какого материала собрана стена), а НЕ геометрический факт
         # того, что эта конкретная стена реально граничит с улицей.
@@ -349,7 +403,28 @@ def load_thermal(path: str, spaces: List[Space] = None
         #      сигналы Dynamo + типа конструкции.
         is_exterior_flag = False
         if row_type in ("external_wall", "opening"):
-            if is_window:
+            if geom_ext == "int" and row_type == "external_wall" \
+                    and not is_curtain:
+                # Геометрия: внешняя сторона глухой стены упирается в отапл.
+                # помещение/коридор-ARC → ВНУТРЕННЯЯ. Высший приоритет: ловит
+                # толстые стены ядра/лестниц/коридоров, типизированные как
+                # «Наружные», которые bsc/функция/rbc пропускают (другой face —
+                # иной element_id). Витража и проёмов не касается.
+                is_exterior_flag = False
+            elif (row_type == "external_wall" and flag_yes
+                  and (row.get("space_number", "") or "").strip()
+                  .upper().startswith("RES")
+                  and "living" in (row.get("space_name", "") or "").lower()):
+                # RES-квартиры Chorsu выходят на ОТКРЫТЫЙ балкон: стена/панель,
+                # помеченная экспортом наружной (is_exterior_wall=yes → bc<2 =
+                # балкон/улица), остаётся НАРУЖНОЙ. Иначе func «Внутренние слои»
+                # (STR-бетон 200) и thin_partition (панели PA01 10 мм) ошибочно
+                # переводят её внутрь, и у жилой комнаты остаётся 0 наружной
+                # оболочки → зимняя Q = −17·S·1.10 (одна бытовая, физ. неверно).
+                # geom_ext=="int" (выше) сохраняет приоритет: если внешняя
+                # сторона реально упирается в тёплую комнату — остаётся внутр.
+                is_exterior_flag = True
+            elif is_window:
                 # Фасадное остекление — наружное всегда, независимо от толщины
                 # стены-хозяина и флага Dynamo (см. определение is_window).
                 is_exterior_flag = True
@@ -367,8 +442,33 @@ def load_thermal(path: str, spaces: List[Space] = None
                                     or is_exterior_function)
             elif interior_glazing:
                 # Витраж с явно внутренним типом (Interior Partition /
-                # Separator / Empty) — стеклянная перегородка, не фасад.
+                # Separator / Empty / Core / Shower) — не фасад. ВЫШЕ orphan,
+                # чтобы внутренние curtain-панели не считались фасадом.
                 is_exterior_flag = False
+            elif is_orphan_facade:
+                # Orphan-витраж: фасад, уже поделённый по фронту экспортом
+                # между залами этажа. Наружный независимо от bsc/соседей
+                # (см. определение is_orphan_facade).
+                is_exterior_flag = True
+            elif facade_glazing:
+                # Storefront / Balcony / фасадное остекление — всегда улица,
+                # даже если один элемент общий с несколькими отапл. комнатами
+                # (длинный фасад вдоль ряда помещений, bsc>=2). Перекрывает
+                # геометрическое правило bsc>=2 ниже, которое иначе метило
+                # такой фасад внутренним.
+                is_exterior_flag = True
+            elif ((is_curtain or facade_spandrel)
+                  and bsc_effective >= 2
+                  and conditioned_neighbors(eid, sid) > 0
+                  and same_level_conditioned_neighbors(eid, sid) == 0):
+                # Навесной фасад (витраж GLZ или алюм-спандрел), идущий
+                # ВЕРТИКАЛЬНО через этажи: один элемент делят ОДИНАКОВЫЕ
+                # помещения на соседних этажах (bsc>=2), но на ЭТОМ этаже
+                # соседа нет (same_level=0). Это фасад (улица), а не
+                # межкомнатная перегородка — старое правило bsc>=2 метило
+                # его внутренним (офисная башня OFF). Ограничено facade-
+                # типами, чтобы НЕ задеть глухие стены многоэтажных атриумов.
+                is_exterior_flag = True
             elif (not is_curtain) and (rbc is not None) and (rbc >= 1):
                 # Авторитетный счётчик ARC-комнат (room_boundary_count): >=2
                 # отапл. комнат у стены → ВНУТРЕННЯЯ (обе стороны тёплые).
@@ -388,9 +488,12 @@ def load_thermal(path: str, spaces: List[Space] = None
                 # Витраж — исключение: его панели (bsc=1) реально смотрят на
                 # улицу, поэтому остаются наружными.
                 interior_type = "внутренн" in func_lower
-                if not is_curtain and (not flag_yes or interior_type):
+                if (not is_curtain and not facade_spandrel
+                        and (not flag_yes or interior_type)):
                     is_exterior_flag = False
                 else:
+                    # Витраж и алюм-спандрел навесного фасада (bsc=1) реально
+                    # смотрят на улицу → наружные.
                     is_exterior_flag = True
             elif spaces and sid:
                 # bsc>=2: элемент общий с другим пространством. Если хотя бы

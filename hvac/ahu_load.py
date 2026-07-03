@@ -95,14 +95,22 @@ def _avg_indoor_temperature(spaces: List, mode: str = "heat") -> float:
 
 def calculate_ahu_load(ahu: "VentilationSystem",
                        spaces: List,
-                       params) -> AHULoad:
+                       params,
+                       exhaust_spaces: List = None) -> AHULoad:
     """Считает нагрузку одной установки.
 
     params : ProjectParameters (для t_out_heating/cooling, w_out_summer_g_kg)
-    spaces : список Space, обслуживаемых этой AHU
+    spaces : Space, чей ПРИТОК обслуживает эта AHU
+    exhaust_spaces : Space, чью ВЫТЯЖКУ обслуживает эта AHU.
+        None (по умолчанию) = те же spaces — обычный случай, когда помещение
+        целиком на одной системе. Списки различаются при раздельной привязке
+        (Space.system_supply / system_exhaust): отдельная приточная установка
+        и отдельный вытяжной вентилятор на одно помещение.
     """
+    if exhaust_spaces is None:
+        exhaust_spaces = spaces
     L_supply = sum(getattr(sp, "supply_m3h", 0.0) for sp in spaces)
-    L_exhaust = sum(getattr(sp, "exhaust_m3h", 0.0) for sp in spaces)
+    L_exhaust = sum(getattr(sp, "exhaust_m3h", 0.0) for sp in exhaust_spaces)
 
     # Воздушное отопление/охлаждение: если установка обслуживает помещения с
     # флагом air_heating/air_cooling, температура подачи рассчитывается как
@@ -115,23 +123,36 @@ def calculate_ahu_load(ahu: "VentilationSystem",
     t_supply_winter, t_supply_summer = effective_ahu_supply_temps(
         ahu, spaces, rho_w, rho_s)
 
+    # Объединённый список обслуживаемых помещений (приток + вытяжка, без
+    # дублей, с сохранением порядка) — для счётчика и списка id.
+    served = list(spaces)
+    seen = set(id(sp) for sp in spaces)
+    for sp in exhaust_spaces:
+        if id(sp) not in seen:
+            served.append(sp)
+            seen.add(id(sp))
+
+    # Температура воздуха, поступающего в рекуператор, — это удаляемый
+    # (вытяжной) воздух; при пустом вытяжном списке — по приточным.
+    t_rooms = exhaust_spaces if exhaust_spaces else spaces
+
     load = AHULoad(
         system_name=ahu.name,
-        n_spaces=len(spaces),
+        n_spaces=len(served),
         supply_m3_h=L_supply,
         exhaust_m3_h=L_exhaust,
         t_outdoor_winter=params.t_out_heating,
         t_outdoor_summer=params.t_out_cooling,
         t_supply_winter=t_supply_winter,
         t_supply_summer=t_supply_summer,
-        t_indoor_avg_winter=_avg_indoor_temperature(spaces, "heat"),
-        t_indoor_avg_summer=_avg_indoor_temperature(spaces, "cool"),
+        t_indoor_avg_winter=_avg_indoor_temperature(t_rooms, "heat"),
+        t_indoor_avg_summer=_avg_indoor_temperature(t_rooms, "cool"),
         has_recovery=ahu.has_recovery,
         recovery_eff_winter=ahu.recovery_efficiency_winter,
         recovery_eff_summer=ahu.recovery_efficiency_summer,
         heating_circuit=getattr(ahu, "heating_circuit", ""),
         cooling_circuit=getattr(ahu, "cooling_circuit", ""),
-        served_space_ids=[getattr(sp, "space_id", "") for sp in spaces],
+        served_space_ids=[getattr(sp, "space_id", "") for sp in served],
     )
 
     if L_supply <= 0:
@@ -184,14 +205,23 @@ def aggregate_ahus(project: "HVACProject") -> Dict[str, AHULoad]:
     from collections import defaultdict
     result: Dict[str, AHULoad] = {}
 
-    by_system: Dict[str, List] = defaultdict(list)
+    # Атрибуция расходов: приток помещения принадлежит vent_system_supply,
+    # вытяжка — vent_system_exhaust (обе по умолчанию = system_ventilation,
+    # различаются только при раздельной привязке двух установок на комнату).
+    by_supply: Dict[str, List] = defaultdict(list)
+    by_exhaust: Dict[str, List] = defaultdict(list)
     for sp in project.spaces:
-        if sp.system_ventilation:
-            by_system[sp.system_ventilation].append(sp)
+        s_sys = getattr(sp, "vent_system_supply", None) or sp.system_ventilation
+        e_sys = getattr(sp, "vent_system_exhaust", None) or sp.system_ventilation
+        if s_sys:
+            by_supply[s_sys].append(sp)
+        if e_sys:
+            by_exhaust[e_sys].append(sp)
 
     for ahu_name, ahu in project.ventilation_systems.items():
-        spaces = by_system.get(ahu_name, [])
-        load = calculate_ahu_load(ahu, spaces, project.params)
+        load = calculate_ahu_load(ahu, by_supply.get(ahu_name, []),
+                                  project.params,
+                                  exhaust_spaces=by_exhaust.get(ahu_name, []))
         result[ahu_name] = load
 
     # Совместимость: project.ahu_loads — dict-форма (как было).

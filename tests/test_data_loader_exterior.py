@@ -145,6 +145,130 @@ def test_curtain_orphan_bsc1_stays_exterior():
     assert els["CURT2"].is_exterior is True
 
 
+def test_storefront_shared_with_heated_rooms_stays_exterior():
+    """Storefront (фасад-витрина) — ОДИН элемент вдоль ряда комнат, поэтому
+    общий с несколькими ОТАПЛИВАЕМЫМИ помещениями (bsc>=2). В отличие от
+    стеклянной перегородки (тест выше), storefront по определению — улица,
+    а не межкомнатная стена, и должен остаться НАРУЖНЫМ несмотря на bsc>=2.
+    Регрессия: длинный фасад GFL/MFL раньше ошибочно метился внутренним и
+    выпадал из теплопотерь."""
+    from hvac.models import Space
+    spaces = [
+        Space(space_id="A", number="HTL-039", name="ALL DAY DINING",
+              level="GFL", area_m2=120.0, volume_m3=480.0),
+        Space(space_id="B", number="HTL-042", name="CAFE",
+              level="GFL", area_m2=80.0, volume_m3=320.0),
+    ]
+    rows = []
+    for sid, num in (("A", "HTL-039"), ("B", "HTL-042")):
+        r = _row2(sid, num, "SF", "Витраж", "Наружные слои", bsc=2)
+        r["type"] = "CHR_Storefront no void"
+        rows.append(r)
+    els = _load_with_spaces(rows, spaces)
+    assert els["SF"].is_exterior is True
+
+
+def test_balcony_glazing_shared_stays_exterior():
+    """Витраж балкона (CHR_Balcony), общий между ливингом и спальней одного
+    номера (bsc=2), смотрит на улицу → НАРУЖНЫЙ (не перегородка)."""
+    from hvac.models import Space
+    spaces = [
+        Space(space_id="A", number="HTL-1.a", name="LIVING ROOM",
+              level="L02", area_m2=20.0, volume_m3=60.0),
+        Space(space_id="B", number="HTL-1.b", name="BEDROOM",
+              level="L02", area_m2=18.0, volume_m3=54.0),
+    ]
+    rows = []
+    for sid, num in (("A", "HTL-1.a"), ("B", "HTL-1.b")):
+        r = _row2(sid, num, "BAL", "Витраж", "Наружные слои", bsc=2)
+        r["type"] = "CHR_Balcony"
+        rows.append(r)
+    els = _load_with_spaces(rows, spaces)
+    assert els["BAL"].is_exterior is True
+
+
+def test_orphan_curtain_split_same_level_stays_exterior():
+    """Orphan-витраж (function='curtain (orphan)'), поделённый экспортом по
+    фронту между двумя залами ОДНОГО этажа (bsc=2) — это фасад, а геометрия
+    bsc>=2 иначе пометила бы его внутренним. Маркер orphan → наружный.
+    Регрессия: изогнутый фасад кафе (HTL-062/063/064) после деления."""
+    from hvac.models import Space
+    spaces = [
+        Space(space_id="A", number="HTL-063", name="CAFE",
+              level="GFL HTL (FFL)", area_m2=103.0, volume_m3=515.0),
+        Space(space_id="B", number="HTL-064", name="CAFE",
+              level="GFL HTL (FFL)", area_m2=201.0, volume_m3=1005.0),
+    ]
+    rows = []
+    for sid, num in (("A", "HTL-063"), ("B", "HTL-064")):
+        r = _row2(sid, num, "ORPH", "Витраж", "curtain (orphan)", bsc=2)
+        r["type"] = "CHR_Storefront_curved_type2 DE"
+        rows.append(r)
+    els = _load_with_spaces(rows, spaces)
+    assert els["ORPH"].is_exterior is True
+
+
+def test_office_glazing_vertical_stack_stays_exterior():
+    """Навесной витраж офисов — ОДИН элемент через этажи: его делит один и
+    тот же офис на сосед. этажах (OFC-228 L02 ↔ OFC-328 L03), bsc=2, но на
+    своём этаже соседа нет. Это фасад (улица), а не перегородка → НАРУЖНЫЙ.
+    Регрессия: офисная башня OFF теряла фасад из-за вертикального дележа."""
+    from hvac.models import Space
+    spaces = [
+        Space(space_id="A", number="OFC-228", name="OFFICE T1",
+              level="L02 OFF (FFL)", area_m2=120.0, volume_m3=420.0),
+        Space(space_id="B", number="OFC-328", name="OFFICE T1",
+              level="L03 OFF (FFL)", area_m2=120.0, volume_m3=420.0),
+    ]
+    rows = []
+    for sid, num in (("A", "OFC-228"), ("B", "OFC-328")):
+        r = _row2(sid, num, "GLZv", "Витраж", "Наружные слои", bsc=2)
+        r["type"] = "GLZ-O01_1200x7450 Window"
+        rows.append(r)
+    els = _load_with_spaces(rows, spaces)
+    assert els["GLZv"].is_exterior is True
+
+
+def test_office_aluminium_spandrel_vertical_stays_exterior():
+    """Алюм-спандрел навесного фасада (family «Базовая стена», НЕ curtain),
+    общий вертикально между этажами → НАРУЖНЫЙ как фасад."""
+    from hvac.models import Space
+    spaces = [
+        Space(space_id="A", number="OFC-228", name="OFFICE T1",
+              level="L02 OFF (FFL)", area_m2=120.0, volume_m3=420.0),
+        Space(space_id="B", number="OFC-328", name="OFFICE T1",
+              level="L03 OFF (FFL)", area_m2=120.0, volume_m3=420.0),
+    ]
+    rows = []
+    for sid, num in (("A", "OFC-228"), ("B", "OFC-328")):
+        r = _row2(sid, num, "ALv", "Базовая стена", "Наружные слои", bsc=2)
+        r["type"] = "CHR-MZN-Wall_Aluminium + Drywall"
+        rows.append(r)
+    els = _load_with_spaces(rows, spaces)
+    assert els["ALv"].is_exterior is True
+
+
+def test_opaque_wall_vertical_stack_stays_internal():
+    """ЗАЩИТА АТРИУМОВ: глухая (не фасадная) стена, общая вертикально между
+    этажами, НЕ должна стать наружной — вертикальное правило только для
+    фасадных типов (витраж/спандрел). Бетонная стена многоэтажного атриума
+    остаётся ВНУТРЕННЕЙ."""
+    from hvac.models import Space
+    spaces = [
+        Space(space_id="A", number="OFC-228", name="OFFICE T1",
+              level="L02 OFF (FFL)", area_m2=120.0, volume_m3=420.0),
+        Space(space_id="B", number="OFC-328", name="OFFICE T1",
+              level="L03 OFF (FFL)", area_m2=120.0, volume_m3=420.0),
+    ]
+    rows = []
+    for sid, num in (("A", "OFC-228"), ("B", "OFC-328")):
+        r = _row2(sid, num, "Cv", "Базовая стена", "Наружные слои", bsc=2)
+        r["type"] = "CHR-STR-Walls-Concrete-300mm"
+        rows.append(r)
+    els = _load_with_spaces(rows, spaces)
+    assert els["Cv"].is_exterior is False
+
+
 def test_interior_partition_type_is_internal():
     """Витраж с явно внутренним типом («CHR_Interior Partition») —
     внутренний даже при bsc=1 (имя типа в interior-направлении надёжно)."""

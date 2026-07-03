@@ -27,6 +27,7 @@ RU: Dict[str, str] = {
     "sidebar.home":          "Главная",
     "sidebar.data":          "Данные проекта",
     "sidebar.spaces":        "Помещения",
+    "sidebar.blocks":        "Блоки",
     "sidebar.constructions": "Конструкции",
     "sidebar.calculation":   "Расчёт нагрузок",
     "sidebar.ventilation":   "Вентиляция",
@@ -34,6 +35,7 @@ RU: Dict[str, str] = {
     "sidebar.zones":         "Зоны и системы",
     "sidebar.equipment":     "Оборудование",
     "sidebar.balance":       "Тепловой баланс",
+    "sidebar.airbalance":    "Баланс воздуха",
     "sidebar.room_equipment":"Оборудование в помещениях",
     "sidebar.smoke":         "Дымоудаление",
     "sidebar.charts":        "Графики",
@@ -444,6 +446,15 @@ RU: Dict[str, str] = {
     "panel.spaces.bulk.no_selection":   ("Не выделено ни одного помещения. "
                                           "Выделите строки (Ctrl/Shift) и повторите."),
     "panel.spaces.bulk.applied":        "Групповая правка: обновлено {n}",
+    # Переопределение типа помещения авто-определением по названию
+    "panel.spaces.redetect.menu":       "Определить типы заново (для «Прочее»)",
+    "panel.spaces.redetect.none":       ("Нет помещений «Прочее», для которых "
+                                          "удаётся определить тип по названию."),
+    "panel.spaces.redetect.confirm":    ("Определить тип по названию для {n} "
+                                          "помещений «Прочее»? Ручные правки "
+                                          "сохранятся, вентиляция пересчитается."),
+    "panel.spaces.redetect.done":       ("Переопределено типов: {n}. "
+                                          "Вентиляция пересчитана."),
     # Ограждения выделенных помещений (внутренние / наружные)
     "panel.spaces.env.menu":            "Ограждения выделенных помещений",
     "panel.spaces.env.make_internal":   "🏠 Сделать внутренними",
@@ -923,6 +934,10 @@ RU: Dict[str, str] = {
     "panel.zones.menu.new_circuit":      "➕ Новый контур…",
     "panel.zones.menu.no_circuits":      "(контуров пока нет)",
     "panel.zones.menu.unassign_circuit": "✖ Без контура",
+    "panel.zones.menu.assign_supply":    "Приток отдельно →",
+    "panel.zones.menu.assign_exhaust":   "Вытяжка отдельно →",
+    "panel.zones.menu.clear_split":      "✖ Снять раздельный приток/вытяжку",
+    "panel.zones.status.assigned_flow":  "Раздельная привязка ({flow}): {n}",
     "panel.zones.status.assigned_sys":   "Назначено системе: {n}",
     "panel.zones.status.assigned_circ":  "Назначено контуру: {n}",
     "panel.zones.status.cleared":        "Снято назначение: {n}",
@@ -941,6 +956,8 @@ RU: Dict[str, str] = {
     "panel.sysworkspace.tree.name":  "Источник / контур",
     "panel.sysworkspace.tree.kw":    "кВт",
     "panel.sysworkspace.rcol.device":"Прибор",
+    "panel.sysworkspace.rcol.exhaust":"Вытяжка, м³/ч",
+    "panel.sysworkspace.rcol.hood":  "Зонт, м³/ч",
     "panel.sysworkspace.btn.device": "Прибор…",
     "panel.sysworkspace.filter_node":"Только выбранный узел",
     "panel.sysworkspace.summary.none":"Выберите источник или контур слева",
@@ -1002,6 +1019,12 @@ RU: Dict[str, str] = {
     "panel.detail.f.capacity":   "Ед. мощность, кВт (0 — авто)",
     "panel.detail.f.units":      "Кол-во агрегатов",
     "panel.detail.src.required": "Требуется {req} кВт (нагрузка {q} кВт × запас {m})",
+    "panel.detail.src.block_heat": ("Тепловой баланс блока «{block}»: "
+                                    "помещения {rooms} + приточные {ahu} "
+                                    "+ ГВС {dhw} = <b>{q} кВт</b>"),
+    "panel.detail.src.block_cool": ("Тепловой баланс блока «{block}»: "
+                                    "помещения {rooms} + приточные {ahu} "
+                                    "= <b>{q} кВт</b>"),
     "panel.detail.src.picked_auto":   "Подбор (авто): {unit} кВт × {n}",
     "panel.detail.src.picked_manual": "Подбор (ручной): {unit} кВт × {n} · {model}",
     "panel.detail.src.ahu":      "в т.ч. калориферы/охладители AHU: {q} кВт",
@@ -1017,6 +1040,8 @@ RU: Dict[str, str] = {
     "panel.equipws.btn.add": "Добавить",
     "panel.equipws.col.name":"Оборудование",
     "panel.equipws.col.power":"Подбор",
+    "panel.equipws.menu.block": "🏗 Блок",
+    "panel.equipws.grp.kw":   "Σ {kw} кВт",
     "panel.equipws.add.boiler":  "Котёл / источник тепла",
     "panel.equipws.add.chiller": "Чиллер / источник холода",
 
@@ -1970,6 +1995,143 @@ RU: Dict[str, str] = {
     "panel.calc.summary.exhaust":   "Σ вытяжка",
 
     # ===== Panel: Balance (раздел «Тепловой баланс») =====
+    "panel.airbalance.title":        "Баланс воздуха",
+    "panel.airbalance.hint":         ("Баланс приточно-вытяжного воздуха по этажам "
+                                       "(или системам). Правьте расходы в строках "
+                                       "помещений; цветом отмечен дисбаланс. "
+                                       "Баланс = приток − (вытяжка + зонт)."),
+    "panel.airbalance.group.level":  "По этажам",
+    "panel.airbalance.group.system": "По системам",
+    "panel.airbalance.btn.expand":   "Развернуть",
+    "panel.airbalance.btn.collapse": "Свернуть",
+    "panel.airbalance.filter.system": "Система:",
+    "panel.airbalance.filter.block": "Блок:",
+    "panel.airbalance.col.node":     "Этаж / помещение",
+    "panel.airbalance.col.supply":   "Приток",
+    "panel.airbalance.col.exhaust":  "Вытяжка",
+    "panel.airbalance.col.hood":     "Зонт",
+    "panel.airbalance.col.extract":  "Удаление",
+    "panel.airbalance.col.balance":  "Баланс",
+    "panel.airbalance.col.pct":      "%",
+    "panel.airbalance.summary":      ("Здание:  приток {sup}  ·  удаление {ext}  ·  "
+                                       "баланс {bal} м³/ч  ({pct}%)"),
+    "panel.airbalance.none":         "(без системы)",
+
+    # ----- Раздел «Блоки» -----
+    "panel.blocks.title":            "Блоки здания",
+    "panel.blocks.hint":             ("РУЧНОЕ разделение: внизу выделите помещения "
+                                      "(сортировка кликом по заголовку, поиск, фильтры "
+                                      "Этаж/Блок) → «Назначить блок» (существующий / "
+                                      "новый / снять). БЛОКИ: создать — «➕ Блок»; "
+                                      "переименовать — двойной клик по строке блока в "
+                                      "сводке (или правый клик → ✏); удалить — правый "
+                                      "клик → ✖. Установке блок меняется правым кликом "
+                                      "по её строке. Кнопки «1./2.» — автопомощники: "
+                                      "заполняют только пустое, ручное не трогают."),
+    "panel.blocks.btn.assign_rooms":   "1. Помещения по блокам",
+    "panel.blocks.btn.assign_systems": "2. Системы по блокам",
+    "panel.blocks.btn.reassign":     "Переопределить всё",
+    "panel.blocks.btn.recalc_ahu":   "Пересчитать установки",
+    "panel.blocks.col.name":         "Блок / установка",
+    "panel.blocks.col.rooms":        "Помещ.",
+    "panel.blocks.col.area":         "S, м²",
+    "panel.blocks.col.qh_rooms":     "Q отопл. пом., кВт",
+    "panel.blocks.col.qc_rooms":     "Q охл. пом., кВт",
+    "panel.blocks.col.qh_ahu":       "Q калориф., кВт",
+    "panel.blocks.col.qc_ahu":       "Q охлад., кВт",
+    "panel.blocks.col.qh_total":     "Q отопл. ИТОГО, кВт",
+    "panel.blocks.col.qc_total":     "Q охл. ИТОГО, кВт",
+    "panel.blocks.col.supply":       "Приток, м³/ч",
+    "panel.blocks.col.exhaust":      "Вытяжка, м³/ч",
+    "panel.blocks.none":             "(без блока)",
+    "panel.blocks.status.assigned":  "Блок определён: {n} помещ.",
+    "panel.blocks.status.assigned_sys": "Блок назначен: {n} систем(ы)",
+    "panel.blocks.status.rooms_set": "Блок «{b}»: назначено {n} помещ.",
+    "panel.blocks.menu.set_block":   "Блок установки {name}:",
+    "panel.blocks.menu.auto":        "(авто)",
+    "panel.blocks.menu.new_block":   "➕ Новый блок…",
+    "panel.blocks.menu.clear_block": "✖ Снять блок",
+    "panel.blocks.menu.block_actions": "Блок «{name}»",
+    "panel.blocks.menu.rename_block":  "✏ Переименовать блок…",
+    "panel.blocks.menu.delete_block":  "✖ Удалить блок…",
+    "panel.blocks.dlg.block_name":   "Имя блока:",
+    "panel.blocks.btn.set_block":    "Назначить блок",
+    "panel.blocks.btn.new_block":    "➕ Блок",
+    "panel.blocks.confirm.delete_block": ("Удалить блок «{name}»? Помещений: "
+                                          "{rooms}, систем: {sys} — останутся "
+                                          "без блока."),
+    "panel.blocks.status.block_created":  "Блок «{name}» создан",
+    "panel.blocks.status.block_exists":   "Блок «{name}» уже есть",
+    "panel.blocks.status.block_renamed":  ("Блок «{old}» → «{new}»: помещений "
+                                           "{rooms}, систем {sys}"),
+    "panel.blocks.status.block_deleted":  ("Блок «{name}» удалён: снято с "
+                                           "{rooms} помещ. и {sys} систем"),
+    "panel.blocks.rooms.col.number": "№",
+    "panel.blocks.rooms.col.name":   "Имя",
+    "panel.blocks.rooms.col.level":  "Уровень",
+    "panel.blocks.rooms.col.type":   "Тип",
+    "panel.blocks.rooms.col.block":  "Блок",
+    "panel.blocks.rooms.col.area":   "S, м²",
+    "panel.blocks.rooms.col.supply": "Приток",
+    "panel.blocks.rooms.col.exhaust":"Вытяжка",
+    "panel.blocks.rooms.count":      "видно {visible} из {total}",
+    "panel.blocks.confirm.reassign": ("Переопределить блоки у ВСЕХ помещений? "
+                                      "Ручные назначения будут перезаписаны."),
+    "panel.blocks.summary.line":     ("Блоков: {blocks}  ·  помещений {rooms} "
+                                      "(без блока {no_block})  ·  Q отопл. {qh} кВт  ·  "
+                                      "Q охл. {qc} кВт  ·  ГВС {dhw} кВт  ·  "
+                                      "приток {sup} / вытяжка {exh} м³/ч"),
+    "panel.blocks.ahu.serves":       "  → обслуживает: {list} м³/ч",
+    "panel.blocks.filter.block":     "Блок:",
+    "panel.blocks.col.dhw":          "ГВС, кВт",
+    "panel.blocks.menu.dhw":         "🚿 Нагрузка ГВС…",
+    "panel.blocks.dlg.dhw_title":    "ГВС блока «{block}»",
+    "panel.blocks.dlg.dhw_hint":     ("Расход ГВС считается в ВК-программе — "
+                                      "сюда вводится готовая нагрузка на "
+                                      "котельную блока."),
+    "panel.blocks.dlg.dhw_kw":       "Нагрузка ГВС, кВт (0 — убрать):",
+    "panel.blocks.dlg.dhw_v":        "Расход, м³/сут (справочно):",
+    "panel.blocks.dhw.sys_name":     "ГВС-{block}",
+    "panel.blocks.dhw.manual_note":  "ручной ввод (расчёт ГВС в ВК-программе)",
+    "panel.blocks.status.dhw_set":     "ГВС «{block}»: {kw} кВт",
+    "panel.blocks.status.dhw_removed": "ГВС «{block}» убрано",
+    "panel.blocks.src.pick_fmt":     "{name} · {n} × {kw} кВт — {model}",
+    "panel.blocks.dhw.fmt":          "{name} · {v} м³/сут",
+    "panel.blocks.menu.pick_boilers":  "🔥 Подобрать котлы из каталога…",
+    "panel.blocks.menu.pick_chillers": "❄ Подобрать чиллеры из каталога…",
+    "panel.blocks.src.boiler_name":  "Котлы {block}",
+    "panel.blocks.src.chiller_name": "Чиллеры {block}",
+    "panel.blocks.status.source_set": "{sys}: {n} × {kw} кВт — {model}",
+
+    # ---- диалог подбора котлов/чиллеров из каталога ----
+    "panel.srcpick.title.heating":   "Каталог котлов — подбор",
+    "panel.srcpick.title.cooling":   "Каталог чиллеров — подбор",
+    "panel.srcpick.f.required":      "Требуемая мощность, кВт:",
+    "panel.srcpick.f.reserve":       "+1 резервный агрегат (N+1)",
+    "panel.srcpick.search.ph":       "Поиск: модель, производитель, тип…",
+    "panel.srcpick.col.model":       "Модель",
+    "panel.srcpick.col.manufacturer":"Производитель",
+    "panel.srcpick.col.family":      "Тип",
+    "panel.srcpick.col.q":           "кВт/агрегат",
+    "panel.srcpick.col.eff":         "КПД",
+    "panel.srcpick.col.eer":         "EER",
+    "panel.srcpick.col.units":       "N раб.",
+    "panel.srcpick.col.total":       "Σ кВт",
+    "panel.srcpick.col.margin":      "Запас, %",
+    "panel.srcpick.col.note":        "Примечание",
+    "panel.srcpick.hint": ("Типовые каталожные данные — для предподбора; "
+                           "финальный типоразмер уточняйте по программе "
+                           "подбора производителя. Свои модели: "
+                           "~/.hvac_calc/catalogs/*.json "
+                           "(type: \"boilers\" / \"chillers\")."),
+    "panel.srcpick.ctx.block":  ("Блок «{block}»: нагрузка {q} кВт × "
+                                 "запас {m}"),
+    "panel.srcpick.ctx.block_dhw": ("Блок «{block}»: отопление+вент. {q} кВт "
+                                    "+ ГВС {dhw} кВт, запас ×{m}"),
+    "panel.srcpick.ctx.system": ("Источник «{name}»: требуется {q} кВт "
+                                 "(нагрузка × запас)"),
+    "panel.detail.btn.catalog":      "Подобрать из каталога…",
+
     "panel.balance.title":   "Тепловой баланс",
     "panel.balance.hint":    ("Отметьте, какие помещения отапливаются и "
                                "охлаждаются — итог суммирует нагрузки помещений "

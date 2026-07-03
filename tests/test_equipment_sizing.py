@@ -150,3 +150,57 @@ class TestManualOverride:
         src = {s.name: s for s in sel.heating}["Котёл A"]
         assert src.manual is False
         assert (src.unit_kw, src.units) == (50.0, 1)
+
+
+# ------------------------------------------- тепловой баланс блока
+class TestBlockBalance:
+    def test_required_from_block_balance(self):
+        """Без контуров required берётся из баланса блока (+ГВС котлам)."""
+        from hvac.dhw import DHWSystem
+        p = HVACProject()
+        _add_space(p, "1", "R-1", heat_loss_w=30_000, heat_gain_w=20_000,
+                   block="HTL")
+        _add_space(p, "2", "R-2", heat_loss_w=10_000, block="HTL")
+        p.dhw_systems["ГВС-HTL"] = DHWSystem(
+            name="ГВС-HTL", block="HTL", q_with_circulation_w=5_000.0)
+        p.add_zone_system("heating", "Котлы HTL", block="HTL")
+        p.add_zone_system("cooling", "Чиллеры HTL", block="HTL")
+
+        sel = select_equipment(p, margin_heating=1.10, margin_cooling=1.15)
+        h = {s.name: s for s in sel.heating}["Котлы HTL"]
+        assert h.block == "HTL"
+        assert h.q_total_w == 0                       # контуров нет
+        assert h.q_block_rooms_w == 40_000
+        assert h.q_block_dhw_w == 5_000
+        assert h.q_base_w == 45_000
+        assert h.required_kw == pytest.approx(45.0 * 1.10)
+        c = {s.name: s for s in sel.cooling}["Чиллеры HTL"]
+        assert c.q_block_rooms_w == 20_000
+        assert c.q_block_dhw_w == 0                   # ГВС только котлам
+        assert c.required_kw == pytest.approx(20.0 * 1.15)
+
+    def test_circuits_take_precedence_over_block(self):
+        """Есть контуры — required от них, баланс блока лишь справочно."""
+        p = HVACProject()
+        _add_space(p, "1", "R-1", heat_loss_w=30_000, block="HTL")
+        _add_space(p, "2", "R-2", heat_loss_w=10_000, block="HTL")
+        p.add_zone_circuit("heating", "Рад-1", "Котлы HTL",
+                           circuit_type="radiator")
+        p.assign_rooms_to_circuit("heating", ["1"], "Рад-1")
+        p.update_zone_system("heating", "Котлы HTL", block="HTL")
+
+        sel = select_equipment(p, margin_heating=1.10)
+        h = {s.name: s for s in sel.heating}["Котлы HTL"]
+        assert h.q_total_w == 30_000                  # контур
+        assert h.q_block_rooms_w == 40_000            # баланс справочно
+        assert h.q_base_w == 30_000                   # контуры главнее
+        assert h.required_kw == pytest.approx(30.0 * 1.10)
+
+    def test_no_block_keeps_zero(self):
+        p = HVACProject()
+        _add_space(p, "1", "R-1", heat_loss_w=30_000, block="HTL")
+        p.add_zone_system("heating", "Котёл X")       # без блока
+        sel = select_equipment(p)
+        h = {s.name: s for s in sel.heating}["Котёл X"]
+        assert h.block == "" and h.q_base_w == 0
+        assert h.required_kw == 0

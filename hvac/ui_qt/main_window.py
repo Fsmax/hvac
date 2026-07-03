@@ -23,6 +23,8 @@ from hvac.ui_qt import settings as user_settings
 from hvac.ui_qt.bridge import ProjectBridge
 from hvac.ui_qt.commands import Command, CommandRegistry
 from hvac.ui_qt.export_center import ExportCenter
+from hvac.ui_qt.panels.air_balance_panel import AirBalancePanel
+from hvac.ui_qt.panels.blocks_panel import BlocksPanel
 from hvac.ui_qt.panels.balance_panel import BalancePanel
 from hvac.ui_qt.panels.calculation_panel import CalculationPanel
 from hvac.ui_qt.panels.charts_panel import ChartsPanel
@@ -54,12 +56,14 @@ def _build_sidebar_items():
         SidebarItem("welcome",        "🏠", _t("sidebar.home")),
         SidebarItem("data",           "📂", _t("sidebar.data")),
         SidebarItem("spaces",         "🏢", _t("sidebar.spaces")),
+        SidebarItem("blocks",         "🏗", _t("sidebar.blocks")),
         SidebarItem("constructions",  "🧱", _t("sidebar.constructions")),
         SidebarItem("calculation",    "🌡",  _t("sidebar.calculation")),
         SidebarItem("ventilation",    "💨", _t("sidebar.ventilation")),
         SidebarItem("systems",        "⚙",  _t("sidebar.systems")),
         SidebarItem("equipment",      "🛠", _t("sidebar.equipment")),
         SidebarItem("balance",        "🧮", _t("sidebar.balance")),
+        SidebarItem("airbalance",     "🔀", _t("sidebar.airbalance")),
         SidebarItem("smoke",          "🔥", _t("sidebar.smoke")),
         SidebarItem("charts",         "📊", _t("sidebar.charts")),
         SidebarItem("extensions",     "⚡", _t("sidebar.extensions")),
@@ -156,6 +160,8 @@ class MainWindow(QMainWindow):
                              DataPanel(self.project, self.bridge))
         self._register_panel("spaces",
                              SpacesPanel(self.project, self.bridge))
+        self._register_panel("blocks",
+                             BlocksPanel(self.project, self.bridge))
         self._register_panel("calculation",
                              CalculationPanel(self.project, self.bridge))
         self._register_panel("charts",
@@ -170,6 +176,8 @@ class MainWindow(QMainWindow):
                              EquipmentWorkspacePanel(self.project, self.bridge))
         self._register_panel("balance",
                              BalancePanel(self.project, self.bridge))
+        self._register_panel("airbalance",
+                             AirBalancePanel(self.project, self.bridge))
         self._register_panel("smoke",
                              SmokePanel(self.project, self.bridge))
         self._register_panel("extensions",

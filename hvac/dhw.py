@@ -101,9 +101,13 @@ DHW_NORMS: Dict[str, DHWNorm] = {
         "person", q_daily_l=2.0, q_hourly_l=0.5, k_hour=4.0,
         note="СП 30.13330.2020: посетители общественных зданий",
     ),
-    "Ресторан / кухня": DHWNorm(
+    "Ресторан / зал": DHWNorm(
         "m2", q_daily_l=15.0, q_hourly_l=3.0, k_hour=2.5,
         note="СП 30.13330.2020: рестораны/кафе, по площади залов",
+    ),
+    "Кухня": DHWNorm(
+        "fixed", q_daily_l=0.0, q_hourly_l=0.0,
+        note="Бытовая кухня — ГВС учтено на жильё/номер (на потребителя)",
     ),
     "Магазин / торговля": DHWNorm(
         "m2", q_daily_l=0.5, q_hourly_l=0.15, k_hour=4.0,
@@ -152,6 +156,7 @@ class DHWDemand:
 class DHWSystem:
     """Система горячего водоснабжения (центральная или индивидуальная)."""
     name: str = "ГВС-1"                     # "ГВС-Гост", "ГВС-Офис"
+    block: str = ""                         # блок здания (раздел «Блоки»)
 
     # Параметры нагревателя
     heater_type: str = "boiler_gas"         # boiler_gas / boiler_electric /
@@ -289,9 +294,11 @@ def calculate_project_dhw(project: "HVACProject",
 
     Параметры
     ---------
-    system_strategy : "single" — одна система на весь проект,
+    system_strategy : "single"  — одна система на весь проект,
                       "by_zone"  — отдельная система на каждую отопит. зону,
-                      "by_type"  — отдельные системы для жилья/гостиниц/офиса.
+                      "by_type"  — отдельные системы для жилья/гостиниц/офиса,
+                      "by_block" — отдельная система на каждый блок здания
+                                   (Space.block, раздел «Блоки»).
 
     Возвращает
     ----------
@@ -314,7 +321,8 @@ def calculate_project_dhw(project: "HVACProject",
             "ГВС-Жильё":     ["Жилая комната"],
             "ГВС-Гостиница": ["Гостиничный номер"],
             "ГВС-Офис":      ["Офис", "Конференц-зал"],
-            "ГВС-Питание":   ["Ресторан / кухня"],
+            "ГВС-Питание":   ["Ресторан / зал", "Горячий цех",
+                              "Холодный цех", "Моечная"],
             "ГВС-Торговля":  ["Магазин / торговля"],
         }
         result: Dict[str, DHWSystem] = {}
@@ -349,6 +357,27 @@ def calculate_project_dhw(project: "HVACProject",
             existing = getattr(project, "dhw_systems", {}).get(sys_name)
             sys = existing if existing else DHWSystem(name=sys_name)
             aggregate_to_system(sub, sys)
+            result[sys_name] = sys
+        return result
+
+    if system_strategy == "by_block":
+        # По блокам здания (Space.block). Помещения без блока — «Прочие».
+        by_block: Dict[str, List[DHWDemand]] = {}
+        sp_by_id = {sp.space_id: sp for sp in project.spaces}
+        for d in all_demands:
+            if d.v_daily_m3 <= 0:
+                continue
+            sp = sp_by_id.get(d.space_id)
+            blk = (getattr(sp, "block", "") or "") if sp else ""
+            by_block.setdefault(blk, []).append(d)
+
+        result = {}
+        for blk in sorted(by_block):
+            sys_name = f"ГВС-{blk}" if blk else "ГВС-Прочие"
+            existing = getattr(project, "dhw_systems", {}).get(sys_name)
+            sys = existing if existing else DHWSystem(name=sys_name)
+            sys.block = blk
+            aggregate_to_system(by_block[blk], sys)
             result[sys_name] = sys
         return result
 

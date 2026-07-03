@@ -184,6 +184,12 @@ class VentilationSystem:
     kind: str = "ahu"                      # см. VENTILATION_KINDS
     system_type: str = "supply_exhaust"    # "supply" / "exhaust" / "supply_exhaust"
 
+    # Блок здания, которому принадлежит установка (раздел «Блоки»):
+    # вся её нагрузка (калорифер/охладитель) относится на этот блок.
+    # Пусто = определяется автоматически (по коду имени, затем по
+    # обслуживаемым помещениям) — см. hvac/blocks.py.
+    block: str = ""
+
     # Рекуперация тепла
     has_recovery: bool = False
     recovery_efficiency_winter: float = 0.0  # 0..1, КПД зимой
@@ -231,6 +237,7 @@ class HeatingSystem:
     name: str                              # "Котёл A", "ТП-1"
     system_type: str = "boiler_gas"        # "boiler_gas" / "boiler_electric" /
                                             # "heat_pump" / "central"
+    block: str = ""                        # блок здания (раздел «Блоки»)
     t_supply: float = 80.0                 # температура теплоносителя, °C
     t_return: float = 60.0                 # обратки, °C
     fuel: str = "gas"                      # "gas" / "electric" / "diesel" / "central"
@@ -251,6 +258,7 @@ class CoolingSystem:
     name: str                              # "Чиллер 1"
     system_type: str = "chiller_air"       # "chiller_air" / "chiller_water" /
                                             # "vrf" / "split"
+    block: str = ""                        # блок здания (раздел «Блоки»)
     t_supply: float = 7.0                  # температура хладоносителя, °C
     t_return: float = 12.0                 # обратки, °C
     cop: float = 3.5                       # коэффициент эффективности (EER/COP)

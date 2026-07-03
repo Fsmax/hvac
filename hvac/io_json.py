@@ -35,8 +35,12 @@ SAVED_SPACE_FIELDS = [
     "water_surface_m2", "water_temp_c",
     # Зрители (спорт) / машино-места (парковки)
     "spectator_count", "car_count",
+    # Блок здания (раздел «Блоки»)
+    "block",
     # Зоны / системы
     "system_heating", "system_cooling", "system_ventilation",
+    # Раздельная привязка притока/вытяжки (переопределения)
+    "system_supply", "system_exhaust",
     # Контуры внутри систем
     "circuit_heating", "circuit_cooling", "duct_zone",
     # Воздушное отопление / охлаждение
@@ -60,7 +64,9 @@ FULL_SPACE_FIELDS = [
     "wc_count", "urinal_count",
     "water_surface_m2", "water_temp_c",
     "spectator_count", "car_count",
+    "block",
     "system_heating", "system_cooling", "system_ventilation",
+    "system_supply", "system_exhaust",
     "circuit_heating", "circuit_cooling", "duct_zone",
     "air_heating", "air_cooling",
     "is_heated", "is_cooled",
@@ -150,6 +156,8 @@ def save_project(project: HVACProject, path: str,
         "constructions": {k: asdict(c) for k, c in project.constructions.items()},
         # v3.8: оборудование помещений
         "room_equipment": equipment_data,
+        # Реестр блоков здания (раздел «Блоки»)
+        "blocks": list(getattr(project, "blocks", []) or []),
         # Системы оборудования
         "ventilation_systems": {k: asdict(v) for k, v in project.ventilation_systems.items()},
         "heating_systems": {k: asdict(v) for k, v in project.heating_systems.items()},
@@ -208,7 +216,9 @@ def save_project(project: HVACProject, path: str,
             sp.space_id: {f: getattr(sp, f) for f in SAVED_SPACE_FIELDS}
             for sp in project.spaces
             if sp.user_modified or sp.vent_user_modified
+            or sp.block
             or sp.system_heating or sp.system_cooling or sp.system_ventilation
+            or sp.system_supply or sp.system_exhaust
             or sp.circuit_heating or sp.circuit_cooling or sp.duct_zone
             or sp.air_heating or sp.air_cooling
             or not sp.is_heated or not sp.is_cooled
@@ -942,6 +952,9 @@ def load_project(project: HVACProject, path: str) -> None:
         """Защита от лишних полей в JSON (старые версии файла)."""
         return {k_: v for k_, v in info.items()
                 if k_ in cls.__dataclass_fields__}
+
+    # Реестр блоков здания (раздел «Блоки»)
+    project.blocks = [str(b) for b in data.get("blocks", []) or [] if str(b).strip()]
 
     for k, info in data.get("ventilation_systems", {}).items():
         project.ventilation_systems[k] = VentilationSystem(

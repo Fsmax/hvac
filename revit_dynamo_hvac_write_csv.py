@@ -595,6 +595,45 @@ def space_row(space):
     ]
 
 
+def segment_other_side_conditioned(segment, space, spaces, offset_ft=2.5):
+    """True, если с ПРОТИВОПОЛОЖНОЙ от space стороны границы есть
+    ОТАПЛИВАЕМОЕ помещение → это межкомнатная перегородка, а не фасад.
+
+    Зачем: boundary_counts даёт shared_count=1, когда сосед обходит ту же
+    стену ДРУГИМ элементом (частый артефакт Revit), и перегородка ошибочно
+    считается наружной. Геометрия (есть ли отапл. помещение с другой стороны)
+    надёжнее, чем тип/Function стены и счётчик границ.
+    """
+    try:
+        crv = segment.GetCurve()
+        p0 = crv.GetEndPoint(0)
+        p1 = crv.GetEndPoint(1)
+        perp = XYZ(-(p1.Y - p0.Y), (p1.X - p0.X), 0.0).Normalize()
+    except Exception:
+        return False
+    mx = (p0.X + p1.X) * 0.5
+    my = (p0.Y + p1.Y) * 0.5
+    mz = (p0.Z + p1.Z) * 0.5 + 4.0   # внутрь высоты этажа, от плоскости пола
+    try:
+        my_sid = element_id(space)
+    except Exception:
+        my_sid = None
+    for sgn in (1.0, -1.0):
+        probe = XYZ(mx + perp.X * offset_ft * sgn,
+                    my + perp.Y * offset_ft * sgn, mz)
+        sp = find_space_for_point(probe, spaces)
+        if sp is None:
+            continue
+        try:
+            if element_id(sp) == my_sid:
+                continue   # это наша сторона — пропускаем
+        except Exception:
+            pass
+        if not is_unconditioned_space(sp):
+            return True    # отапл. сосед с другой стороны → перегородка
+    return False
+
+
 def thermal_rows(space, exterior_only, boundary_counts):
     rows = []
     options = SpatialElementBoundaryOptions()
@@ -646,9 +685,15 @@ def thermal_rows(space, exterior_only, boundary_counts):
                 elif shared_count >= 2:
                     real_exterior = False
                 else:
-                    # shared_count == 1: стена граничит только с одним
-                    # помещением → с другой стороны улица/неотапливаемое
-                    real_exterior = True
+                    # shared_count == 1 НЕнадёжно: сосед часто обходит ту же
+                    # стену другим элементом, и перегородка получает счётчик 1.
+                    # Проверяем геометрией: если с другой стороны есть отапл.
+                    # помещение → перегородка (внутренняя), иначе → фасад.
+                    if segment_other_side_conditioned(segment, space,
+                                                      spatial_elements):
+                        real_exterior = False
+                    else:
+                        real_exterior = True
             else:
                 real_exterior = False
             exterior = real_exterior  # для обратной совместимости в выводе
@@ -1000,6 +1045,83 @@ def find_conditioned_neighbor(unconditioned_space, all_spaces):
     return best_sp
 
 
+def split_curtain_wall_by_frontage(wall, transform, spatial_elements,
+                                   spaces_with_glazing):
+    """Делит площадь витража по сетке фронт×высота между ВСЕМИ помещениями,
+    которые он реально закрывает.
+
+    Старое поведение orphan-блока: вся стена целиком приписывалась ОДНОМУ
+    помещению (по её середине). Для длинного/двусветного фасада это завышало
+    остекление одной комнаты в разы (напр. HTL-063 CAFE получал 381 м² при
+    площади пола 103 м²), а соседние залы и верхний этаж оставались без стекла.
+
+    Теперь сэмплируем стену сеткой: по длине (~1.5 м) и по высоте (~2.5 м,
+    т.е. по этажам). Для каждой ячейки определяем помещение с внутренней
+    стороны (find_space_for_point с обеих сторон). Площадь ячейки идёт тому
+    помещению. Итог: низ стены → залы нижнего этажа, верх → помещения
+    верхнего; по длине — каждому залу его фронт.
+
+    Возвращает список dict: {"space", "area_m2", "frontage_m"}.
+    """
+    try:
+        curve = wall.Location.Curve
+        bb = wall.get_BoundingBox(None)
+        base_z = bb.Min.Z
+        top_z = bb.Max.Z
+    except Exception:
+        return []
+    L_m = curve.Length * 0.3048
+    H_m = (top_z - base_z) * 0.3048
+    if L_m <= 0.1 or H_m <= 0.1:
+        return []
+    n_pos = max(2, int(round(L_m / 1.5)))
+    n_z = max(1, int(round(H_m / 2.5)))
+    cell_area = (L_m / n_pos) * (H_m / n_z)
+    seg_len_m = L_m / n_pos
+    off = 1.6  # фт (~0.5 м) — смещение внутрь от плоскости стены
+    agg = {}   # sid -> [space, area_m2, set(pos_index)]
+    for i in range(n_pos):
+        t = (i + 0.5) / n_pos
+        try:
+            p = curve.Evaluate(t, True)
+            tg = curve.ComputeDerivatives(t, True).BasisX.Normalize()
+            perp = XYZ(-tg.Y, tg.X, 0.0).Normalize()
+        except Exception:
+            continue
+        for j in range(n_z):
+            z = base_z + (j + 0.5) * (top_z - base_z) / n_z
+            found = None
+            for sgn in (1.0, -1.0):
+                probe = XYZ(p.X + perp.X * off * sgn,
+                            p.Y + perp.Y * off * sgn, z)
+                gp = transform.OfPoint(probe) if transform is not None else probe
+                sp = find_space_for_point(gp, spatial_elements)
+                if sp is None:
+                    continue
+                if is_unconditioned_space(sp):
+                    sp = find_conditioned_neighbor(sp, spatial_elements)
+                if sp is not None and not is_unconditioned_space(sp):
+                    found = sp
+                    break
+            if found is None:
+                continue
+            sid = text(element_id(found))
+            if sid in spaces_with_glazing:
+                continue   # у помещения уже есть свой витраж — не дублируем
+            if sid not in agg:
+                agg[sid] = [found, 0.0, set()]
+            agg[sid][1] += cell_area
+            agg[sid][2].add(i)
+    out = []
+    for sid in agg:
+        sp, area, positions = agg[sid]
+        if area < 0.5:
+            continue
+        out.append({"space": sp, "area_m2": round(area, 3),
+                    "frontage_m": round(len(positions) * seg_len_m, 3)})
+    return out
+
+
 def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
                                  spaces_with_glazing=None):
     """Возвращает дополнительные строки для thermal_all.csv: витражи,
@@ -1058,47 +1180,7 @@ def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
         except Exception:
             pass
 
-        # Стратегия 1: середина витража попала внутрь какого-то пространства
-        mid = wall_midpoint_global(wall, transform)
-        host_space = find_space_for_point(mid, spatial_elements)
-
-        target_space = None
-        if host_space is not None:
-            if is_unconditioned_space(host_space):
-                cn = find_conditioned_neighbor(host_space, spatial_elements)
-                if cn is not None and curtain_wall_touches_space(wall, transform, cn):
-                    target_space = cn
-                else:
-                    continue
-            else:
-                target_space = host_space
-        else:
-            # Стратегия 2: точка не попала ни в одно пространство —
-            # ищем space, чьей границы витраж реально касается.
-            # Префильтр по bbox: проверяем только пространства, у которых
-            # bbox содержит середину витража (с допуском). Это режет
-            # перебор с тысяч до десятков.
-            for sp in spatial_elements:
-                if is_unconditioned_space(sp):
-                    continue
-                bbox = _space_bbox(sp)
-                if not _point_in_bbox(mid, bbox, tol_ft=3.3):
-                    continue
-                if curtain_wall_touches_space(wall, transform, sp):
-                    target_space = sp
-                    break
-            if target_space is None:
-                continue
-
-        # КЛЮЧЕВАЯ ПРОВЕРКА: если у помещения уже есть свои витражи,
-        # значит стандартный обход справился сам — orphan не лезет.
-        target_sid = text(element_id(target_space))
-        if target_sid in spaces_with_glazing:
-            continue
-
-        seen_in_this_pass.add(key)
-        # Площадь и параметры
-        area_str = element_area(wall)
+        # Параметры стены (общие для всех долей)
         u_val = thermal_value(wall)
         family = ""
         type_n = ""
@@ -1109,43 +1191,51 @@ def collect_orphan_curtain_rows(spatial_elements, already_seen_element_ids,
                 type_n = safe_name(wt) or ""
         except Exception:
             pass
-        # Толщина у витража обычно 0, оставляем пусто
         try:
             thickness = wall.get_Parameter(BuiltInParameter.WALL_ATTR_WIDTH_PARAM)
             thickness_val = parameter_value(thickness) if thickness else ""
         except Exception:
             thickness_val = ""
-        # Длина и ориентация
-        try:
-            length_m = wall.Location.Curve.Length * 0.3048
-        except Exception:
-            length_m = ""
         orient = wall_orientation_deg(wall)
 
-        rows.append([
-            element_id(target_space),
-            builtin(target_space, BuiltInParameter.ROOM_NUMBER),
-            builtin(target_space, BuiltInParameter.ROOM_NAME),
-            level_name(target_space),
-            "external_wall",
-            "yes",                 # витраж — всегда наружный
-            eid,
-            link_name,
-            category_name(wall),
-            family,
-            type_n,
-            level_name(wall),
-            round(length_m, 3) if isinstance(length_m, float) else "",
-            element_height_m(target_space),
-            area_str,
-            area_str,
-            thickness_val,
-            "curtain (orphan)",   # помечаем источник для отладки
-            u_val,
-            "",
-            1,                     # bsc=1 (трактуем как «реально наружный»)
-            orient,
-        ])
+        # Делим витраж по фронту×высоте между ВСЕМИ залами, которые он
+        # закрывает (низ→нижний этаж, верх→верхний; по длине — каждому его
+        # фронт). Старое поведение (вся стена → одно помещение по середине)
+        # завышало остекление одной комнаты в разы и обделяло соседей.
+        parts = split_curtain_wall_by_frontage(
+            wall, transform, spatial_elements, spaces_with_glazing)
+        if not parts:
+            continue
+        seen_in_this_pass.add(key)
+        n_parts = len(parts)
+        for part in parts:
+            target_space = part["space"]
+            area_m2 = part["area_m2"]
+            frontage = part["frontage_m"]
+            rows.append([
+                element_id(target_space),
+                builtin(target_space, BuiltInParameter.ROOM_NUMBER),
+                builtin(target_space, BuiltInParameter.ROOM_NAME),
+                level_name(target_space),
+                "external_wall",
+                "yes",                 # витраж — всегда наружный
+                eid,
+                link_name,
+                category_name(wall),
+                family,
+                type_n,
+                level_name(wall),
+                round(frontage, 3),    # boundary_length_m = фронт этой доли
+                element_height_m(target_space),
+                area_m2,               # approx_area_m2 = доля (фронт×высота)
+                area_m2,               # element_area = та же доля
+                thickness_val,
+                "curtain (orphan)",   # маркер фасадного витража (для загрузчика)
+                u_val,
+                "",
+                n_parts,               # bsc = число залов, делящих витраж
+                orient,
+            ])
     return rows
 
 

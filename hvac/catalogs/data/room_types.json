@@ -3,9 +3,23 @@
     "keywords": [
       "office",
       "офис",
-      "кабинет"
+      "кабинет",
+      "manager",
+      "secretary",
+      "marketing",
+      "sales",
+      "purchasing",
+      "administration",
+      "accounting",
+      "coworking",
+      "director",
+      "security",
+      "accountant",
+      "cost control",
+      "cash deposit",
+      "chief engineer"
     ],
-    "t_in_heat": 20,
+    "t_in_heat": 22,
     "t_in_cool": 24,
     "ach_inf": 0.5,
     "occupancy_density_m2_per_person": 10.0,
@@ -30,13 +44,16 @@
   "Коридор": {
     "keywords": [
       "corridor",
-      "hall ",
-      "hall,",
+      "hall",
+      "circulation",
+      "foyer",
+      "passage",
       "коридор",
-      "холл"
+      "холл",
+      "проход"
     ],
-    "t_in_heat": 18,
-    "t_in_cool": 26,
+    "t_in_heat": 22,
+    "t_in_cool": 24,
     "ach_inf": 0.3,
     "occupancy_density_m2_per_person": 50.0,
     "lighting_w_m2": 8,
@@ -46,11 +63,16 @@
     "keywords": [
       "vestibule",
       "lobby",
+      "entrance",
+      "mudroom",
       "вестибюль",
-      "тамбур"
+      "тамбур",
+      "lounge",
+      "family room",
+      "family lounge"
     ],
-    "t_in_heat": 16,
-    "t_in_cool": 26,
+    "t_in_heat": 22,
+    "t_in_cool": 24,
     "ach_inf": 1.5,
     "occupancy_density_m2_per_person": 30.0,
     "lighting_w_m2": 10,
@@ -59,7 +81,8 @@
   "Лестница": {
     "keywords": [
       "stair",
-      "лестниц"
+      "лестниц",
+      "fire escape"
     ],
     "t_in_heat": 16,
     "t_in_cool": 28,
@@ -86,7 +109,13 @@
       "storage",
       "warehouse",
       "склад",
-      "кладовая"
+      "кладовая",
+      "luggage",
+      "loading",
+      "unloading",
+      "stroller",
+      "delivery",
+      "beverage supply"
     ],
     "t_in_heat": 12,
     "t_in_cool": 28,
@@ -99,14 +128,36 @@
     "keywords": [
       "mechanical",
       "electrical",
+      "electric",
+      "elec.",
       "transformer",
+      "substation",
       "weak current",
       "machine",
+      "technical",
+      "pump",
+      "ahu room",
+      "air handling",
+      "plant room",
+      "cooling room",
+      "switchgear",
+      "boiler",
+      "chiller",
+      "voltage",
+      "generator",
+      "water supply",
+      "water tank",
+      "fire pump",
+      "fire suppression",
+      "sprinkler",
       "техническ",
       "электрощит",
       "венткамер",
       "ИТП",
-      "насос"
+      "насос",
+      "compressor",
+      "service room",
+      "hot air exhaust"
     ],
     "t_in_heat": 5,
     "t_in_cool": 35,
@@ -120,6 +171,7 @@
       "carpark",
       "parking",
       "garage",
+      "car wash",
       "парковка",
       "стоянка",
       "гараж"
@@ -151,30 +203,62 @@
     "keywords": [
       "conference",
       "meeting",
+      "cinema",
       "конференц",
-      "переговор"
+      "переговор",
+      "ballroom",
+      "banquet",
+      "pre-function",
+      "vip"
     ],
-    "t_in_heat": 20,
+    "t_in_heat": 22,
     "t_in_cool": 24,
     "ach_inf": 0.5,
     "occupancy_density_m2_per_person": 3.0,
     "lighting_w_m2": 12,
     "equipment_w_m2": 10
   },
-  "Ресторан / кухня": {
+  "Ресторан / зал": {
     "keywords": [
-      "kitchen",
       "restaurant",
       "dining",
-      "кухня",
-      "ресторан"
+      "cafeteria",
+      "cafe",
+      "canteen",
+      "food court",
+      "diner",
+      "bistro",
+      "ресторан",
+      "кафетерий",
+      "кафе",
+      "столовая",
+      "обеденный зал",
+      "буфет"
     ],
-    "t_in_heat": 20,
-    "t_in_cool": 22,
-    "ach_inf": 1.0,
+    "t_in_heat": 22,
+    "t_in_cool": 24,
+    "ach_inf": 0.8,
     "occupancy_density_m2_per_person": 1.5,
     "lighting_w_m2": 15,
-    "equipment_w_m2": 200
+    "equipment_w_m2": 20
+  },
+  "Кухня": {
+    "keywords": [
+      "kitchenette",
+      "kitchen",
+      "pantry",
+      "кухня",
+      "кухонн",
+      "мини-кухня",
+      "кухня-ниша",
+      "кухонный уголок"
+    ],
+    "t_in_heat": 20,
+    "t_in_cool": 24,
+    "ach_inf": 1.0,
+    "occupancy_density_m2_per_person": 10.0,
+    "lighting_w_m2": 12,
+    "equipment_w_m2": 50
   },
   "Гостиничный номер": {
     "keywords": [
@@ -182,8 +266,8 @@
       "guest room",
       "номер"
     ],
-    "t_in_heat": 20,
-    "t_in_cool": 24,
+    "t_in_heat": 22,
+    "t_in_cool": 22,
     "ach_inf": 0.5,
     "occupancy_density_m2_per_person": 15.0,
     "lighting_w_m2": 10,
@@ -194,9 +278,13 @@
       "shop",
       "retail",
       "store",
+      "boutique",
+      "showroom",
+      "supermarket",
+      "anchor",
       "магазин"
     ],
-    "t_in_heat": 16,
+    "t_in_heat": 22,
     "t_in_cool": 24,
     "ach_inf": 0.8,
     "occupancy_density_m2_per_person": 5.0,
@@ -219,6 +307,7 @@
   "Душевая": {
     "keywords": [
       "shower",
+      "wet area",
       "душевая",
       "душев"
     ],
@@ -233,10 +322,11 @@
     "keywords": [
       "cloakroom",
       "wardrobe",
+      "uniform",
       "гардероб"
     ],
-    "t_in_heat": 16,
-    "t_in_cool": 26,
+    "t_in_heat": 22,
+    "t_in_cool": 24,
     "ach_inf": 0.5,
     "occupancy_density_m2_per_person": 20.0,
     "lighting_w_m2": 8,
@@ -246,10 +336,15 @@
     "keywords": [
       "medical",
       "first aid",
+      "massage",
+      "wellness",
       "медпункт",
       "медицинск",
       "процедурн",
-      "изолятор"
+      "изолятор",
+      "массаж",
+      "baby care",
+      "nursing"
     ],
     "t_in_heat": 21,
     "t_in_cool": 24,
@@ -266,7 +361,8 @@
       "спортзал",
       "спортивн",
       "тренаж",
-      "фитнес"
+      "фитнес",
+      "training studio"
     ],
     "t_in_heat": 18,
     "t_in_cool": 24,
@@ -292,10 +388,11 @@
     "keywords": [
       "changing room",
       "locker",
-      "раздевалк"
+      "раздевалк",
+      "changing"
     ],
     "t_in_heat": 22,
-    "t_in_cool": 25,
+    "t_in_cool": 24,
     "ach_inf": 0.5,
     "occupancy_density_m2_per_person": 4.0,
     "lighting_w_m2": 8,
@@ -306,7 +403,11 @@
       "sauna",
       "сауна",
       "парная",
-      "ҳаммом"
+      "ҳаммом",
+      "hammam",
+      "steam bath",
+      "russian bath",
+      "bath complex"
     ],
     "t_in_heat": 22,
     "t_in_cool": 24,
@@ -321,7 +422,7 @@
       "прачечн",
       "постирочн"
     ],
-    "t_in_heat": 18,
+    "t_in_heat": 22,
     "t_in_cool": 24,
     "ach_inf": 0.5,
     "occupancy_density_m2_per_person": 20.0,
@@ -378,7 +479,9 @@
       "dishwash",
       "ware wash",
       "моечн",
-      "посудомо"
+      "посудомо",
+      "pot wash",
+      "sanitiz"
     ],
     "t_in_heat": 20,
     "t_in_cool": 26,
@@ -390,10 +493,23 @@
   "Горячий цех": {
     "keywords": [
       "hot shop",
+      "hot kitchen",
+      "main kitchen",
+      "pre kitchen",
+      "a la carte kitchen",
+      "banquette kitchen",
+      "banquet kitchen",
+      "production kitchen",
+      "central kitchen",
+      "pastry",
+      "bakery",
       "горячий цех",
-      "доготовочн"
+      "доготовочн",
+      "кондитер",
+      "пекарн",
+      "пищеблок"
     ],
-    "t_in_heat": 16,
+    "t_in_heat": 22,
     "t_in_cool": 24,
     "ach_inf": 0.5,
     "occupancy_density_m2_per_person": 10.0,
@@ -406,9 +522,13 @@
       "холодный цех",
       "заготовочн",
       "мясной цех",
-      "овощной цех"
+      "овощной цех",
+      "sea food",
+      "seafood",
+      "butchery",
+      "garde manger"
     ],
-    "t_in_heat": 16,
+    "t_in_heat": 22,
     "t_in_cool": 22,
     "ach_inf": 0.5,
     "occupancy_density_m2_per_person": 12.0,
@@ -421,13 +541,85 @@
       "cold store",
       "refrigerat",
       "холодильн",
-      "морозильн"
+      "морозильн",
+      "freezer",
+      "frozen"
     ],
     "t_in_heat": 4,
     "t_in_cool": 4,
     "ach_inf": 0.3,
     "occupancy_density_m2_per_person": 100.0,
     "lighting_w_m2": 6,
+    "equipment_w_m2": 0
+  },
+  "Балкон / терраса": {
+    "keywords": [
+      "balcony",
+      "terrace",
+      "loggia",
+      "roof terrace",
+      "балкон",
+      "терраса",
+      "лоджия",
+      "roof"
+    ],
+    "t_in_heat": 5,
+    "t_in_cool": 30,
+    "ach_inf": 0.0,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 0,
+    "equipment_w_m2": 0
+  },
+  "Пожаробезопасная зона": {
+    "keywords": [
+      "fire hall",
+      "fire lobby",
+      "fire fighting lobby",
+      "firefighting lobby",
+      "refuge area",
+      "refuge",
+      "пожаробезопасн",
+      "зона безопасности",
+      "безопасная зона"
+    ],
+    "t_in_heat": 16,
+    "t_in_cool": 28,
+    "ach_inf": 0.3,
+    "occupancy_density_m2_per_person": 50.0,
+    "lighting_w_m2": 6,
+    "equipment_w_m2": 0
+  },
+  "Мусорокамера": {
+    "keywords": [
+      "waste",
+      "garbage",
+      "refuse room",
+      "refuse store",
+      "мусор",
+      "мусорокамер",
+      "мусоросбор"
+    ],
+    "t_in_heat": 18,
+    "t_in_cool": 18,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 6,
+    "equipment_w_m2": 0
+  },
+  "Уборочная": {
+    "keywords": [
+      "cleaning",
+      "cleaner",
+      "janitor",
+      "mop",
+      "уборочн",
+      "уборочный инвентарь"
+    ],
+    "t_in_heat": 16,
+    "t_in_cool": 28,
+    "ach_inf": 0.5,
+    "occupancy_density_m2_per_person": 100.0,
+    "lighting_w_m2": 8,
     "equipment_w_m2": 0
   },
   "Прочее": {

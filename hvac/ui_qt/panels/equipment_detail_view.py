@@ -17,7 +17,8 @@ from __future__ import annotations
 from typing import Optional
 
 from PySide6.QtWidgets import (
-    QFormLayout, QGroupBox, QLabel, QSpinBox, QTextBrowser, QVBoxLayout, QWidget,
+    QDialog, QFormLayout, QGroupBox, QLabel, QPushButton, QSpinBox,
+    QTextBrowser, QVBoxLayout, QWidget,
 )
 
 from hvac.equipment import VENT_KIND_SIDE
@@ -93,6 +94,9 @@ class EquipmentDetailView(QWidget):
         for w in (self.s_t_sup, self.s_t_ret, self.s_effcop, self.s_cap):
             w.valueChanged.connect(self._on_src_changed)
         self.s_units.valueChanged.connect(self._on_src_changed)
+        self.s_catalog_btn = QPushButton(_t("panel.detail.btn.catalog"))
+        self.s_catalog_btn.clicked.connect(self._pick_from_catalog)
+        sform.addRow(self.s_catalog_btn)
         outer.addWidget(self.src_box)
 
         self.body = QTextBrowser()
@@ -270,6 +274,35 @@ class EquipmentDetailView(QWidget):
         if self._on_changed:
             self._on_changed()
 
+    def pick_from_catalog(self) -> None:
+        """Каталожный подбор для текущего источника (и из меню дерева)."""
+        self._pick_from_catalog()
+
+    def _pick_from_catalog(self) -> None:
+        """Каталожный подбор: заполняет мощность/кол-во/модель источника."""
+        if self._sname is None or self._sdomain is None:
+            return
+        from hvac.equipment_sizing import select_equipment
+        from hvac.ui_qt.panels.source_pick_dialog import SourcePickDialog
+        sel = select_equipment(self.project)
+        src = next((s for s in sel.sources(self._sdomain)
+                    if s.name == self._sname), None)
+        req = src.required_kw if src else 0.0
+        dlg = SourcePickDialog(
+            self, domain=self._sdomain, required_kw=req,
+            context=_t("panel.srcpick.ctx.system").format(
+                name=self._sname, q=f"{req:.0f}"))
+        if dlg.exec() != QDialog.Accepted:
+            return
+        vals = dlg.values()
+        if not vals:
+            return
+        self.project.update_zone_system(self._sdomain, self._sname, **vals)
+        self.bridge.dirtyChanged.emit(True)
+        self._show_source(self._sdomain, self._sname)   # обновить спины+рендер
+        if self._on_changed:
+            self._on_changed()
+
     def _render_source(self) -> None:
         if self._sdomain is None or self._sname is None:
             self.body.clear()
@@ -282,9 +315,23 @@ class EquipmentDetailView(QWidget):
             self.body.clear()
             return
         margin = getattr(src, "margin", 1.0)
+        q_base = getattr(src, "q_base_w", src.q_total_w)
         rows = [_t("panel.detail.src.required").format(
-            req=f"{src.required_kw:.1f}", q=f"{src.q_total_w / 1000:.1f}",
+            req=f"{src.required_kw:.1f}", q=f"{q_base / 1000:.1f}",
             m=f"{margin:.2f}")]
+        # тепловой баланс блока источника (помещения + установки + ГВС)
+        if getattr(src, "block", ""):
+            key = ("panel.detail.src.block_heat"
+                   if self._sdomain == "heating"
+                   else "panel.detail.src.block_cool")
+            q_blk = (src.q_block_rooms_w + src.q_block_ahu_w
+                     + src.q_block_dhw_w)
+            rows.append(_t(key).format(
+                block=src.block,
+                rooms=f"{src.q_block_rooms_w / 1000:.1f}",
+                ahu=f"{src.q_block_ahu_w / 1000:.1f}",
+                dhw=f"{src.q_block_dhw_w / 1000:.1f}",
+                q=f"{q_blk / 1000:.1f}"))
         pick_key = ("panel.detail.src.picked_manual" if src.manual
                     else "panel.detail.src.picked_auto")
         rows.append(_t(pick_key).format(
@@ -326,6 +373,7 @@ class EquipmentDetailView(QWidget):
     def retranslate_ui(self) -> None:
         self.params_box.setTitle(_t("panel.detail.params"))
         self.src_box.setTitle(_t("panel.detail.params"))
+        self.s_catalog_btn.setText(_t("panel.detail.btn.catalog"))
         for key, lbl in self._vlabels.items():
             lbl.setText(_t(key))
         if self._vname:

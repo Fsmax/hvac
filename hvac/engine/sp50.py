@@ -126,7 +126,9 @@ EQUIPMENT_SENSIBLE_RATIO = {
     "Жилая комната": 0.85,
     "Гостиничный номер": 0.85,
     "Магазин / торговля": 0.85,
-    "Ресторан / кухня": 0.50,      # плиты, пароконвектоматы → много скрытой
+    "Ресторан / зал": 0.80,        # зал: техника невелика, в осн. явная
+    "Кухня": 0.55,                 # бытовая плита → заметная скрытая (пар)
+    "Горячий цех": 0.45,           # плиты, пароконвектоматы → много скрытой
     "Технич. помещение": 0.95,
     "Прочее": 0.85,
 }
@@ -137,6 +139,117 @@ def _latent_infiltration_w(L_m3h: float, delta_w_g_kg: float) -> float:
     Q = m_dot · Δw · h_fg, где h_fg ≈ 2500 кДж/кг при 20°C.
     В практичных единицах: Q[Вт] = 0.83 · L[м³/ч] · Δw[г/кг]"""
     return 0.83 * L_m3h * delta_w_g_kg
+
+
+def infiltration_flow_m3h(space, params, has_exterior: bool = True,
+                          has_transfer_donor: bool = False) -> float:
+    """Расход инфильтрующегося НАРУЖНОГО воздуха, который догревают радиаторы
+    помещения, м³/ч (КМК 2.04.05-91 / СП 60.13330).
+
+    Логика по балансу механической вентиляции:
+    - НЕТ механической вентиляции (приток=0 и вытяжка=0) → естественный
+      воздухообмен по ach_inf (как раньше): G = ach_inf · V.
+    - ЕСТЬ механическая вентиляция → приточный наружный воздух греет калорифер
+      приточной установки ОТДЕЛЬНО (нагрузка AHU, не радиаторов). Радиаторы
+      догревают только подсос:
+        * подпор (приток ≥ вытяжки+зонт) → помещение под избыточным давлением,
+          инфильтрация ≈ фон (params.infiltration_min_ach · V);
+        * преобладание вытяжки (кухни с зонтами) → подсасывается недостающий
+          воздух: G = (вытяжка + зонт − приток).
+      Итог: G = max(infiltration_min_ach · V, вытяжка + зонт − приток).
+
+    has_transfer_donor=True — у ЧИСТО ВЫТЯЖНОГО помещения (приток=0, без зонта:
+    санузел) есть смежное помещение с притоком. Тогда весь расход вытяжки
+    восполняется ПЕРЕТОКОМ из соседа при внутренней t, а наружную долю этого
+    перетока греет приточная установка соседа (баланс _balance_transfer_air).
+    На приборы данного помещения ложится только фон по оболочке
+    (G = infiltration_min_ach · V), а не полный расход вытяжки. Иначе вытяжка
+    санузла считается дважды: и на радиаторе санузла как наружный воздух
+    (раздутые Вт/м²), и на калорифере приточки соседа.
+
+    has_exterior=False — ВНУТРЕННЕЕ помещение (нет наружных ограждений). Прямого
+    воздухообмена с улицей нет: и естественная инфильтрация, и подсос на дефицит
+    вытяжки восполняются ПЕРЕТОКОМ из смежных помещений при внутренней
+    температуре. Наружный воздух за этот переток кондиционирует приточная
+    установка смежного помещения, поэтому на приборы данного помещения нагрузка
+    от инфильтрации не ложится (иначе — двойной счёт по зданию). Типичный
+    случай — внутренние санузлы (exhaust_only): без этого правила им вешается
+    полный расход вытяжки при наружной t (раздутые Вт/м²).
+    """
+    if not has_exterior:
+        return 0.0
+    sup = getattr(space, "supply_m3h", 0.0) or 0.0
+    hood = getattr(space, "hood_m3h", 0.0) or 0.0
+    exh = (getattr(space, "exhaust_m3h", 0.0) or 0.0) + hood
+    if sup <= 0.0 and exh <= 0.0:
+        return (space.ach_inf or 0.0) * (space.volume_m3 or 0.0)
+    floor = getattr(params, "infiltration_min_ach", 0.0) * (space.volume_m3 or 0.0)
+    if sup <= 0.0 and hood <= 0.0 and has_transfer_donor:
+        # Чисто вытяжное помещение (санузел) со смежным донором (приток>0):
+        # расход вытяжки восполняется перетоком при внутренней t, его наружную
+        # долю греет приточка соседа. На приборы — только фон по оболочке.
+        return floor
+    deficit = max(0.0, exh - sup)
+    return max(deficit, floor)
+
+
+def _has_supplied_neighbor(space, project) -> bool:
+    """Есть ли у помещения смежное (по общей стене) помещение с притоком > 0.
+
+    Такой сосед — донор перетока: его приток восполняет вытяжку данного
+    помещения (типично санузел ← номер). Сосед берётся по общему Revit-id
+    стены (element_id), как в _internal_partition_flux; перегородки тоже.
+    """
+    seen: set = set()
+    for el in project.elements_for(space.space_id):
+        if el.row_type != "external_wall":
+            continue
+        for nid in project.wall_neighbor_space_ids(el.element_id, space.space_id):
+            if nid in seen:
+                continue
+            seen.add(nid)
+            nb = project._space_by_id.get(nid)
+            if nb is not None and (getattr(nb, "supply_m3h", 0.0) or 0.0) > 0.0:
+                return True
+    return False
+
+
+def _internal_partition_flux(space, project, params, cooling: bool) -> float:
+    """Тепловой поток через ВНУТРЕННИЕ перегородки к/от смежных помещений иной
+    температуры, Вт (КМК 2.04.05-91: учитывается при Δt ≥ min_dt).
+
+    cooling=False — теплопотери зимой к более ХОЛОДНЫМ соседям;
+    cooling=True  — теплопоступления летом от более ТЁПЛЫХ соседей.
+
+    Сосед за стеной берётся по общему Revit-id стены (element_id). Если стена
+    граничит с несколькими помещениями, её площадь делится между ними поровну
+    (точное разбиение по сегментам доступно только из геометрии Revit).
+    Учитываются только стены (не проёмы) и только перепад в «невыгодную»
+    сторону (потери зимой / приток тепла летом).
+    """
+    min_dt = getattr(params, "internal_partition_min_dt", 3.0)
+    u_default = getattr(params, "u_internal_partition", 1.5)
+    t_self = space.t_in_cool if cooling else space.t_in_heat
+    q = 0.0
+    for el in project.elements_for(space.space_id):
+        if el.is_exterior or el.row_type != "external_wall":
+            continue
+        area = el.net_area_m2 or el.approx_area_m2 or 0.0
+        if area <= 0:
+            continue
+        nb_ids = project.wall_neighbor_space_ids(el.element_id, space.space_id)
+        if not nb_ids:
+            continue
+        share = area / len(nb_ids)
+        u = el.u_value if el.u_value > 0 else u_default
+        for nid in nb_ids:
+            nb = project._space_by_id.get(nid)
+            if nb is None:
+                continue
+            dt = (nb.t_in_cool - t_self) if cooling else (t_self - nb.t_in_heat)
+            if dt >= min_dt:
+                q += u * share * dt
+    return q
 
 
 def _room_has_real_glazing(elems, constructions) -> bool:
@@ -303,18 +416,41 @@ class SP50Engine(CalculationEngine):
             q_trans += q_roof
             breakdown["Покрытие"] = q_roof
 
+        # Внутренние перегородки к более холодным смежным помещениям
+        # (КМК 2.04.05-91). Для внутренних помещений (склад рядом, лестница,
+        # коридор иной t) это часто единственная статья теплопотерь.
+        q_partition = _internal_partition_flux(space, project, p, cooling=False)
+        if q_partition > 0:
+            q_trans += q_partition
+            breakdown["Внутр. перегородки"] = q_partition
+
         breakdown["Через ограждения"] = q_trans
 
-        # Инфильтрация: Q = 0.28 · L · ρ · c · ΔT · k
-        L_inf = space.ach_inf * space.volume_m3
+        # Инфильтрация: Q = 0.28 · L · ρ · c · ΔT · k. Расход с учётом баланса
+        # мех. вентиляции (приточный воздух греет AHU отдельно) — см.
+        # infiltration_flow_m3h. Внутреннее помещение (ограждения есть, но среди
+        # них нет наружных) → инфильтрация 0 (make-up перетоком). Если геометрия
+        # не задана вовсе — консервативно считаем помещение наружным.
+        all_elems = project.elements_for(space.space_id)
+        has_ext = (not all_elems) or any(e.net_area_m2 > 0 for e in elems)
+        has_donor = _has_supplied_neighbor(space, project)
+        L_inf = infiltration_flow_m3h(space, p, has_exterior=has_ext,
+                                      has_transfer_donor=has_donor)
         rho = air_density(p.t_out_heating)
         c = 1.005
         q_inf = 0.28 * L_inf * rho * c * dt * p.inf_correction_k
         breakdown["Инфильтрация"] = q_inf
 
-        # Бытовые тепловыделения (только для жилых, СП 50.13330 п. 5.2)
+        # Бытовые тепловыделения (СП 50.13330 п. 5.2) — поправка для ГОДОВОГО
+        # энергобаланса (см. energy.py). Для КВАРТИР RES из пиковой Q их НЕ
+        # вычитаем: приборы, источник и расход теплоносителя подбираются по
+        # полным теплопотерям (СП 60 / СНиП 2.04.05 — расчётный случай без
+        # бытовых и солнечных поступлений). Для прочих «жилых» (гостиничные
+        # HTL и т.п.) сохраняем прежний вычет. RES определяем по номеру —
+        # как в data_loader.py:416.
         q_bytovaya = 0.0
-        if space.room_type == "Жилая комната":
+        is_res = (space.number or "").upper().startswith("RES")
+        if space.room_type == "Жилая комната" and not is_res:
             q_bytovaya = 17.0 * space.area_m2
             breakdown["Бытовые (−)"] = -q_bytovaya
 
@@ -405,6 +541,12 @@ class SP50Engine(CalculationEngine):
         sensible["Через ограждения"] = q_trans
         latent["Через ограждения"] = 0.0
 
+        # Внутренние перегородки от более ТЁПЛЫХ смежных помещений (напр. склад
+        # +28° рядом с офисом +24°) — 100% явная теплота (КМК 2.04.05-91).
+        sensible["Внутр. перегородки"] = _internal_partition_flux(
+            space, project, p, cooling=True)
+        latent["Внутр. перегородки"] = 0.0
+
         # Солнечная радиация — 100% явная
         sensible["Солнечная радиация"] = q_solar
         latent["Солнечная радиация"] = 0.0
@@ -426,7 +568,13 @@ class SP50Engine(CalculationEngine):
         # Инфильтрация / вентиляция
         # Явная: 0.28 · L · ρ · c · ΔT
         # Скрытая: 0.83 · L · Δw (где Δw — разница влагосодержаний г/кг)
-        L = space.ach_inf * space.volume_m3
+        # Расход с учётом баланса мех. вентиляции — см. infiltration_flow_m3h.
+        # Внутреннее помещение → инфильтрация 0 (как в heat_loss).
+        all_elems = project.elements_for(space.space_id)
+        has_ext = (not all_elems) or any(e.net_area_m2 > 0 for e in elems)
+        has_donor = _has_supplied_neighbor(space, project)
+        L = infiltration_flow_m3h(space, p, has_exterior=has_ext,
+                                  has_transfer_donor=has_donor)
         rho = air_density(p.t_out_cooling)
         sensible["Инфильтрация/вентиляция"] = 0.28 * L * rho * 1.005 * dt
         delta_w = p.w_out_summer_g_kg - p.w_in_summer_g_kg

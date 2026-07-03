@@ -59,8 +59,15 @@ class SourceSelection:
     n_direct_rooms: int = 0         # помещения на системе без контура
     q_direct_w: float = 0.0
     q_total_w: float = 0.0          # Σ контуров + прямые (до запаса)
+    # Тепловой баланс блока источника (если задан block): помещения
+    # (is_heated/is_cooled) + приточные установки блока + ГВС (котлы).
+    block: str = ""
+    q_block_rooms_w: float = 0.0
+    q_block_ahu_w: float = 0.0
+    q_block_dhw_w: float = 0.0      # ГВС блока (только heating)
+    q_base_w: float = 0.0           # база required: контуры, иначе баланс блока
     margin: float = 1.0
-    required_kw: float = 0.0        # q_total × margin
+    required_kw: float = 0.0        # q_base × margin
     unit_kw: float = 0.0            # типоразмер единичного агрегата
     units: int = 0                  # количество агрегатов
     manual: bool = False            # подбор задан вручную (override авто)
@@ -88,6 +95,7 @@ def _room_load_w(domain: str, sp) -> float:
 
 def _select_domain(project, domain: str, margin: float) -> List[SourceSelection]:
     from hvac.ahu_load import aggregate_ahus, summary_by_circuit
+    from hvac.blocks import block_summary
 
     sys_field, circ_field = project.zoning_space_fields(domain)
     systems = project.systems_of(domain)
@@ -111,6 +119,7 @@ def _select_domain(project, domain: str, margin: float) -> List[SourceSelection]
             direct_by_system[s].append(sp)
 
     ladder = BOILER_KW_LADDER if domain == "heating" else CHILLER_KW_LADDER
+    blocks_sum = block_summary(project)
     out: List[SourceSelection] = []
     for sname in sorted(systems.keys()):
         sysobj = systems[sname]
@@ -142,7 +151,24 @@ def _select_domain(project, domain: str, margin: float) -> List[SourceSelection]
         src.n_direct_rooms = len(direct)
         src.q_direct_w = sum(_room_load_w(domain, sp) for sp in direct)
         src.q_total_w = sum(c.q_total_w for c in src.circuits) + src.q_direct_w
-        src.required_kw = src.q_total_w * margin / 1000.0
+        # Тепловой баланс блока: когда зонирование к источнику не привязано
+        # (контуров/помещений нет), требуемая мощность берётся из баланса
+        # блока — помещения + установки (+ ГВС для котлов).
+        blk = getattr(sysobj, "block", "") or ""
+        row = blocks_sum.get(blk) if blk else None
+        if row:
+            src.block = blk
+            if domain == "heating":
+                src.q_block_rooms_w = row.get("q_heat_rooms_w", 0.0)
+                src.q_block_ahu_w = row.get("ahu_q_heater_w", 0.0)
+                src.q_block_dhw_w = row.get("q_dhw_w", 0.0)
+            else:
+                src.q_block_rooms_w = row.get("q_cool_rooms_w", 0.0)
+                src.q_block_ahu_w = row.get("ahu_q_cooler_w", 0.0)
+        q_block = (src.q_block_rooms_w + src.q_block_ahu_w
+                   + src.q_block_dhw_w)
+        src.q_base_w = src.q_total_w if src.q_total_w > 0 else q_block
+        src.required_kw = src.q_base_w * margin / 1000.0
         # Ручной подбор (если задан) имеет приоритет над авто-расчётом.
         manual_kw = getattr(sysobj, "design_capacity_kw", 0.0) or 0.0
         if manual_kw > 0:

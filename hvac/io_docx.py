@@ -266,20 +266,31 @@ def export_to_docx(project: "HVACProject", path: str,
                          f"{total_cs / 1000:.1f}", f"{total_cl / 1000:.1f}"])
             add_table(rows)
 
-    # =================== 8. ДЫМОУДАЛЕНИЕ ===================
+    # ============= 8. ПРОТИВОДЫМНАЯ ЗАЩИТА (дымоудаление + подпор) =============
     if "smoke" in include_sections and project.smoke_systems:
         from hvac.catalogs.smoke_norms import get_smoke_norm
+        from hvac.smoke_report import build_smoke_explanations
         norm = get_smoke_norm(getattr(project.params, "smoke_norm", "SP7_RU"))
-        doc.add_heading(
-            f"8. Дымоудаление и подпор воздуха — {norm.title}", level=1)
+        doc.add_heading("8. Противодымная защита: дымоудаление и подпор воздуха",
+                        level=1)
         add_para(f"Действующий норматив: {norm.reference}")
+        add_para("Расход дымоудаления и подпора воздуха определён по формулам "
+                 "норматива. Ниже по каждой системе приведён вывод расчёта с "
+                 "исходными данными, подстановкой и ссылкой на пункт норматива. "
+                 "Оборудование противодымной защиты включается автоматически "
+                 "при пожаре (ШНК 2.01.02-04, п. 5.7).")
+
+        # Пересчёт расходов (заполняет L_smoke_m3h/L_makeup_m3h по системам)
+        explanations = build_smoke_explanations(project)
 
         smoke = {k: v for k, v in project.smoke_systems.items()
                  if v.system_type == "smoke_removal"}
         press = {k: v for k, v in project.smoke_systems.items()
                  if v.system_type == "air_supply"}
+
+        # --- 8.1 Сводка СДУ ---
         if smoke:
-            doc.add_heading("Системы дымоудаления (СДУ)", level=2)
+            doc.add_heading("8.1. Системы дымоудаления (СДУ) — сводка", level=2)
             rows = [["Имя", "Назначение", "Метод", "Площадь, м²", "Зон",
                      "L сист., м³/ч", "L комп., м³/ч", "Огнест."]]
             for name, ss in sorted(smoke.items()):
@@ -291,16 +302,37 @@ def export_to_docx(project: "HVACProject", path: str,
                     ss.fire_rating,
                 ])
             add_table(rows)
+        # --- 8.2 Сводка СПВ ---
         if press:
-            doc.add_heading("Системы подпора воздуха (СПВ)", level=2)
+            doc.add_heading("8.2. Системы подпора воздуха (СПВ) — сводка", level=2)
             rows = [["Имя", "Назначение", "L, м³/ч", "Давление, Па"]]
             for name, ps in sorted(press.items()):
                 rows.append([
                     name, ps.purpose,
                     f"{ps.L_smoke_m3h:,.0f}".replace(",", " "),
-                    f"{ps.pressure_pa:.1f}",
+                    f"{ps.pressure_pa:.0f}",
                 ])
             add_table(rows)
+
+        # --- 8.3 Расчёт с пояснениями (вывод формул по системам) ---
+        if explanations:
+            doc.add_heading("8.3. Расчёт с пояснениями (по системам)", level=2)
+            for ex in explanations:
+                doc.add_heading(
+                    f"{ex['kind']} «{ex['name']}» — {ex['method_title']}", level=3)
+                add_para(f"Формула:  {ex['formula']}", bold=True)
+                add_para(f"Норматив: {ex['ref']}")
+                add_table([["Исходные данные", "Значение"]]
+                          + [list(p) for p in ex["inputs"]])
+                add_para(f"Подстановка:  {ex['substitution']}")
+                add_table([["Результат", "Значение"]]
+                          + [list(p) for p in ex["results"]])
+                if ex.get("checks"):
+                    add_para("Требования и проверки:", bold=True)
+                    for c in ex["checks"]:
+                        add_para("• " + c)
+                if ex.get("note"):
+                    add_para("Примечание: " + ex["note"])
 
     # =================== 9. ВОЗДУХОВОДЫ ===================
     if "ducts" in include_sections and project.duct_networks:

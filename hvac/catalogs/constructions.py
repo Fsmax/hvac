@@ -121,7 +121,7 @@ def construction_key(category: str, family: str, type_name: str,
 # а они должны быть остеклёнными (с SHGC > 0).
 _CURTAIN_WALL_KEYWORDS = (
     "витраж", "curtain", "glaz", "glass", "стекл",
-    "facade", "фасад", "ограждение",
+    "facade", "фасад", "ограждение", "storefront", "витрин",
     # Названия типов из проекта Chorsu и подобных:
     "chr_balcony", "balcony", "балкон", "loggia", "лоджия",
 )

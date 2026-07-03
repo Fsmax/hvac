@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from hvac.air_heating import apply_air_heating
+from hvac.catalogs.room_types import is_non_cooled_type, is_non_heated_type
 from hvac.i18n import t as _t
 from hvac.project import HVACProject
 from hvac.ui_qt.bridge import ProjectBridge
@@ -299,15 +300,24 @@ class BalancePanel(QWidget):
     def _auto_classify(self) -> None:
         """Расставляет галочки по нагрузке: помещение отапливается, если есть
         теплопотери и оно НЕ на воздушном отоплении (его нагрузку несёт AHU);
-        аналогично для охлаждения."""
+        аналогично для охлаждения.
+
+        Помещения, неотапливаемые/неохлаждаемые по своей природе (лифтовые
+        шахты, паркинг, балконы/террасы, венткамеры/техпомещения, а для
+        отопления ещё и холодильные камеры — room_types.is_non_heated_type /
+        is_non_cooled_type), исключаются соответственно из отопления/охлаждения
+        даже при посчитанных теплопотерях/теплопоступлениях через наружные
+        стены."""
         if not self.project.spaces:
             return
         n = 0
         for sp in self.project.spaces:
-            sp.is_heated = sp.heat_loss_w > 0 and not getattr(
-                sp, "air_heating", False)
-            sp.is_cooled = sp.heat_gain_w > 0 and not getattr(
-                sp, "air_cooling", False)
+            sp.is_heated = (sp.heat_loss_w > 0
+                            and not getattr(sp, "air_heating", False)
+                            and not is_non_heated_type(sp.room_type))
+            sp.is_cooled = (sp.heat_gain_w > 0
+                            and not getattr(sp, "air_cooling", False)
+                            and not is_non_cooled_type(sp.room_type))
             n += 1
         self.bridge.dirtyChanged.emit(True)
         self._refresh_table()

@@ -317,7 +317,9 @@ def write_core_sheets(wb, project) -> None:
 
     # ===== Зоны и системы =====
     has_any_zones = any(sp.system_heating or sp.system_cooling
-                        or sp.system_ventilation for sp in project.spaces)
+                        or sp.system_ventilation
+                        or sp.system_supply or sp.system_exhaust
+                        for sp in project.spaces)
     if has_any_zones:
         from hvac.project import (suggest_ahu_size, suggest_boiler_size,
                                    suggest_chiller_size)

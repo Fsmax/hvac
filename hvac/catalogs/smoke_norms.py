@@ -134,13 +134,16 @@ SP7_RU = SmokeNorm(
 # предварительной оценки.
 KMK_UZ = SmokeNorm(
     code="KMK_UZ",
-    title="КМК 2.04.05-22 (Узбекистан)",
-    reference="КМК 2.04.05-22 «Отопление, вентиляция и кондиционирование», "
-              "Прил. 20–22 (формулы расчёта расхода дыма)",
-    note="Действующая редакция содержит формулы плюм-теории. Для проектной "
-         "документации использовать метод 'kmk_zone_perimeter' (помещения) "
-         "и 'kmk_corridor' (коридоры). Значения по типам — копия инженерной "
-         "практики, требует сверки с конкретным проектом.",
+    title="ШНК 2.04.05-22 (Узбекистан)",
+    reference="ШНК 2.04.05-22 «Иситиш, вентиляция ва кондициялаш» (Отопление, "
+              "вентиляция и кондиционирование), Прил. 20 (20-ИЛОВА) — формулы "
+              "расхода дыма; §7 «Ёнғиндаги тутунга қарши ҳимоя», пп. 323–341 — "
+              "подпор воздуха. (Прежнее обозначение — КМК 2.04.05.)",
+    note="Дымоудаление: метод 'kmk_corridor' (коридоры/холлы, ф.1/ф.2 Прил.20) "
+         "и 'kmk_zone_perimeter' (помещения ≤1600 м², ф.3). Подпор: метод "
+         "'kmk_pressurization' — по скорости 1,3 м/с в открытой двери (п.340), "
+         "избыточное ≥20 Па, на закрытых дверях эвакуации ≤150 Па (п.341). "
+         "Значения norm_per_m2 — инженерная практика для предварительной оценки.",
     norms_per_m2={
         "parking_closed":    24.0,
         "parking_above":     18.0,
@@ -163,7 +166,8 @@ KMK_UZ = SmokeNorm(
     default_pressure_pa=20.0,
     calc_method_recommended="kmk_zone_perimeter",
     available_calc_methods=[
-        "norm_per_m2", "kmk_zone_perimeter", "kmk_corridor", "manual",
+        "norm_per_m2", "kmk_zone_perimeter", "kmk_corridor",
+        "kmk_pressurization", "manual",
     ],
 )
 
@@ -239,7 +243,7 @@ CUSTOM = SmokeNorm(
     calc_method_recommended="norm_per_m2",
     available_calc_methods=[
         "norm_per_m2", "kmk_zone_perimeter", "kmk_corridor",
-        "nfpa_plume_axi", "manual",
+        "kmk_pressurization", "nfpa_plume_axi", "manual",
     ],
 )
 

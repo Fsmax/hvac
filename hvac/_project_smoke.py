@@ -50,7 +50,7 @@ class SmokeSystemsMixin:
             "Коридор":              ("corridor",      "corridor"),
             "Конференц-зал":        ("office_assembly", "atrium"),
             "Магазин / торговля":   ("trading_hall",  "trading_hall"),
-            "Ресторан / кухня":     ("office_assembly", "trading_hall"),
+            "Ресторан / зал":       ("office_assembly", "trading_hall"),
         }
         for (level, room_type), spaces_list in by_level_type.items():
             if room_type not in smoke_type_map:
@@ -300,20 +300,36 @@ class SmokeSystemsMixin:
             total_area = sum(s.area_m2 for s in spaces_list)
             n_spaces = len(spaces_list)
 
-            # СПВ — расход уже задан
+            # СПВ — приточная противодымная вентиляция (подпор воздуха)
             if sm.system_type == "air_supply":
+                # Точный метод по ШНК 2.04.05-22 п.340: L = 3600·v·F·n
+                # (скорость в проёме открытой двери). Иначе расход задан
+                # напрямую (табличное значение или ручной ввод).
+                if sm.calc_method == "kmk_pressurization":
+                    from hvac.smoke_formulas import pressurization_open_door_m3h
+                    L_pres = pressurization_open_door_m3h(
+                        sm.door_area_m2, sm.v_door_m_s, sm.n_open_doors)
+                    sm.L_smoke_m3h = L_pres
+                else:
+                    L_pres = sm.L_smoke_m3h
+                sm.L_per_zone_m3h = L_pres
                 result[sys_name] = {
                     "system_type": sm.system_type,
                     "purpose": sm.purpose,
                     "n_spaces": n_spaces,
                     "served_area_m2": total_area,
                     "n_zones": 1,
-                    "L_smoke_m3h": sm.L_smoke_m3h,
-                    "L_per_zone_m3h": sm.L_smoke_m3h,
+                    "L_smoke_m3h": L_pres,
+                    "L_per_zone_m3h": L_pres,
                     "L_makeup_m3h": 0.0,
                     "t_smoke_C": 20.0,
                     "fire_rating": "—",
                     "pressure_pa": sm.pressure_pa,
+                    "pres_max_pa": getattr(sm, "pres_max_pa", 150.0),
+                    "door_area_m2": sm.door_area_m2,
+                    "v_door_m_s": sm.v_door_m_s,
+                    "n_open_doors": sm.n_open_doors,
+                    "calc_method": sm.calc_method,
                     "note": sm.note,
                 }
                 continue
@@ -332,10 +348,14 @@ class SmokeSystemsMixin:
                 # только при компоновке СДУ (один клапан на зону), но не
                 # суммирует расход. См. СП 7.13130.2013 п. 7.4, КМК Прил. 20.
                 n_zones = max(1, int(-(-total_area // sm.max_zone_area_m2)))
+                if getattr(sm, "n_zones_manual", 0) > 0:
+                    n_zones = sm.n_zones_manual   # проектное число зон
                 L_per_zone = calc_smoke_flow_m3h(sm, area_m2=0.0)
             else:
                 # norm_per_m2 (упрощённо)
                 n_zones = max(1, int(-(-total_area // sm.max_zone_area_m2)))
+                if getattr(sm, "n_zones_manual", 0) > 0:
+                    n_zones = sm.n_zones_manual   # проектное число зон
                 area_per_zone = total_area / n_zones if n_zones > 0 else 0
                 L_per_zone = calc_smoke_flow_m3h(sm, area_m2=area_per_zone)
 

@@ -26,21 +26,22 @@ def _make_project(space):
 class TestSP60Ventilation:
 
     def test_office_by_people(self):
-        """Офис, 2 чел → 120 м³/ч (60 × 2, ШНҚ 2.08.02-23 табл.26)."""
-        sp = _make_space("Офис", area_m2=20, volume_m3=60, people=2.0)
+        """Офис, 5 чел → 300 м³/ч (60 × 5 > кратности, ШНҚ 2.08.02-23 табл.26)."""
+        sp = _make_space("Офис", area_m2=20, volume_m3=60, people=5.0)
         engine = SP60VentilationEngine()
         result = engine.calculate(sp, _make_project(sp))
-        assert result["supply_m3h"] == pytest.approx(120, rel=0.01)
-        assert result["exhaust_m3h"] == pytest.approx(120, rel=0.01)  # balance=0
+        # max(5·60=300, 60·3,5=210) = 300 по людям
+        assert result["supply_m3h"] == pytest.approx(300, rel=0.01)
+        assert result["exhaust_m3h"] == pytest.approx(300, rel=0.01)  # balance=0
         assert "По людям" in result["method"]
 
     def test_office_min_ach_wins(self):
-        """Офис большой, 1 чел → ACH=1 победит (V=200, 1ACH=200>40)."""
+        """Офис большой, 1 чел → кратность 3,5 победит (V=200, 3,5·ACH=700>60)."""
         sp = _make_space("Офис", area_m2=50, volume_m3=200, people=1.0)
         engine = SP60VentilationEngine()
         result = engine.calculate(sp, _make_project(sp))
-        # max(40, 200) = 200 м³/ч по кратности
-        assert result["supply_m3h"] == pytest.approx(200, rel=0.01)
+        # max(1·60=60, 200·3,5=700) = 700 м³/ч по кратности (ШНҚ табл.26)
+        assert result["supply_m3h"] == pytest.approx(700, rel=0.01)
         assert "По кратности" in result["method"]
 
     def test_residential_per_m2(self):
@@ -203,19 +204,29 @@ class TestSP60Ventilation:
         assert result["exhaust_m3h"] > result["supply_m3h"]
         assert result["hood_m3h"] > 0
 
-    def test_kitchen_has_hood(self):
-        """Ресторан/кухня — должен быть зонт + вытяжка > притока."""
-        sp = _make_space("Ресторан / кухня", area_m2=50, volume_m3=150, people=20)
+    def test_dining_hall_no_hood(self):
+        """Ресторан / зал (обеденный зал) — вытяжка>притока, без кух. зонта."""
+        sp = _make_space("Ресторан / зал", area_m2=50, volume_m3=150, people=20)
         engine = SP60VentilationEngine()
         result = engine.calculate(sp, _make_project(sp))
         # supply: max(20·30=600, 50·4=200, 150·1=150) = 600
-        # balance=-15: exhaust = 600·(1−(−0.15)) = 600·1.15 = 690
+        # balance=-10: exhaust = 600·1.10 = 660
         assert result["supply_m3h"] == pytest.approx(600, rel=0.01)
-        assert result["exhaust_m3h"] == pytest.approx(690, rel=0.01)
+        assert result["exhaust_m3h"] == pytest.approx(660, rel=0.01)
         assert result["exhaust_m3h"] > result["supply_m3h"]  # отриц. давление
-        assert result["hood_m3h"] > 0
-        # зонт — 40% от вытяжки = 276
-        assert result["hood_m3h"] == pytest.approx(276, rel=0.01)
+        assert result["hood_m3h"] == 0  # зал без кухонного зонта
+
+    def test_domestic_kitchen_has_hood(self):
+        """Бытовая кухня — зонт плиты + вытяжка > притока."""
+        sp = _make_space("Кухня", area_m2=10, volume_m3=30, people=1)
+        engine = SP60VentilationEngine()
+        result = engine.calculate(sp, _make_project(sp))
+        # supply: только кратность 3×30 = 90
+        assert result["supply_m3h"] == pytest.approx(90, rel=0.01)
+        # balance=-30: exhaust = 90·1.30 = 117; зонт 0.5×117 = 58.5
+        assert result["exhaust_m3h"] == pytest.approx(117, rel=0.01)
+        assert result["exhaust_m3h"] > result["supply_m3h"]
+        assert result["hood_m3h"] == pytest.approx(58.5, rel=0.01)
 
     def test_elevator_NC(self):
         """Лифт — без вентиляции."""
@@ -353,6 +364,37 @@ class TestUserOverrides:
         # Должно перерасcчитаться: 5×60 = 300 м³/ч (ШНҚ 2.08.02-23 табл.26)
         assert sp.supply_m3h == pytest.approx(300, rel=0.01)
         assert sp.supply_m3h != first
+
+    def test_round_to_step_helper(self):
+        """round_to_step — округление до ближайшего (полудённое вверх)."""
+        from hvac.project import round_to_step
+        assert round_to_step(160.9, 10) == 160   # дробная <5 → вниз
+        assert round_to_step(164, 10) == 160
+        assert round_to_step(165, 10) == 170     # .5 → вверх
+        assert round_to_step(166, 10) == 170
+        assert round_to_step(0, 10) == 0
+        assert round_to_step(123.4, 0) == 123.4  # step=0 — без округления
+
+    def test_airflow_rounding_nearest(self):
+        """params.round_airflow_m3h округляет расходы до ближайшего шага."""
+        # Склад: кратность 2 → 80.3·2 = 160.6 → ближайшее 160
+        sp = _make_space("Склад", area_m2=50, volume_m3=80.3)
+        project = _make_project(sp)
+        project.params.round_airflow_m3h = 10.0
+        project.calculate_ventilation()
+        assert sp.supply_m3h == 160
+        assert sp.supply_m3h % 10 == 0
+        assert sp.exhaust_m3h % 10 == 0
+
+    def test_rounding_skips_manual(self):
+        """Ручной расход (vent_user_modified) не округляется."""
+        sp = _make_space("Склад", area_m2=50, volume_m3=80.3)
+        project = _make_project(sp)
+        project.params.round_airflow_m3h = 10.0
+        sp.supply_m3h = 333.0
+        sp.vent_user_modified = True
+        project.calculate_ventilation()
+        assert sp.supply_m3h == 333.0
 
     def test_fixtures_persist_in_json(self):
         """wc_count / urinal_count сохраняются и читаются из JSON-проекта."""

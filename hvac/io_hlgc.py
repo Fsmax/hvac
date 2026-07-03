@@ -109,6 +109,54 @@ def _space_sort_key(s):
     n = int(m.group(1)) if m else 10 ** 9
     return (_level_order(getattr(s, "level", "")), n, num)
 
+
+# Токены башен в строке УРОВНЯ помещения (CHORSU): "L12 HTL (FFL)" → HTL,
+# "GFL OFF (FFL)" → OFF. OFC (префикс офисного номера) приводится к OFF.
+# Уровень несёт башню даже у помещений с чисто числовыми номерами (423 и т.п.),
+# поэтому блок определяем в первую очередь по уровню, а не по номеру.
+BLOCK_LEVEL_TOKENS = ("HTL", "RES", "OFF", "OFC")
+PODIUM_BLOCK = "PODIUM"      # всё, где башня не распознана (подиум B1/B2)
+
+
+def space_block(sp) -> str:
+    """Канонический блок (башня) помещения для по-башенной выгрузки HLGC.
+
+    Определяется по токену башни в УРОВНЕ помещения (надёжнее номера: часть
+    помещений имеют числовые номера, но уровень всегда несёт башню —
+    'L04 RES (FFL)'). OFC≡OFF. Если в уровне башни нет — пробуем префикс
+    номера ('HTL-2207' → HTL). Иначе (подиум B1/B2 и пр.) — 'PODIUM'.
+
+    Принимает Space (или любой объект с полями .level / .number).
+    Возвращает одно из: 'HTL' | 'RES' | 'OFF' | 'PODIUM'.
+    """
+    lvl = (getattr(sp, "level", "") or "").upper()
+    for tok in BLOCK_LEVEL_TOKENS:
+        if tok in lvl:
+            return "OFF" if tok == "OFC" else tok
+    num = (getattr(sp, "number", "") or "").strip().upper()
+    pref = num.split("-", 1)[0] if "-" in num else ""
+    if pref in ("HTL", "RES", "OFF"):
+        return pref
+    if pref == "OFC":
+        return "OFF"
+    return PODIUM_BLOCK
+
+
+def filter_spaces_by_block(spaces, blocks):
+    """Оставляет помещения выбранных блоков (по space_block).
+
+    blocks — итерируемое канонических имён блоков: 'HTL' / 'RES' / 'OFF' /
+    'PODIUM' (регистр не важен). None/пусто → все помещения (без фильтра).
+    Позволяет разложить один ALL-BLOCKS проект по башням при экспорте в HLGC
+    (HTL → лист TOWER A и т.д.)."""
+    if not blocks:
+        return list(spaces)
+    wanted = {str(b).strip().upper() for b in blocks if str(b).strip()}
+    if not wanted:
+        return list(spaces)
+    return [sp for sp in spaces if space_block(sp) in wanted]
+
+
 # Сколько знаков после запятой для каждой колонки
 _ROUND_DIGITS = {
     6: 2, 7: 2, 8: 2,
@@ -316,7 +364,9 @@ def _export_via_com(project: "HVACProject", source_path: str,
                      output_path: str,
                      overwrite_only_empty: bool,
                      preserve_formulas: bool,
-                     mode: str = "match") -> Dict:
+                     mode: str = "match",
+                     sheet_name: Optional[str] = None,
+                     block_prefixes: Optional[List[str]] = None) -> Dict:
     """Запись через Excel COM. Excel сам открывает файл, изменяет ячейки
     и сохраняет — все внешние ссылки, формулы, стили и форматирование
     сохраняются 1-в-1.
@@ -338,15 +388,18 @@ def _export_via_com(project: "HVACProject", source_path: str,
     out = os.path.abspath(output_path)
     out_ext = os.path.splitext(out)[1].lower()
 
+    sheet = sheet_name or HLGC_SHEET_NAME
     # Карта помещений проекта по номеру + полный отсортированный список
+    # (при block_prefixes — только помещения выбранных блоков).
+    sel_spaces = filter_spaces_by_block(project.spaces, block_prefixes)
     spaces_by_num: Dict[str, "Space"] = {}
-    for sp in project.spaces:
+    for sp in sel_spaces:
         key = sp.number.strip().upper()
         if key:
             spaces_by_num[key] = sp
     # Сортируем помещения: сначала по уровню, потом по номеру
     project_spaces_sorted = sorted(
-        [sp for sp in project.spaces if sp.number.strip()],
+        [sp for sp in sel_spaces if sp.number.strip()],
         key=_space_sort_key,
     )
 
@@ -376,12 +429,12 @@ def _export_via_com(project: "HVACProject", source_path: str,
         except Exception:
             pass
         try:
-            ws = wb.Worksheets(HLGC_SHEET_NAME)
+            ws = wb.Worksheets(sheet)
         except Exception:
             sheet_names = [wb.Worksheets(i + 1).Name
                            for i in range(wb.Worksheets.Count)]
             raise ValueError(
-                f"В файле нет листа '{HLGC_SHEET_NAME}'. "
+                f"В файле нет листа '{sheet}'. "
                 f"Найдены: {sheet_names}")
 
         # Сканируем существующие строки данных
@@ -533,6 +586,7 @@ def _export_via_com(project: "HVACProject", source_path: str,
         "cells_written": cells_written,
         "output_path": out,
         "engine": "com",
+        "sheet": sheet,
     }
 
 
@@ -738,7 +792,9 @@ def _export_via_openpyxl(project: "HVACProject", source_path: str,
                           output_path: str,
                           overwrite_only_empty: bool,
                           preserve_formulas: bool,
-                          mode: str = "match") -> Dict:
+                          mode: str = "match",
+                          sheet_name: Optional[str] = None,
+                          block_prefixes: Optional[List[str]] = None) -> Dict:
     """Запись через openpyxl. Поддерживает те же режимы что COM
     (match/append/rebuild). Выход — только .xlsx."""
     from openpyxl import load_workbook
@@ -748,18 +804,20 @@ def _export_via_openpyxl(project: "HVACProject", source_path: str,
     if ext.lower() != ".xlsx":
         output_path = base + ".xlsx"
 
+    sheet = sheet_name or HLGC_SHEET_NAME
     shutil.copy(xlsx_in, output_path)
     wb = load_workbook(output_path, keep_links=False)
-    if HLGC_SHEET_NAME not in wb.sheetnames:
+    if sheet not in wb.sheetnames:
         raise ValueError(
-            f"В файле нет листа '{HLGC_SHEET_NAME}'. "
+            f"В файле нет листа '{sheet}'. "
             f"Найдены: {wb.sheetnames}")
-    ws = wb[HLGC_SHEET_NAME]
+    ws = wb[sheet]
 
+    sel_spaces = filter_spaces_by_block(project.spaces, block_prefixes)
     spaces_by_num = {sp.number.strip().upper(): sp
-                     for sp in project.spaces if sp.number.strip()}
+                     for sp in sel_spaces if sp.number.strip()}
     project_spaces_sorted = sorted(
-        [sp for sp in project.spaces if sp.number.strip()],
+        [sp for sp in sel_spaces if sp.number.strip()],
         key=_space_sort_key,
     )
 
@@ -857,6 +915,7 @@ def _export_via_openpyxl(project: "HVACProject", source_path: str,
         "cells_written": cells_written,
         "output_path": output_path,
         "engine": "openpyxl",
+        "sheet": sheet,
     }
 
 
@@ -870,6 +929,8 @@ def export_to_hlgc(project: "HVACProject", source_path: str,
                     preserve_formulas: bool = True,
                     engine: str = "auto",
                     mode: str = "match",
+                    sheet_name: Optional[str] = None,
+                    block_prefixes: Optional[List[str]] = None,
                     ) -> Dict:
     """Записывает результаты расчёта в HLGC Design Table.
 
@@ -886,6 +947,13 @@ def export_to_hlgc(project: "HVACProject", source_path: str,
            'append'  — обновить совпавшие + ДОБАВИТЬ новые помещения в конец
            'rebuild' — полностью перезаписать всю таблицу всеми помещениями
                        проекта (использовать первую строку как стилевой шаблон)
+    sheet_name : имя листа-приёмника. None → HLGC_SHEET_NAME ("HLGC").
+                 Для по-башенной выгрузки: "TOWER A" / "TOWER B" / … .
+    block_prefixes : список канонических блоков — 'HTL' / 'RES' / 'OFF' /
+                 'PODIUM' (см. space_block; блок берётся из уровня помещения).
+                 Если задан — выгружаются только помещения этих блоков.
+                 None/пусто → все помещения. Так один ALL-BLOCKS проект
+                 раскладывается по башням (HTL → TOWER A и т.д.).
 
     Возвращает словарь со статистикой:
         - mode, engine, output_path
@@ -912,11 +980,13 @@ def export_to_hlgc(project: "HVACProject", source_path: str,
     if engine == "com":
         return _export_via_com(project, source_path, output_path,
                                 overwrite_only_empty, preserve_formulas,
-                                mode=mode)
+                                mode=mode, sheet_name=sheet_name,
+                                block_prefixes=block_prefixes)
     elif engine == "openpyxl":
         return _export_via_openpyxl(project, source_path, output_path,
                                      overwrite_only_empty, preserve_formulas,
-                                     mode=mode)
+                                     mode=mode, sheet_name=sheet_name,
+                                     block_prefixes=block_prefixes)
     else:
         raise ValueError(f"Неизвестный движок: {engine!r}. "
                          f"Допустимо: 'auto', 'com', 'openpyxl'.")

@@ -34,6 +34,7 @@ from hvac.equipment import (
 # Поля Space, описывающие зонирование (для снимков undo в UI и io_json).
 ZONING_SPACE_FIELDS = (
     "system_heating", "system_cooling", "system_ventilation",
+    "system_supply", "system_exhaust",
     "circuit_heating", "circuit_cooling", "duct_zone",
 )
 
@@ -334,6 +335,35 @@ class ZoningMixin:
             self.emit("zones_changed")
         return n
 
+    def assign_rooms_flow_system(self, flow: str, space_ids,
+                                 system_name: str) -> int:
+        """Раздельная привязка ОДНОГО расхода помещения к вент-системе.
+
+        flow: "supply" — приток помещения обслуживает system_name,
+              "exhaust" — вытяжка (и зонт) помещения обслуживает system_name.
+        Основная принадлежность (system_ventilation) не меняется. Пустое
+        system_name снимает переопределение (расход возвращается на
+        system_ventilation). Создаёт систему при необходимости.
+        Возвращает число изменённых помещений. См. Space.system_supply.
+        """
+        if flow not in ("supply", "exhaust"):
+            raise ValueError(f"flow должен быть 'supply'/'exhaust', не {flow!r}")
+        attr = "system_supply" if flow == "supply" else "system_exhaust"
+        system_name = (system_name or "").strip()
+        if system_name:
+            self.add_zone_system("ventilation", system_name)
+        ids = set(space_ids)
+        n = 0
+        for sp in self.spaces:
+            if sp.space_id not in ids:
+                continue
+            if getattr(sp, attr, "") != system_name:
+                setattr(sp, attr, system_name)
+                n += 1
+        if n:
+            self.emit("zones_changed")
+        return n
+
     def assign_rooms_to_circuit(self, domain: str, space_ids,
                                 circuit_name: str) -> int:
         """Назначает помещениям контур (зону). Система помещения
@@ -381,6 +411,12 @@ class ZoningMixin:
                 if getattr(sp, d.space_circuit, ""):
                     setattr(sp, d.space_circuit, "")
                     changed = True
+                # Вентиляция: снимаем и раздельные привязки притока/вытяжки
+                if d.key == "ventilation":
+                    for attr in ("system_supply", "system_exhaust"):
+                        if getattr(sp, attr, ""):
+                            setattr(sp, attr, "")
+                            changed = True
             elif what == "circuit":
                 if getattr(sp, d.space_circuit, ""):
                     setattr(sp, d.space_circuit, "")

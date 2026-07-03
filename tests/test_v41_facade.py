@@ -12,6 +12,10 @@ from hvac.equipment import (
 def _setup_basic_project():
     p = HVACProject()
     p.params.apply_city("Ташкент")
+    # Помещения сбалансированы по вентиляции (приток=вытяжка), поэтому даём
+    # фоновую инфильтрацию, чтобы у них была теплопотеря под радиаторы
+    # (иначе при balance инфильтрация=0 — см. infiltration_flow_m3h).
+    p.params.infiltration_min_ach = 0.5
     # Помещения
     for i in range(5):
         sp = Space(

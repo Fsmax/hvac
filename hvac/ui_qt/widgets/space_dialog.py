@@ -350,7 +350,7 @@ def _default_apt_rooms() -> List[BuildingTemplateRoom]:
         BuildingTemplateRoom(_t("dlg.bldg.tpl.bedroom2"),
                                _t("dlg.bldg.default_type"), 12.0),
         BuildingTemplateRoom(_t("dlg.bldg.tpl.kitchen"),
-                               "Ресторан / кухня", 10.0),
+                               "Кухня", 10.0),
         BuildingTemplateRoom(_t("dlg.bldg.tpl.bathroom"),
                                "Санузел", 4.0),
         BuildingTemplateRoom(_t("dlg.bldg.tpl.corridor"),

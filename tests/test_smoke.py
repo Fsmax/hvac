@@ -216,6 +216,100 @@ class TestApplySmokeNorm:
         assert sm.calc_method == "manual"
 
 
+class TestPressurizationFormulas:
+    """ШНК 2.04.05-22 §7 — приточная противодымная вентиляция (подпор)."""
+
+    def test_open_door_velocity(self):
+        """п. 340: L = 3600·v·F·n. Дверь 0,9×2,0 (F=1,8), v=1,3, n=1."""
+        from hvac.smoke_formulas import pressurization_open_door_m3h
+        L = pressurization_open_door_m3h(1.8, 1.3, 1)
+        assert L == pytest.approx(3600 * 1.3 * 1.8)   # 8424 м³/ч
+
+    def test_open_door_two_doors(self):
+        from hvac.smoke_formulas import pressurization_open_door_m3h
+        assert pressurization_open_door_m3h(1.8, 1.3, 2) == pytest.approx(16848)
+
+    def test_open_door_zero_guard(self):
+        from hvac.smoke_formulas import pressurization_open_door_m3h
+        assert pressurization_open_door_m3h(0, 1.3, 1) == 0.0
+        assert pressurization_open_door_m3h(1.8, 0, 1) == 0.0
+
+    def test_fire_perimeter_from_area(self):
+        """ф.(4): Pf = 0,38·√A, но не более 12 м."""
+        from hvac.smoke_formulas import fire_perimeter_from_area
+        assert fire_perimeter_from_area(100) == pytest.approx(0.38 * 10)  # 3,8
+        assert fire_perimeter_from_area(10000) == pytest.approx(12.0)     # clamp
+        assert fire_perimeter_from_area(0) == 0.0
+
+    def test_valve_leak(self):
+        """п. 327, ф.(5): Gv = 40,3·√(Av·ΔP)·n."""
+        from hvac.smoke_formulas import valve_leak_kg_h
+        g = valve_leak_kg_h(0.25, 50, 2)
+        assert g == pytest.approx(40.3 * (0.25 * 50) ** 0.5 * 2)
+
+
+class TestPressurizationSystem:
+    """Расчёт подпора через calculate_smoke_loads (метод kmk_pressurization)."""
+
+    def test_air_supply_kmk_pressurization(self):
+        project = HVACProject()
+        project.create_smoke_system_manual(
+            "СПВ-Л1", system_type="air_supply", purpose="stairs",
+            calc_method="kmk_pressurization",
+            door_area_m2=1.8, v_door_m_s=1.3, n_open_doors=1,
+        )
+        loads = project.calculate_smoke_loads()
+        assert loads["СПВ-Л1"]["L_smoke_m3h"] == pytest.approx(8424)
+        assert loads["СПВ-Л1"]["v_door_m_s"] == pytest.approx(1.3)
+
+    def test_air_supply_const_unchanged(self):
+        """Без kmk_pressurization расход берётся как задан (табличный)."""
+        project = HVACProject()
+        project.create_smoke_system_manual(
+            "СПВ-Лифт", system_type="air_supply", purpose="elevator",
+            calc_method="elevator_pressure", L_smoke_m3h=5000,
+        )
+        loads = project.calculate_smoke_loads()
+        assert loads["СПВ-Лифт"]["L_smoke_m3h"] == pytest.approx(5000)
+
+
+class TestSmokeReport:
+    """Пояснительная записка: build_smoke_explanations."""
+
+    def test_corridor_explanation_public(self):
+        from hvac.smoke_report import build_smoke_explanations
+        project = HVACProject()
+        project.params.smoke_norm = "KMK_UZ"
+        project.create_smoke_system_manual(
+            "СДУ-Кор-HTL", system_type="smoke_removal", purpose="corridor",
+            calc_method="kmk_corridor", corridor_public=True,
+            corridor_door_width_m=0.9, corridor_door_height_m=2.0, kd_door=1.0,
+        )
+        ex = build_smoke_explanations(project)
+        assert len(ex) == 1
+        e = ex[0]
+        assert e["kind"] == "СДУ"
+        assert "4300" in e["formula"]
+        assert "Прил. 20" in e["ref"]
+        # есть и G (кг/ч), и L (м³/ч) в результатах
+        labels = " ".join(lbl for lbl, _ in e["results"])
+        assert "кг/ч" in labels and "м³/ч" in labels
+
+    def test_pressurization_explanation(self):
+        from hvac.smoke_report import build_smoke_explanations
+        project = HVACProject()
+        project.create_smoke_system_manual(
+            "СПВ-Л1", system_type="air_supply", purpose="stairs",
+            calc_method="kmk_pressurization",
+            door_area_m2=1.8, v_door_m_s=1.3, n_open_doors=1,
+        )
+        e = build_smoke_explanations(project)[0]
+        assert e["kind"] == "СПВ"
+        assert "3600" in e["formula"]
+        assert "п. 340" in e["ref"]
+        assert any("150" in c for c in e["checks"])   # проверка ≤150 Па
+
+
 class TestPlumeMethodZoning:
     """Для плюм-методов multiple_zones не должен умножать расход."""
 

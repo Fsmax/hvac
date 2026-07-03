@@ -85,16 +85,16 @@ class TestSensibleLatent:
         assert sp.heat_gain_breakdown_sensible["Оборудование"] == pytest.approx(270, rel=0.01)
         assert sp.heat_gain_breakdown_latent["Оборудование"] == pytest.approx(30, rel=0.01)
 
-    def test_kitchen_equipment_50_50(self):
-        """Кухня: 50/50 явная/скрытая (плиты, пароконвектоматы)."""
+    def test_hot_shop_equipment_split(self):
+        """Горячий цех: 45/55 явная/скрытая (плиты, пароконвектоматы)."""
         project, sp = _minimal_project()
-        sp.room_type = "Ресторан / кухня"
+        sp.room_type = "Горячий цех"
         sp.equipment_w_m2 = 200
         engine = SP50Engine()
         engine.heat_gain(sp, project)
-        # 20·200 = 4000 общая, 50% = 2000 каждая
-        assert sp.heat_gain_breakdown_sensible["Оборудование"] == pytest.approx(2000, rel=0.01)
-        assert sp.heat_gain_breakdown_latent["Оборудование"] == pytest.approx(2000, rel=0.01)
+        # 20·200 = 4000 общая; ratio 0.45 → 1800 явная, 2200 скрытая
+        assert sp.heat_gain_breakdown_sensible["Оборудование"] == pytest.approx(1800, rel=0.01)
+        assert sp.heat_gain_breakdown_latent["Оборудование"] == pytest.approx(2200, rel=0.01)
 
     def test_dry_climate_negative_latent_infiltration(self):
         """В сухом климате скрытая инфильтрация может быть отрицательной."""

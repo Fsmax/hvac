@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "comment": "Типовые ряды серий водогрейных котлов. Мощности и КПД — каталожные номиналы для предподбора; точный типоразмер, габариты и комплектация горелки уточняются по программе/каталогу производителя.",
+  "models": [
+    {
+      "name": "Vitomax 100-LW 650",
+      "manufacturer": "Viessmann",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 650,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Vitomax 100-LW 1000",
+      "manufacturer": "Viessmann",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 1000,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Vitomax 100-LW 1400",
+      "manufacturer": "Viessmann",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 1400,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Vitomax 100-LW 2000",
+      "manufacturer": "Viessmann",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 2000,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Vitomax 100-LW 2800",
+      "manufacturer": "Viessmann",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 2800,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Vitomax 100-LW 4200",
+      "manufacturer": "Viessmann",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 4200,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Vitomax 100-LW 6000",
+      "manufacturer": "Viessmann",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 6000,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Logano SK755 420",
+      "manufacturer": "Buderus",
+      "family": "Стальной трёхходовой, газ/дизель",
+      "q_kw": 420,
+      "efficiency": 0.91,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Logano SK755 600",
+      "manufacturer": "Buderus",
+      "family": "Стальной трёхходовой, газ/дизель",
+      "q_kw": 600,
+      "efficiency": 0.91,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Logano SK755 820",
+      "manufacturer": "Buderus",
+      "family": "Стальной трёхходовой, газ/дизель",
+      "q_kw": 820,
+      "efficiency": 0.91,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Logano SK755 1040",
+      "manufacturer": "Buderus",
+      "family": "Стальной трёхходовой, газ/дизель",
+      "q_kw": 1040,
+      "efficiency": 0.91,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Logano SK755 1400",
+      "manufacturer": "Buderus",
+      "family": "Стальной трёхходовой, газ/дизель",
+      "q_kw": 1400,
+      "efficiency": 0.91,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Logano SK755 1850",
+      "manufacturer": "Buderus",
+      "family": "Стальной трёхходовой, газ/дизель",
+      "q_kw": 1850,
+      "efficiency": 0.91,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Unimat UT-L 750",
+      "manufacturer": "Bosch",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 750,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Unimat UT-L 1000",
+      "manufacturer": "Bosch",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 1000,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Unimat UT-L 1300",
+      "manufacturer": "Bosch",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 1300,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Unimat UT-L 1700",
+      "manufacturer": "Bosch",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 1700,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Unimat UT-L 2200",
+      "manufacturer": "Bosch",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 2200,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Unimat UT-L 3000",
+      "manufacturer": "Bosch",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 3000,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Unimat UT-L 3800",
+      "manufacturer": "Bosch",
+      "family": "Жаротрубный водогрейный, газ/дизель",
+      "q_kw": 3800,
+      "efficiency": 0.92,
+      "fuel": "gas_diesel",
+      "t_max_c": 110,
+      "pressure_bar": 6,
+      "note": ""
+    },
+    {
+      "name": "Vitodens 200-W 99",
+      "manufacturer": "Viessmann",
+      "family": "Настенный конденсационный, газ (каскадируется)",
+      "q_kw": 99,
+      "efficiency": 1.04,
+      "fuel": "gas",
+      "t_max_c": 85,
+      "pressure_bar": 4,
+      "note": "КПД по низшей теплоте сгорания"
+    },
+    {
+      "name": "Vitodens 200-W 125",
+      "manufacturer": "Viessmann",
+      "family": "Настенный конденсационный, газ (каскадируется)",
+      "q_kw": 125,
+      "efficiency": 1.04,
+      "fuel": "gas",
+      "t_max_c": 85,
+      "pressure_bar": 4,
+      "note": "КПД по низшей теплоте сгорания"
+    },
+    {
+      "name": "Vitodens 200-W 150",
+      "manufacturer": "Viessmann",
+      "family": "Настенный конденсационный, газ (каскадируется)",
+      "q_kw": 150,
+      "efficiency": 1.04,
+      "fuel": "gas",
+      "t_max_c": 85,
+      "pressure_bar": 4,
+      "note": "КПД по низшей теплоте сгорания"
+    }
+  ]
+}

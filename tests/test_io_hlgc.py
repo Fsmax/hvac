@@ -5,10 +5,54 @@ import os
 import tempfile
 import pytest
 
+from types import SimpleNamespace
+
 from hvac.project import HVACProject
 from hvac.io_hlgc import (
     export_to_hlgc, _get_value_for_field, HLGC_COLUMN_MAP,
+    space_block, filter_spaces_by_block,
 )
+
+
+def _sp(number, level):
+    return SimpleNamespace(number=number, level=level)
+
+
+class TestBlockSplit:
+    """Определение блока (башни) помещения и фильтрация по блоку."""
+
+    def test_block_from_level_token(self):
+        # блок берётся из уровня, даже если номер чисто числовой
+        assert space_block(_sp("423", "L04 RES (FFL)")) == "RES"
+        assert space_block(_sp("2207", "L12 HTL (FFL)")) == "HTL"
+        assert space_block(_sp("101", "L05 OFF (FFL)")) == "OFF"
+        assert space_block(_sp("7", "GFL HTL (FFL) +429.32")) == "HTL"
+
+    def test_ofc_normalized_to_off(self):
+        assert space_block(_sp("OFC-101", "L02 OFF (FFL)")) == "OFF"
+        # даже без токена в уровне — префикс OFC → OFF
+        assert space_block(_sp("OFC-101", "SomeLevel")) == "OFF"
+
+    def test_number_prefix_fallback(self):
+        assert space_block(_sp("HTL-2207", "NoTokenLevel")) == "HTL"
+        assert space_block(_sp("RES-9", "NoTokenLevel")) == "RES"
+
+    def test_podium_is_catch_all(self):
+        assert space_block(_sp("B01-043", "B1 (FFL) +424.32")) == "PODIUM"
+        assert space_block(_sp("B02-001", "B2 (FFL) +420.42")) == "PODIUM"
+        assert space_block(_sp("999", "")) == "PODIUM"
+
+    def test_filter_none_returns_all(self):
+        spaces = [_sp("1", "L02 HTL"), _sp("2", "B1 (FFL)")]
+        assert filter_spaces_by_block(spaces, None) == spaces
+        assert filter_spaces_by_block(spaces, []) == spaces
+
+    def test_filter_selects_blocks_case_insensitive(self):
+        spaces = [_sp("1", "L02 HTL"), _sp("2", "L02 RES"),
+                  _sp("3", "L02 OFF"), _sp("4", "B1 (FFL)")]
+        assert len(filter_spaces_by_block(spaces, ["HTL"])) == 1
+        assert len(filter_spaces_by_block(spaces, ["htl", "res"])) == 2
+        assert len(filter_spaces_by_block(spaces, ["PODIUM"])) == 1
 
 
 def _make_template_xlsx(tmp_path):
