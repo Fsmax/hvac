@@ -10,11 +10,12 @@ from functools import partial
 from pathlib import Path
 from typing import Dict
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QByteArray, Qt, QTimer
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
-    QStackedWidget, QStatusBar, QVBoxLayout, QWidget,
+    QApplication, QDialog, QFrame, QHBoxLayout, QLabel, QMainWindow,
+    QMessageBox, QPushButton, QSplitter, QStackedWidget, QStatusBar,
+    QVBoxLayout, QWidget,
 )
 
 from hvac.io_json import load_project, save_project
@@ -23,23 +24,14 @@ from hvac.ui_qt import settings as user_settings
 from hvac.ui_qt.bridge import ProjectBridge
 from hvac.ui_qt.commands import Command, CommandRegistry
 from hvac.ui_qt.export_center import ExportCenter
-from hvac.ui_qt.panels.air_balance_panel import AirBalancePanel
-from hvac.ui_qt.panels.blocks_panel import BlocksPanel
-from hvac.ui_qt.panels.balance_panel import BalancePanel
+# Панели «горячего» пути импортируются сразу; остальные — внутри фабрик
+# в _build_panels: их модули (matplotlib в графиках/инженерии, тяжёлые
+# таблицы) не грузятся, пока раздел не открыт (F18 ревизии UI).
 from hvac.ui_qt.panels.calculation_panel import CalculationPanel
-from hvac.ui_qt.panels.charts_panel import ChartsPanel
-from hvac.ui_qt.panels.comparison_panel import ComparisonPanel
-from hvac.ui_qt.panels.constructions_panel import ConstructionsPanel
 from hvac.ui_qt.panels.data_panel import DataPanel
-from hvac.ui_qt.panels.equipment_workspace import EquipmentWorkspacePanel
-from hvac.ui_qt.panels.engineering_panel import EngineeringPanel
-from hvac.ui_qt.panels.extensions_panel import ExtensionsPanel
 from hvac.ui_qt.panels.problems_panel import ProblemsPanel
-from hvac.ui_qt.panels.smoke_panel import SmokePanel
-from hvac.ui_qt.panels.spaces_panel import SpacesPanel
-from hvac.ui_qt.panels.systems_workspace import SystemsWorkspacePanel
-from hvac.ui_qt.panels.ventilation_panel import VentilationPanel
 from hvac.ui_qt.panels.welcome import WelcomePanel
+from hvac.ui_qt.staleness import StalenessTracker
 from hvac.ui_qt.theme import Theme, apply_theme, current_theme
 from hvac.ui_qt.widgets.checklist import ChecklistPanel
 from hvac.ui_qt.widgets.palette import CommandPalette
@@ -51,22 +43,31 @@ from hvac.i18n import t as _t, on_language_change
 
 
 def _build_sidebar_items():
-    """Строит список SidebarItem с локализованными подписями."""
+    """Строит список SidebarItem с локализованными подписями.
+
+    Порядок и группы отражают маршрут работы: проект → модель здания →
+    расчёты → системы/оборудование → анализ результатов.
+    """
+    g_project  = _t("sidebar.group.project")
+    g_model    = _t("sidebar.group.model")
+    g_calc     = _t("sidebar.group.calc")
+    g_systems  = _t("sidebar.group.systems")
+    g_analysis = _t("sidebar.group.analysis")
     return [
-        SidebarItem("welcome",        "🏠", _t("sidebar.home")),
+        SidebarItem("welcome",        "🏠", _t("sidebar.home"), g_project),
         SidebarItem("data",           "📂", _t("sidebar.data")),
-        SidebarItem("spaces",         "🏢", _t("sidebar.spaces")),
+        SidebarItem("spaces",         "🏢", _t("sidebar.spaces"), g_model),
         SidebarItem("blocks",         "🏗", _t("sidebar.blocks")),
         SidebarItem("constructions",  "🧱", _t("sidebar.constructions")),
-        SidebarItem("calculation",    "🌡",  _t("sidebar.calculation")),
+        SidebarItem("calculation",    "🌡",  _t("sidebar.calculation"), g_calc),
         SidebarItem("ventilation",    "💨", _t("sidebar.ventilation")),
-        SidebarItem("systems",        "⚙",  _t("sidebar.systems")),
-        SidebarItem("equipment",      "🛠", _t("sidebar.equipment")),
-        SidebarItem("balance",        "🧮", _t("sidebar.balance")),
         SidebarItem("airbalance",     "🔀", _t("sidebar.airbalance")),
         SidebarItem("smoke",          "🔥", _t("sidebar.smoke")),
-        SidebarItem("charts",         "📊", _t("sidebar.charts")),
         SidebarItem("extensions",     "⚡", _t("sidebar.extensions")),
+        SidebarItem("systems",        "⚙",  _t("sidebar.systems"), g_systems),
+        SidebarItem("equipment",      "🛠", _t("sidebar.equipment")),
+        SidebarItem("balance",        "🧮", _t("sidebar.balance")),
+        SidebarItem("charts",         "📊", _t("sidebar.charts"), g_analysis),
         SidebarItem("engineering",    "🔬", _t("sidebar.engineering")),
         SidebarItem("comparison",     "⚖", _t("sidebar.comparison")),
         SidebarItem("problems",       "⚠", _t("sidebar.problems")),
@@ -99,10 +100,13 @@ class MainWindow(QMainWindow):
         self.setAcceptDrops(True)  # перетаскивание .hvac.json / CSV на окно
 
         self._build_ui()
+        self.staleness = StalenessTracker(project, self.bridge, self)
+        self.staleness.changed.connect(self._on_staleness_changed)
         self._register_commands()
         self._build_menu()
         self._wire_signals()
         self._setup_autosave()
+        self._restore_window_state()
 
         self.sidebar.select("welcome")
         self._refresh_topbar()
@@ -124,19 +128,25 @@ class MainWindow(QMainWindow):
         self.topbar = TopBar()
         outer.addWidget(self.topbar)
 
+        # Лента актуальности: «данные изменены — результаты устарели»
+        outer.addWidget(self._build_ribbon())
+
         # Sidebar + контент + checklist
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
         outer.addLayout(body, stretch=1)
 
-        self.sidebar = Sidebar(SIDEBAR_ITEMS)
+        collapsed = bool(user_settings.load().get("sidebar_collapsed", False))
+        self.sidebar = Sidebar(SIDEBAR_ITEMS, collapsed=collapsed)
+        self.sidebar.collapsedChanged.connect(self._on_sidebar_collapsed)
         body.addWidget(self.sidebar)
 
         self.stack = QStackedWidget()
         body.addWidget(self.stack, stretch=1)
 
         self._panels: Dict[str, QWidget] = {}
+        self._panel_factories: Dict[str, object] = {}
         self._build_panels()
 
         # Правый dock — чек-лист (создаём ПОСЛЕ _build_panels,
@@ -148,7 +158,62 @@ class MainWindow(QMainWindow):
         # Статусбар
         self.setStatusBar(self._build_statusbar())
 
+    # ---------- Лента актуальности (F06) ----------
+    def _build_ribbon(self) -> QFrame:
+        rib = QFrame()
+        rib.setObjectName("StalenessRibbon")
+        lay = QHBoxLayout(rib)
+        lay.setContentsMargins(14, 4, 8, 4)
+        lay.setSpacing(10)
+        self.ribbon_lbl = QLabel("")
+        lay.addWidget(self.ribbon_lbl, stretch=1)
+        self.ribbon_recalc = QPushButton(_t("ribbon.recalc_all"))
+        self.ribbon_recalc.setProperty("role", "ribbonAction")
+        self.ribbon_recalc.setCursor(Qt.PointingHandCursor)
+        self.ribbon_recalc.clicked.connect(self._action_recalc_all)
+        lay.addWidget(self.ribbon_recalc)
+        self.ribbon_close = QPushButton("✕")
+        self.ribbon_close.setProperty("role", "ribbonClose")
+        self.ribbon_close.setCursor(Qt.PointingHandCursor)
+        self.ribbon_close.setToolTip(_t("ribbon.dismiss_tip"))
+        self.ribbon_close.clicked.connect(
+            lambda: self.staleness.dismiss())
+        lay.addWidget(self.ribbon_close)
+        rib.setVisible(False)
+        self.ribbon = rib
+        return rib
+
+    def _on_staleness_changed(self) -> None:
+        stale = self.staleness.stale_layers()
+        if stale and not self.staleness.is_dismissed():
+            names = " · ".join(_t(f"ribbon.layer.{k}") for k in stale)
+            self.ribbon_lbl.setText(_t("ribbon.stale_prefix") + names)
+            self.ribbon.setVisible(True)
+        else:
+            self.ribbon.setVisible(False)
+        # Жёлтые точки на затронутых разделах.
+        self.sidebar.set_stale(
+            "calculation", "loads" in stale or "ahu" in stale)
+        self.sidebar.set_stale("ventilation", "ventilation" in stale)
+
+    def _action_recalc_all(self) -> None:
+        """Полная цепочка нагрузки → вентиляция → AHU из ленты."""
+        if not self.project.spaces:
+            return
+        panel = self._panels.get("calculation")
+        if isinstance(panel, CalculationPanel):
+            # Переходим на экран расчёта: там прогресс и «Отменить».
+            self._navigate_to("calculation")
+            panel._run_all()  # noqa: SLF001
+
     def _build_panels(self) -> None:
+        """Горячие панели — сразу, остальные — фабриками при первом открытии.
+
+        Ленивые фабрики держат импорт внутри себя: модуль панели (и его
+        зависимости вроде matplotlib) не грузится, пока раздел не открыт.
+        Панель, созданная позже, строится от текущего состояния проекта —
+        все панели и так инициализируются полным _refresh().
+        """
         welcome = WelcomePanel()
         welcome.openProject.connect(self._action_open_project)
         welcome.loadCsv.connect(self._goto_data)
@@ -156,43 +221,54 @@ class MainWindow(QMainWindow):
         welcome.fromTemplate.connect(self._action_from_template)
         self._register_panel("welcome", welcome)
 
+        # Горячий путь: открытие/сохранение (data), пересчёт с топбара и
+        # ленты (calculation), бейдж числа проблем (problems).
         self._register_panel("data",
                              DataPanel(self.project, self.bridge))
-        self._register_panel("spaces",
-                             SpacesPanel(self.project, self.bridge))
-        self._register_panel("blocks",
-                             BlocksPanel(self.project, self.bridge))
         self._register_panel("calculation",
-                             CalculationPanel(self.project, self.bridge))
-        self._register_panel("charts",
-                             ChartsPanel(self.project, self.bridge))
-        self._register_panel("constructions",
-                             ConstructionsPanel(self.project, self.bridge))
-        self._register_panel("ventilation",
-                             VentilationPanel(self.project, self.bridge))
-        self._register_panel("systems",
-                             SystemsWorkspacePanel(self.project, self.bridge))
-        self._register_panel("equipment",
-                             EquipmentWorkspacePanel(self.project, self.bridge))
-        self._register_panel("balance",
-                             BalancePanel(self.project, self.bridge))
-        self._register_panel("airbalance",
-                             AirBalancePanel(self.project, self.bridge))
-        self._register_panel("smoke",
-                             SmokePanel(self.project, self.bridge))
-        self._register_panel("extensions",
-                             ExtensionsPanel(self.project, self.bridge))
-        self._register_panel("engineering",
-                             EngineeringPanel(self.project, self.bridge))
-        self._register_panel("comparison",
-                             ComparisonPanel(self.project, self.bridge))
+                             CalculationPanel(self.project, self.bridge,
+                                              navigate=self._navigate_to))
         self._register_panel("problems",
                              ProblemsPanel(self.project, self.bridge,
                                            navigate=self._navigate_to_space))
 
+        p, b = self.project, self.bridge
+        F = self._panel_factories
+
+        def _f(module: str, cls: str):
+            def make() -> QWidget:
+                import importlib
+                mod = importlib.import_module(
+                    f"hvac.ui_qt.panels.{module}")
+                return getattr(mod, cls)(p, b)
+            return make
+
+        F["spaces"] = _f("spaces_panel", "SpacesPanel")
+        F["blocks"] = _f("blocks_panel", "BlocksPanel")
+        F["constructions"] = _f("constructions_panel", "ConstructionsPanel")
+        F["ventilation"] = _f("ventilation_panel", "VentilationPanel")
+        F["airbalance"] = _f("air_balance_panel", "AirBalancePanel")
+        F["smoke"] = _f("smoke_panel", "SmokePanel")
+        F["extensions"] = _f("extensions_panel", "ExtensionsPanel")
+        F["systems"] = _f("systems_workspace", "SystemsWorkspacePanel")
+        F["equipment"] = _f("equipment_workspace", "EquipmentWorkspacePanel")
+        F["balance"] = _f("balance_panel", "BalancePanel")
+        F["charts"] = _f("charts_panel", "ChartsPanel")
+        F["engineering"] = _f("engineering_panel", "EngineeringPanel")
+        F["comparison"] = _f("comparison_panel", "ComparisonPanel")
+
     def _register_panel(self, key: str, widget: QWidget) -> None:
         self._panels[key] = widget
         self.stack.addWidget(widget)
+
+    def _get_panel(self, key: str) -> QWidget | None:
+        """Панель по ключу; ленивая создаётся при первом обращении."""
+        w = self._panels.get(key)
+        if w is None and key in self._panel_factories:
+            w = self._panel_factories.pop(key)()
+            self._register_panel(key, w)
+            self._restore_panel_splitters(key, w)
+        return w
 
     def _panel_title(self, key: str) -> str:
         for item in SIDEBAR_ITEMS:
@@ -207,7 +283,46 @@ class MainWindow(QMainWindow):
         self.status_right.setProperty("role", "muted")
         bar.addWidget(self.status_left, 1)
         bar.addPermanentWidget(self.status_right)
+        # Журнал: складываем все сообщения статусбара, показываем по клику.
+        # messageChanged ловит любые showMessage — и от bridge, и прямые.
+        from collections import deque
+        self._status_journal: deque = deque(maxlen=50)
+        bar.messageChanged.connect(self._on_status_message_changed)
+        bar.setToolTip(_t("status.journal_title"))
+        bar.installEventFilter(self)
         return bar
+
+    def _on_status_message_changed(self, text: str) -> None:
+        if not text:
+            return
+        from datetime import datetime
+        self._status_journal.append((datetime.now().strftime("%H:%M:%S"),
+                                     text))
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802 (Qt API)
+        from PySide6.QtCore import QEvent
+        if (obj is self.statusBar()
+                and event.type() == QEvent.MouseButtonPress):
+            self._show_status_journal()
+            return True
+        return super().eventFilter(obj, event)
+
+    def _show_status_journal(self) -> None:
+        """Меню с последними событиями — по клику на статусбар."""
+        from PySide6.QtWidgets import QMenu
+        from PySide6.QtGui import QCursor
+        menu = QMenu(self)
+        title = menu.addAction(_t("status.journal_title"))
+        title.setEnabled(False)
+        menu.addSeparator()
+        if not self._status_journal:
+            empty = menu.addAction(_t("status.journal_empty"))
+            empty.setEnabled(False)
+        else:
+            for ts, text in list(self._status_journal)[-15:][::-1]:
+                act = menu.addAction(f"{ts}   {text}")
+                act.setEnabled(False)
+        menu.exec(QCursor.pos())
 
     # ---------- Меню + команды ----------
     def _register_commands(self) -> None:
@@ -365,9 +480,12 @@ class MainWindow(QMainWindow):
         items = _build_sidebar_items()
         self.sidebar.retranslate(items)
 
-        # 2. TopBar
+        # 2. TopBar + лента актуальности
         self.topbar.retranslate()
         self.topbar.set_language_label(get_language())
+        self.ribbon_recalc.setText(_t("ribbon.recalc_all"))
+        self.ribbon_close.setToolTip(_t("ribbon.dismiss_tip"))
+        self._on_staleness_changed()
 
         # 3. MenuBar: снять старые global actions, очистить меню,
         # пересоздать команды и меню с новыми переводами.
@@ -464,6 +582,14 @@ class MainWindow(QMainWindow):
         self.bridge.projectLoaded.connect(self._on_data_loaded)
         self.bridge.calculationDone.connect(self._on_calculation_done)
         self.bridge.dirtyChanged.connect(self._on_dirty_changed)
+        # Бейдж проблем — по тем же событиям, что и панель «Проблемы».
+        for sig in (self.bridge.dataLoaded, self.bridge.projectLoaded,
+                    self.bridge.calculationDone, self.bridge.ventilationDone,
+                    self.bridge.constructionsChanged):
+            sig.connect(self._refresh_problem_badge)
+        # Глобальная «занятость»: на время расчёта/экспорта гасим
+        # кнопку «Пересчитать», чтобы не запустить второй поток.
+        self.bridge.busyChanged.connect(self._on_busy_changed)
         # Топбар должен обновляться при любых правках имени/города/методики,
         # т.к. эти правки сейчас не имеют отдельного события.
         self.bridge.dirtyChanged.connect(self._refresh_topbar)
@@ -474,9 +600,31 @@ class MainWindow(QMainWindow):
 
     # ---------- Реакции ----------
     def _on_sidebar_selected(self, key: str) -> None:
-        widget = self._panels.get(key)
+        widget = self._get_panel(key)
         if widget is not None:
             self.stack.setCurrentWidget(widget)
+
+    def _on_sidebar_collapsed(self, collapsed: bool) -> None:
+        cfg = user_settings.load()
+        cfg["sidebar_collapsed"] = bool(collapsed)
+        user_settings.save(cfg)
+
+    def _refresh_problem_badge(self, *_args) -> None:
+        """Счётчик «ошибки + предупреждения» на пункте «Проблемы».
+
+        Инфо-замечания в бейдж не входят — иначе он горел бы всегда.
+        Числа берём из модели панели «Проблемы»: она подписана на те же
+        сигналы и обновляется раньше (её connect'ы созданы при сборке
+        панелей, до подписок главного окна).
+        """
+        n = 0
+        panel = self._panels.get("problems")
+        try:
+            c = panel.model.counts()
+            n = int(c.get("error", 0)) + int(c.get("warning", 0))
+        except Exception:
+            n = 0
+        self.sidebar.set_badge("problems", str(n) if n else "")
 
     def _navigate_to(self, key: str) -> None:
         self.sidebar.select(key)
@@ -485,7 +633,7 @@ class MainWindow(QMainWindow):
     def _navigate_to_space(self, space_id: str) -> None:
         """Переход к помещению в разделе «Помещения» (из панели «Проблемы»)."""
         self._navigate_to("spaces")
-        panel = self._panels.get("spaces")
+        panel = self._get_panel("spaces")
         if panel is not None and hasattr(panel, "select_space"):
             panel.select_space(space_id)
 
@@ -509,6 +657,12 @@ class MainWindow(QMainWindow):
     def _on_dirty_changed(self, dirty: bool) -> None:
         self._dirty = bool(dirty)
         self._update_title()
+
+    def _on_busy_changed(self, busy: bool, text: str) -> None:
+        """Глобальная блокировка повторного запуска на время работы."""
+        self.topbar.recalc_btn.setEnabled(not busy)
+        if busy and text:
+            self.statusBar().showMessage(text, 0)
 
     def _update_title(self) -> None:
         name = self.project.params.project_name or "HVAC Calculator"
@@ -701,7 +855,7 @@ class MainWindow(QMainWindow):
                 self, _t("dialog.no_data.title"),
                 _t("dialog.no_data.body"))
             return
-        dlg = ExportCenter(self.project, self)
+        dlg = ExportCenter(self.project, self, bridge=self.bridge)
         dlg.exec()
 
     def _action_recalc(self) -> None:
@@ -729,6 +883,56 @@ class MainWindow(QMainWindow):
             self.cmd_palette = CommandPalette(self.commands, self)
         self.cmd_palette.show_at(self)
 
+    # ---------- Геометрия окна между запусками ----------
+    # Сплиттеры ключуются «панель:номер» (objectName не задан; порядок
+    # findChildren детерминирован структурой UI). При несовпадении
+    # (панель переделали) restoreState вернёт False — вреда нет.
+    def _restore_panel_splitters(self, pkey: str, panel: QWidget) -> None:
+        """Применяет сохранённые сплиттеры к (только что созданной) панели.
+        Ленивые панели восстанавливаются в момент создания."""
+        splitters = (user_settings.load().get("window") or {}) \
+            .get("splitters") or {}
+        if not splitters:
+            return
+        for i, sp in enumerate(panel.findChildren(QSplitter)):
+            b64 = splitters.get(f"{pkey}:{i}")
+            if not b64:
+                continue
+            try:
+                sp.restoreState(QByteArray.fromBase64(b64.encode("ascii")))
+            except Exception:
+                pass
+
+    def _restore_window_state(self) -> None:
+        st = user_settings.load().get("window") or {}
+        geo = st.get("geometry")
+        if geo:
+            try:
+                self.restoreGeometry(
+                    QByteArray.fromBase64(geo.encode("ascii")))
+            except Exception:
+                pass
+        for pkey, panel in self._panels.items():
+            self._restore_panel_splitters(pkey, panel)
+
+    def _save_window_state(self) -> None:
+        try:
+            cfg = user_settings.load()
+            st = dict(cfg.get("window") or {})
+            # Merge: несозданные ленивые панели сохраняют прежние значения.
+            splitters = dict(st.get("splitters") or {})
+            for pkey, panel in self._panels.items():
+                for i, sp in enumerate(panel.findChildren(QSplitter)):
+                    splitters[f"{pkey}:{i}"] = bytes(
+                        sp.saveState().toBase64()).decode("ascii")
+            st["geometry"] = bytes(
+                self.saveGeometry().toBase64()).decode("ascii")
+            st["splitters"] = splitters
+            cfg["window"] = st
+            user_settings.save(cfg)
+        except Exception:
+            pass  # настройки не должны мешать закрытию
+
     # ---------- Закрытие ----------
     def closeEvent(self, event) -> None:
         if self._dirty and self.project.spaces:
@@ -743,4 +947,5 @@ class MainWindow(QMainWindow):
                 return
             if ans == QMessageBox.Save:
                 self._action_save()
+        self._save_window_state()
         event.accept()

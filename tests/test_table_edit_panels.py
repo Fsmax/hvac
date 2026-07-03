@@ -210,6 +210,18 @@ def test_spaces_bulk_dialog_expanded_fields(qapp):
             "ach_inf"} <= keys
 
 
+def test_spaces_bulk_dialog_scope(qapp):
+    """Область применения: без выделения — все отфильтрованные;
+    с выделением по умолчанию — выделенные."""
+    from hvac.ui_qt.panels.spaces_panel import SpacesBulkDialog
+    dlg = SpacesBulkDialog(0, ["Офис"], [], [], n_filtered=7)
+    assert dlg.use_filtered()
+    dlg2 = SpacesBulkDialog(3, ["Офис"], [], [], n_filtered=7)
+    assert not dlg2.use_filtered()
+    dlg2.rb_filt.setChecked(True)
+    assert dlg2.use_filtered()
+
+
 def test_spaces_bulk_set_non_column_field_undoable(qapp):
     """bulk_set_field правит поле без своей колонки (t лето) и отменяется."""
     p = _spaces_project(4)

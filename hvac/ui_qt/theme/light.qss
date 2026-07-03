@@ -26,20 +26,108 @@ QFrame[role="card"] {
     border-right: 1px solid {{border}};
 }
 
-#Sidebar QToolButton {
+#SidebarScroll, #SidebarBody {
+    background: transparent;
+    border: none;
+}
+
+#Sidebar QPushButton {
     background: transparent;
     border: none;
     color: {{text_muted}};
-    padding: 10px 0;
+    padding: 7px 10px;
     border-radius: 6px;
-    font-size: 18px;
-    min-width: 40px;
-    min-height: 40px;
-    margin: 2px 8px;
+    font-size: 13px;
+    text-align: left;
+    margin: 1px 8px;
+    min-height: 20px;
 }
 
-#Sidebar QToolButton:hover { background-color: {{elevated}}; color: {{text}}; }
-#Sidebar QToolButton:checked { background-color: {{accent_dim}}; color: {{accent}}; }
+#Sidebar QPushButton[compact="true"] {
+    font-size: 18px;
+    text-align: center;
+    padding: 8px 0;
+    min-height: 26px;
+}
+
+#Sidebar QPushButton:hover { background-color: {{elevated}}; color: {{text}}; }
+#Sidebar QPushButton:checked { background-color: {{accent_dim}}; color: {{accent}}; }
+
+#SidebarGroupLabel {
+    color: {{text_dim}};
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin: 10px 0 2px 18px;
+    background: transparent;
+}
+
+#SidebarBadge {
+    background-color: {{danger}};
+    color: #FFFFFF;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 7px;
+    padding: 1px 5px;
+}
+
+#SidebarBadge[kind="stale"] {
+    background-color: transparent;
+    color: {{warning}};
+    font-size: 9px;
+    padding: 0 2px;
+}
+
+/* ---------- Лента «результаты устарели» ---------- */
+#StalenessRibbon {
+    background-color: {{warning_bg}};
+    border: none;
+    border-bottom: 1px solid {{border}};
+}
+
+#StalenessRibbon QLabel {
+    color: {{warning}};
+    background: transparent;
+    font-size: 12px;
+}
+
+#StalenessRibbon QPushButton[role="ribbonAction"] {
+    background-color: {{warning}};
+    color: #FFFFFF;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 14px;
+}
+
+#StalenessRibbon QPushButton[role="ribbonAction"]:hover {
+    background-color: #B45309;
+}
+
+#StalenessRibbon QPushButton[role="ribbonClose"] {
+    background: transparent;
+    border: none;
+    color: {{warning}};
+    font-size: 12px;
+    padding: 3px 8px;
+}
+
+#StalenessRibbon QPushButton[role="ribbonClose"]:hover {
+    color: {{text}};
+}
+
+#SidebarCollapse {
+    background: transparent;
+    border: none;
+    border-top: 1px solid {{border}};
+    color: {{text_dim}};
+    font-size: 12px;
+    text-align: left;
+    padding: 8px 16px;
+}
+
+#SidebarCollapse:hover { background-color: {{elevated}}; color: {{text}}; }
 
 #TopBar {
     background-color: {{surface}};

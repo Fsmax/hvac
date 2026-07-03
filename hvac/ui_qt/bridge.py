@@ -38,6 +38,10 @@ class ProjectBridge(QObject):
     busyChanged = Signal(bool, str)      # (busy, status_text)
     statusMessage = Signal(str, int)     # (text, timeout_ms)
     dirtyChanged = Signal(bool)          # есть несохранённые изменения
+    # Пользователь правил ДАННЫЕ (инлайн-таблицы, undo/redo) — в отличие от
+    # dirtyChanged не смешивается с прочими причинами "не сохранено".
+    # Слушает StalenessTracker: результаты расчётов устарели.
+    dataEdited = Signal()
 
     _EVENT_MAP = {
         "project_loaded": "projectLoaded",

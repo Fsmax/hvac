@@ -39,10 +39,18 @@ RU: Dict[str, str] = {
     "sidebar.room_equipment":"Оборудование в помещениях",
     "sidebar.smoke":         "Дымоудаление",
     "sidebar.charts":        "Графики",
-    "sidebar.extensions":    "Расширения v3.7",
-    "sidebar.engineering":   "Подробная инженерия v4.1",
+    "sidebar.extensions":    "Расширения",
+    "sidebar.engineering":   "Инженерия",
     "sidebar.problems":      "Проблемы",
     "sidebar.comparison":    "Сравнение",
+    # Группы сайдбара (по маршруту работы) + сворачивание
+    "sidebar.group.project":  "Проект",
+    "sidebar.group.model":    "Модель",
+    "sidebar.group.calc":     "Расчёт",
+    "sidebar.group.systems":  "Системы",
+    "sidebar.group.analysis": "Анализ",
+    "sidebar.collapse":       "Свернуть",
+    "sidebar.expand":         "Развернуть панель",
 
     # ========== Panel: Comparison (сравнение вариантов) ==========
     "panel.comparison.title":       "Сравнение вариантов",
@@ -121,6 +129,7 @@ RU: Dict[str, str] = {
     "btn.cancel":            "Отмена",
     "btn.ok":                "OK",
     "btn.close":             "Закрыть",
+    "btn.more":              "Ещё…",
     "btn.apply":             "Применить",
 
     # ========== Статусы ==========
@@ -147,6 +156,14 @@ RU: Dict[str, str] = {
     "checklist.calc_hint_empty":    "не выполнен",
     "checklist.vent_hint":          "Σ {m3h} м³/ч",
     "checklist.vent_hint_empty":    "не выполнено",
+    "checklist.step_dhw":           "ГВС посчитано",
+    "checklist.dhw_hint":           "{n} систем",
+    "checklist.dhw_hint_empty":     "не задано",
+    "checklist.step_smoke":         "Дымоудаление / подпор",
+    "checklist.smoke_hint":         "{n} систем",
+    "checklist.smoke_hint_empty":   "не задано",
+    "checklist.collapse":           "Свернуть чек-лист",
+    "checklist.expand":             "Развернуть чек-лист",
 
     # ========== Языки ==========
     "lang.ru":               "Русский",
@@ -195,6 +212,18 @@ RU: Dict[str, str] = {
     "status.lang_switched":  "Язык переключён: Русский",
     "status.autosave_done":  "Auto-save: {name}",
     "status.autosave_error": "Auto-save: ошибка {err}",
+    "status.calc_cancelled": "Расчёт отменён — результаты не изменены",
+    "status.journal_title":  "Последние события",
+    "status.journal_empty":  "Событий пока нет",
+
+    # ========== Лента «результаты устарели» ==========
+    "ribbon.stale_prefix":   "⚠ Данные изменены — устарело: ",
+    "ribbon.layer.loads":    "нагрузки",
+    "ribbon.layer.ventilation": "вентиляция",
+    "ribbon.layer.ahu":      "приточные установки",
+    "ribbon.recalc_all":     "Пересчитать всё",
+    "ribbon.dismiss_tip":    "Скрыть до следующего изменения",
+
     "status.template_applied": ("Создано из шаблона: «{title}», "
                                  "помещений: {n}"),
 
@@ -433,6 +462,10 @@ RU: Dict[str, str] = {
     "panel.spaces.status.tpl_created":  "Создано {n} помещений по шаблону.",
     "panel.spaces.default_level":       "1 этаж",
     "panel.spaces.bulk.menu":           "Групповая правка выделенных…",
+    "panel.spaces.bulk.btn":       "Групповая правка…",
+    "panel.spaces.bulk.scope":     "Применить к:",
+    "panel.spaces.bulk.scope_selected": "выделенным строкам ({n})",
+    "panel.spaces.bulk.scope_filtered": "всем отфильтрованным ({n})",
     "panel.spaces.bulk.title":          "Групповая правка помещений",
     "panel.spaces.bulk.field":          "Поле",
     "panel.spaces.bulk.value":          "Значение",
@@ -947,12 +980,12 @@ RU: Dict[str, str] = {
 
     # ----- Единый рабочий стол «Системы и оборудование» -----
     "panel.sysworkspace.title":      "Системы и оборудование",
-    "panel.sysworkspace.hint":       ("Слева — источники и контуры, справа — "
-                                       "помещения. Назначайте помещения "
-                                       "(кнопки / drag на узел), задавайте "
-                                       "параметры (2× клик по узлу) и приборы "
-                                       "(2× клик по строке). «Посчитать подбор» — "
-                                       "нагрузка AHU, трубы, насосы."),
+    "panel.sysworkspace.hint":       ("Назначьте помещения системам слева, "
+                                       "затем «Посчитать подбор»."),
+    "panel.sysworkspace.empty_tree": "Систем пока нет",
+    "panel.sysworkspace.empty_tree_hint":
+        "Создайте источник кнопкой «+ Система» — или перетащите помещения "
+        "на узел позже.",
     "panel.sysworkspace.tree.name":  "Источник / контур",
     "panel.sysworkspace.tree.kw":    "кВт",
     "panel.sysworkspace.rcol.device":"Прибор",
@@ -1980,6 +2013,9 @@ RU: Dict[str, str] = {
                                       "чтобы начать."),
     "panel.calc.validate.problems": ("⚠ Проблемы валидации: {n}. "
                                       "Первая: {first}"),
+    "panel.calc.validate.open": "Открыть список →",
+    "panel.calc.progress":      "{done} / {total} помещений",
+    "panel.calc.cancel":        "Отменить",
     "panel.calc.validate.ok":   "✓ Валидация без замечаний.",
     "panel.calc.run.heat":      "Считаю нагрузки…",
     "panel.calc.run.vent":      "Считаю вентиляцию…",
@@ -2019,15 +2055,14 @@ RU: Dict[str, str] = {
 
     # ----- Раздел «Блоки» -----
     "panel.blocks.title":            "Блоки здания",
-    "panel.blocks.hint":             ("РУЧНОЕ разделение: внизу выделите помещения "
-                                      "(сортировка кликом по заголовку, поиск, фильтры "
-                                      "Этаж/Блок) → «Назначить блок» (существующий / "
-                                      "новый / снять). БЛОКИ: создать — «➕ Блок»; "
-                                      "переименовать — двойной клик по строке блока в "
-                                      "сводке (или правый клик → ✏); удалить — правый "
-                                      "клик → ✖. Установке блок меняется правым кликом "
-                                      "по её строке. Кнопки «1./2.» — автопомощники: "
-                                      "заполняют только пустое, ручное не трогают."),
+    "panel.blocks.hint":             ("Выделите помещения внизу → «Назначить "
+                                      "блок». Автопомощники «1./2.» заполняют "
+                                      "только пустое. Прочее — в правом клике "
+                                      "по строке."),
+    "panel.blocks.empty_summary":    "Блоков пока нет",
+    "panel.blocks.empty_summary_hint":
+        "Создайте блок кнопкой «+ Блок» или запустите автопомощник "
+        "«1. Помещения по блокам».",
     "panel.blocks.btn.assign_rooms":   "1. Помещения по блокам",
     "panel.blocks.btn.assign_systems": "2. Системы по блокам",
     "panel.blocks.btn.reassign":     "Переопределить всё",

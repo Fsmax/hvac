@@ -15,8 +15,8 @@ from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QButtonGroup, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QFormLayout,
     QFrame, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-    QProgressBar, QPushButton, QRadioButton, QSizePolicy, QSpinBox,
-    QVBoxLayout, QWidget,
+    QProgressBar, QPushButton, QRadioButton, QScrollArea, QSizePolicy,
+    QSpinBox, QVBoxLayout, QWidget,
 )
 
 from hvac.i18n import t as _t
@@ -205,14 +205,19 @@ class ExportWorker(QObject):
 class ExportCenter(QDialog):
     """Окно «Экспорт». Один диалог вместо 4 пунктов меню."""
 
-    def __init__(self, project: HVACProject, parent: QWidget | None = None):
+    def __init__(self, project: HVACProject, parent: QWidget | None = None,
+                 bridge=None):
         super().__init__(parent)
         self.project = project
+        self._bridge = bridge   # ProjectBridge | None — для busyChanged
         self._thread: QThread | None = None
         self._worker: ExportWorker | None = None
 
         self.setWindowTitle(_t("export.title"))
         self.setMinimumWidth(640)
+        # Стартовая высота: список форматов живёт в скролле, без явного
+        # размера диалог схлопнул бы его до пары строк.
+        self.resize(680, 780)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(24, 20, 24, 20)
@@ -226,12 +231,27 @@ class ExportCenter(QDialog):
         outer.addWidget(sub)
         outer.addSpacing(4)
 
-        # Радио-список форматов
+        # Радио-список форматов — в скролле: 10 карточек с двухстрочными
+        # описаниями иначе выталкивают диалог за высоту экрана.
         self._radio_group = QButtonGroup(self)
         self._format_widgets: dict[str, QRadioButton] = {}
+        fmt_list = QWidget()
+        fmt_lay = QVBoxLayout(fmt_list)
+        fmt_lay.setContentsMargins(0, 0, 0, 0)
+        fmt_lay.setSpacing(8)
         for i, fmt in enumerate(FORMATS):
             row = self._make_format_row(fmt, default=i == 0)
-            outer.addWidget(row)
+            fmt_lay.addWidget(row)
+        fmt_lay.addStretch(1)
+
+        fmt_scroll = QScrollArea()
+        fmt_scroll.setWidgetResizable(True)
+        fmt_scroll.setFrameShape(QFrame.NoFrame)
+        fmt_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        fmt_scroll.viewport().setAutoFillBackground(False)
+        fmt_list.setAutoFillBackground(False)
+        fmt_scroll.setWidget(fmt_list)
+        outer.addWidget(fmt_scroll, stretch=1)
 
         # Параметры расчёта газа (видны только для формата «gas_load»)
         self.gas_params = self._make_gas_params()
@@ -287,7 +307,9 @@ class ExportCenter(QDialog):
     def _make_format_row(self, fmt: ExportFormat, default: bool) -> QFrame:
         frame = QFrame()
         frame.setProperty("role", "card")
-        frame.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        # Preferred по вертикали: с Maximum рамка не могла вырасти под
+        # перенесённую вторую строку описания, и текст обрезался.
+        frame.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         lay = QHBoxLayout(frame)
         lay.setContentsMargins(14, 12, 14, 12)
 
@@ -524,6 +546,8 @@ class ExportCenter(QDialog):
         self.export_btn.setEnabled(False)
         self.cancel_btn.setEnabled(False)
         self.progress.setVisible(True)
+        if self._bridge is not None:
+            self._bridge.busyChanged.emit(True, _t("export.h1"))
 
         self._thread = QThread(self)
         self._worker = ExportWorker(fmt, self.project, path, params)
@@ -554,6 +578,8 @@ class ExportCenter(QDialog):
         self.progress.setVisible(False)
         self.export_btn.setEnabled(True)
         self.cancel_btn.setEnabled(True)
+        if self._bridge is not None:
+            self._bridge.busyChanged.emit(False, "")
         if self._thread is not None:
             self._thread.wait(2000)
             self._thread.deleteLater()

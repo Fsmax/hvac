@@ -20,6 +20,9 @@ DEFAULTS: dict[str, Any] = {
     "autosave_enabled": True,
     "autosave_interval_min": 5,
     "language": "ru",        # "ru" | "uz"
+    # Состояние окна между запусками: geometry (base64 от saveGeometry)
+    # и splitters {ключ: base64 от saveState}.
+    "window": {},
 }
 
 

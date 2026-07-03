@@ -603,9 +603,21 @@ class HVACProject(
                 "записей в каталог", n_created)
 
     # ---------- Расчёт ----------
-    def recalculate(self) -> None:
+    def recalculate(
+        self,
+        progress: Optional[Callable[[int, int], bool]] = None,
+    ) -> bool:
         """Пересчитывает теплопотери и теплопоступления для всех помещений
-        выбранным в params.methodology движком."""
+        выбранным в params.methodology движком.
+
+        progress(i, n) — необязательный колбэк хода расчёта (вызывается из
+        цикла по помещениям). Вернёт False — расчёт отменяется; результаты
+        применяются атомарно в конце, поэтому при отмене НИ ОДНО помещение
+        не изменится (нет смеси старых и новых значений).
+
+        Возвращает True, если расчёт завершён (эмитнут calculation_done),
+        False — если отменён колбэком.
+        """
         # Чистые площади стен (за вычетом проёмов) пересчитываем ВСЕГДА, а
         # не только при CSV-импорте: self_contained-JSON мог быть сохранён с
         # «сырыми» (не вычтенными) площадями, и тогда добавление любого
@@ -613,12 +625,21 @@ class HVACProject(
         self._recompute_net_areas()
         self.apply_constructions()
         engine = get_engine(self.params.methodology)
-        for sp in self.spaces:
-            sp.heat_loss_breakdown = engine.heat_loss(sp, self)
-            sp.heat_gain_breakdown = engine.heat_gain(sp, self)
-            sp.heat_loss_w = sp.heat_loss_breakdown.get("ИТОГО", 0.0)
-            sp.heat_gain_w = sp.heat_gain_breakdown.get("ИТОГО", 0.0)
+        n = len(self.spaces)
+        results: List[tuple] = []
+        for i, sp in enumerate(self.spaces):
+            if progress is not None and not progress(i, n):
+                return False
+            results.append((sp,
+                            engine.heat_loss(sp, self),
+                            engine.heat_gain(sp, self)))
+        for sp, loss_br, gain_br in results:
+            sp.heat_loss_breakdown = loss_br
+            sp.heat_gain_breakdown = gain_br
+            sp.heat_loss_w = loss_br.get("ИТОГО", 0.0)
+            sp.heat_gain_w = gain_br.get("ИТОГО", 0.0)
         self.emit("calculation_done")
+        return True
 
     def calculate_ventilation(self, engine_name: str = None) -> None:
         """Пересчитывает вентиляцию по СП 60.13330 (или другой методике).

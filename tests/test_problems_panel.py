@@ -85,3 +85,38 @@ def test_navigation_callback_receives_space_id(qapp):
     assert row is not None
     panel._on_double_click(panel.proxy.index(row, 0))
     assert captured and captured[0]
+
+
+def test_severity_tokens_exist_in_both_themes():
+    """Регрессия: 'info' ссылался на несуществующий токен «muted» →
+    KeyError в data() и каскад ошибок модели. Карта серьёзностей обязана
+    указывать только на реальные токены обеих тем."""
+    from hvac.ui_qt.panels.problems_panel import _SEVERITY_TOKEN
+    from hvac.ui_qt.theme import TOKENS, Theme
+    for theme in (Theme.DARK, Theme.LIGHT):
+        for sev, token in _SEVERITY_TOKEN.items():
+            assert token in TOKENS[theme], (
+                f"токен {token!r} (severity={sev!r}) отсутствует "
+                f"в TOKENS[{theme.value}]")
+        # Дефолт в data() для неизвестного severity — тоже реальный токен.
+        assert "text_muted" in TOKENS[theme]
+
+
+def test_foreground_role_for_all_severities(qapp, monkeypatch):
+    """info-строка и неизвестный severity не роняют data()."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QBrush
+    p = HVACProject()
+    rows = [
+        {"severity": "error", "category": "c", "space_id": "", "msg": "e"},
+        {"severity": "warning", "category": "c", "space_id": "", "msg": "w"},
+        {"severity": "info", "category": "c", "space_id": "", "msg": "i"},
+        {"severity": "strange", "category": "c", "space_id": "", "msg": "?"},
+    ]
+    monkeypatch.setattr(p, "validate_detailed", lambda: list(rows))
+    m = _model(p)
+    assert m.rowCount() == len(rows)
+    for r in range(m.rowCount()):
+        brush = m.data(m.index(r, 0), Qt.ForegroundRole)
+        assert isinstance(brush, QBrush)
+        assert brush.color().isValid()

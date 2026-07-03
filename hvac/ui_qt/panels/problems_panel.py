@@ -31,7 +31,8 @@ _SEVERITY_KEY = {
     "warning": "panel.problems.severity.warning",
     "info": "panel.problems.severity.info",
 }
-_SEVERITY_TOKEN = {"error": "danger", "warning": "warning", "info": "muted"}
+_SEVERITY_TOKEN = {"error": "danger", "warning": "warning",
+                   "info": "text_muted"}
 _SEVERITY_ICON = {"error": "⛔", "warning": "⚠", "info": "ℹ"}
 
 
@@ -94,7 +95,8 @@ class ProblemsModel(QAbstractTableModel):
             if col == 3:
                 return rec.get("msg", "")
         if role == Qt.ForegroundRole and col == 0:
-            return QBrush(QColor(tokens()[_SEVERITY_TOKEN.get(sev, "muted")]))
+            return QBrush(QColor(
+                tokens()[_SEVERITY_TOKEN.get(sev, "text_muted")]))
         return None
 
     def space_id_at(self, row: int) -> str:

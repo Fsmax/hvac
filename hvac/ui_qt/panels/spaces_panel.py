@@ -19,8 +19,8 @@ from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
     QFileDialog, QFormLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QMenu, QMessageBox, QPushButton, QSizePolicy, QSplitter, QStackedWidget,
-    QStyledItemDelegate, QTableView, QVBoxLayout, QWidget,
+    QMenu, QMessageBox, QPushButton, QRadioButton, QSizePolicy, QSplitter,
+    QStackedWidget, QStyledItemDelegate, QTableView, QVBoxLayout, QWidget,
 )
 
 from hvac.catalogs.room_types import (
@@ -497,11 +497,29 @@ class SpacesBulkDialog(QDialog):
     )
 
     def __init__(self, n_selected: int, room_types, zones, levels=(),
-                 parent: QWidget | None = None):
+                 parent: QWidget | None = None, n_filtered: int = 0):
         super().__init__(parent)
         self.setWindowTitle(_t("panel.spaces.bulk.title"))
         self.setModal(True)
         form = QFormLayout(self)
+
+        # Область применения: выделенные строки или все отфильтрованные.
+        # Раньше правка работала только по выделению — «изменить параметр
+        # по фильтру» приходилось делать внешними скриптами.
+        self.rb_sel = QRadioButton(
+            _t("panel.spaces.bulk.scope_selected").format(n=n_selected))
+        self.rb_filt = QRadioButton(
+            _t("panel.spaces.bulk.scope_filtered").format(n=n_filtered))
+        self.rb_sel.setEnabled(n_selected > 0)
+        self.rb_filt.setEnabled(n_filtered > 0)
+        (self.rb_sel if n_selected > 0 else self.rb_filt).setChecked(True)
+        scope_wrap = QWidget()
+        scope_lay = QVBoxLayout(scope_wrap)
+        scope_lay.setContentsMargins(0, 0, 0, 0)
+        scope_lay.setSpacing(2)
+        scope_lay.addWidget(self.rb_sel)
+        scope_lay.addWidget(self.rb_filt)
+        form.addRow(_t("panel.spaces.bulk.scope"), scope_wrap)
 
         self.field_combo = QComboBox()
         self.stack = QStackedWidget()
@@ -516,9 +534,12 @@ class SpacesBulkDialog(QDialog):
         form.addRow(_t("panel.spaces.bulk.value"), self.stack)
         self.field_combo.currentIndexChanged.connect(self.stack.setCurrentIndex)
 
-        hint = QLabel(_t("panel.spaces.bulk.hint").format(n=n_selected))
-        hint.setProperty("role", "muted")
-        form.addRow(hint)
+        self._hint = QLabel("")
+        self._hint.setProperty("role", "muted")
+        form.addRow(self._hint)
+        self._n_selected, self._n_filtered = n_selected, n_filtered
+        self.rb_sel.toggled.connect(self._update_hint)
+        self._update_hint()
 
         box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         box.button(QDialogButtonBox.Ok).setText(_t("btn.apply"))
@@ -526,6 +547,14 @@ class SpacesBulkDialog(QDialog):
         box.accepted.connect(self.accept)
         box.rejected.connect(self.reject)
         form.addRow(box)
+
+    def use_filtered(self) -> bool:
+        """True — применить ко всем отфильтрованным, не к выделению."""
+        return self.rb_filt.isChecked()
+
+    def _update_hint(self, *_a) -> None:
+        n = self._n_selected if self.rb_sel.isChecked() else self._n_filtered
+        self._hint.setText(_t("panel.spaces.bulk.hint").format(n=n))
 
     @staticmethod
     def _make_editor(kind: str, room_types, zones, levels) -> QWidget:
@@ -639,78 +668,92 @@ class SpacesPanel(QWidget):
         head.addStretch(1)
         outer.addLayout(head)
 
-        # Тулбар с поиском и фильтрами
-        toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        # Тулбар в два ряда: фильтры отдельно от действий — в одну строку
+        # всё не помещается даже при штатных 1480 px (кнопки обрезались).
+        filters_row = QHBoxLayout()
+        filters_row.setSpacing(8)
 
         self.search = QLineEdit()
         self.search.setPlaceholderText(_t("panel.spaces.search.ph"))
         self.search.setClearButtonEnabled(True)
-        self.search.setMinimumWidth(280)
-        toolbar.addWidget(self.search, stretch=2)
+        self.search.setMinimumWidth(220)
+        filters_row.addWidget(self.search, stretch=2)
 
         self.level_filter = QComboBox()
         self.level_filter.setMinimumWidth(140)
         self._level_filter_lbl = QLabel(_t("panel.spaces.filter.level"))
-        toolbar.addWidget(_label_with_widget(self._level_filter_lbl,
-                                              self.level_filter))
+        filters_row.addWidget(_label_with_widget(self._level_filter_lbl,
+                                                 self.level_filter))
 
         self.type_filter = QComboBox()
         self.type_filter.setMinimumWidth(160)
         self._type_filter_lbl = QLabel(_t("panel.spaces.filter.type"))
-        toolbar.addWidget(_label_with_widget(self._type_filter_lbl,
-                                              self.type_filter))
+        filters_row.addWidget(_label_with_widget(self._type_filter_lbl,
+                                                 self.type_filter))
 
         self.zone_filter = QComboBox()
         self.zone_filter.setMinimumWidth(160)
         self._zone_filter_lbl = QLabel(_t("panel.spaces.filter.zone"))
-        toolbar.addWidget(_label_with_widget(self._zone_filter_lbl,
-                                              self.zone_filter))
+        filters_row.addWidget(_label_with_widget(self._zone_filter_lbl,
+                                                 self.zone_filter))
 
         self.block_filter = QComboBox()
         self.block_filter.setMinimumWidth(110)
         self._block_filter_lbl = QLabel(_t("panel.blocks.filter.block"))
-        toolbar.addWidget(_label_with_widget(self._block_filter_lbl,
-                                              self.block_filter))
+        filters_row.addWidget(_label_with_widget(self._block_filter_lbl,
+                                                 self.block_filter))
 
-        toolbar.addStretch(1)
+        outer.addLayout(filters_row)
 
-        # Кнопки ручного управления
+        # Кнопки ручного управления: слева — работа с выбранным помещением
+        # (деструктивное «Удалить» замыкает группу), справа — операции
+        # уровня проекта.
+        actions_row = QHBoxLayout()
+        actions_row.setSpacing(8)
+
         self.b_add = QPushButton(_t("btn.add_space"))
         self.b_add.clicked.connect(self._on_add)
-        toolbar.addWidget(self.b_add)
+        actions_row.addWidget(self.b_add)
 
         self.b_edit = QPushButton(_t("btn.edit_space"))
         self.b_edit.clicked.connect(self._on_edit)
-        toolbar.addWidget(self.b_edit)
+        actions_row.addWidget(self.b_edit)
 
         # Открывает отдельное окно «Свойства + Ограждения» выбранного помещения.
         self.b_detail = QPushButton(_t("btn.space_detail"))
         self.b_detail.clicked.connect(self._open_detail)
-        toolbar.addWidget(self.b_detail)
-
-        self.b_del = QPushButton(_t("btn.delete"))
-        self.b_del.clicked.connect(self._on_delete)
-        toolbar.addWidget(self.b_del)
+        actions_row.addWidget(self.b_detail)
 
         self.b_dup = QPushButton(_t("btn.duplicate"))
         self.b_dup.clicked.connect(self._on_duplicate)
-        toolbar.addWidget(self.b_dup)
+        actions_row.addWidget(self.b_dup)
 
-        self.b_import = QPushButton(_t("btn.import"))
-        self.b_import.clicked.connect(self._on_import)
-        toolbar.addWidget(self.b_import)
+        self.b_del = QPushButton(_t("btn.delete"))
+        self.b_del.clicked.connect(self._on_delete)
+        actions_row.addWidget(self.b_del)
 
-        self.b_template = QPushButton(_t("btn.template"))
-        self.b_template.clicked.connect(self._on_template)
-        toolbar.addWidget(self.b_template)
+        # Групповая правка раньше жила только в правом клике — теперь видима.
+        self.b_bulk = QPushButton(_t("panel.spaces.bulk.btn"))
+        self.b_bulk.clicked.connect(self._bulk_edit)
+        actions_row.addWidget(self.b_bulk)
 
+        actions_row.addStretch(1)
+
+        # Редкие проектные операции — в меню «Ещё», чтобы ряд действий
+        # гарантированно помещался и на 1366 px с развёрнутым сайдбаром.
+        self.more_btn = QPushButton(_t("btn.more"))
+        self.more_menu = QMenu(self.more_btn)
+        self.act_import = self.more_menu.addAction(
+            _t("btn.import"), self._on_import)
+        self.act_template = self.more_menu.addAction(
+            _t("btn.template"), self._on_template)
         # Общепроектный редактор ограждений (массовая пометка внутр./наружн.).
-        self.b_boundaries = QPushButton(_t("btn.project_boundaries"))
-        self.b_boundaries.clicked.connect(self._open_project_boundaries)
-        toolbar.addWidget(self.b_boundaries)
+        self.act_boundaries = self.more_menu.addAction(
+            _t("btn.project_boundaries"), self._open_project_boundaries)
+        self.more_btn.setMenu(self.more_menu)
+        actions_row.addWidget(self.more_btn)
 
-        outer.addLayout(toolbar)
+        outer.addLayout(actions_row)
 
         # Splitter: таблица | свойства
         # --- Таблица (на всю ширину панели) ---
@@ -884,17 +927,24 @@ class SpacesPanel(QWidget):
         return sorted({self.proxy.mapToSource(idx).row()
                        for idx in sel.selectedIndexes()})
 
+    def _filtered_source_rows(self) -> List[int]:
+        """Строки-источники всех видимых (отфильтрованных) строк прокси."""
+        return [self.proxy.mapToSource(self.proxy.index(r, 0)).row()
+                for r in range(self.proxy.rowCount())]
+
     def _bulk_edit(self) -> None:
-        rows = self._selected_source_rows()
-        if not rows:
+        sel_rows = self._selected_source_rows()
+        filt_rows = self._filtered_source_rows()
+        if not sel_rows and not filt_rows:
             QMessageBox.information(self, _t("panel.spaces.bulk.title"),
                                     _t("panel.spaces.bulk.no_selection"))
             return
-        dlg = SpacesBulkDialog(len(rows), get_all_room_types(),
+        dlg = SpacesBulkDialog(len(sel_rows), get_all_room_types(),
                                self._existing_zones(), self._known_levels(),
-                               self)
+                               self, n_filtered=len(filt_rows))
         if dlg.exec() != QDialog.Accepted:
             return
+        rows = filt_rows if dlg.use_filtered() else sel_rows
         field_key, value = dlg.result_value()
         n = self.model.bulk_set_field(rows, field_key, value)
         self.bridge.statusMessage.emit(
@@ -1262,9 +1312,11 @@ class SpacesPanel(QWidget):
         self.b_detail.setText(_t("btn.space_detail"))
         self.b_del.setText(_t("btn.delete"))
         self.b_dup.setText(_t("btn.duplicate"))
-        self.b_import.setText(_t("btn.import"))
-        self.b_template.setText(_t("btn.template"))
-        self.b_boundaries.setText(_t("btn.project_boundaries"))
+        self.b_bulk.setText(_t("panel.spaces.bulk.btn"))
+        self.more_btn.setText(_t("btn.more"))
+        self.act_import.setText(_t("btn.import"))
+        self.act_template.setText(_t("btn.template"))
+        self.act_boundaries.setText(_t("btn.project_boundaries"))
         # Заголовки колонок таблицы — модель отдаёт их через _t() в headerData;
         # сообщаем Qt, что header-секции стоит перерисовать.
         self.model.headerDataChanged.emit(

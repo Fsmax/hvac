@@ -13,12 +13,13 @@ from typing import Any, Callable, List
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout,
+    QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout,
     QWidget,
 )
 
 from hvac.i18n import on_language_change, t as _t
 from hvac.project import HVACProject
+from hvac.ui_qt import settings as user_settings
 from hvac.ui_qt.bridge import ProjectBridge
 
 
@@ -85,6 +86,24 @@ STEPS: List[_Step] = [
             else _t("checklist.vent_hint_empty")
         ),
     ),
+    _Step(
+        "dhw", "checklist.step_dhw", "extensions",
+        lambda p: bool(getattr(p, "dhw_systems", {})),
+        lambda p: (
+            _t("checklist.dhw_hint").format(n=len(p.dhw_systems))
+            if getattr(p, "dhw_systems", {})
+            else _t("checklist.dhw_hint_empty")
+        ),
+    ),
+    _Step(
+        "smoke", "checklist.step_smoke", "smoke",
+        lambda p: bool(getattr(p, "smoke_systems", {})),
+        lambda p: (
+            _t("checklist.smoke_hint").format(n=len(p.smoke_systems))
+            if getattr(p, "smoke_systems", {})
+            else _t("checklist.smoke_hint_empty")
+        ),
+    ),
 ]
 
 
@@ -100,16 +119,25 @@ class ChecklistPanel(QWidget):
         self.navigate = navigate
         self._rows: dict[str, _StepRow] = {}
 
-        self.setMinimumWidth(260)
-        self.setMaximumWidth(340)
+        self._collapsed = bool(
+            user_settings.load().get("checklist_collapsed", False))
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(16, 16, 16, 16)
+        outer.setContentsMargins(10, 12, 10, 12)
         outer.setSpacing(10)
 
+        head = QHBoxLayout()
+        head.setSpacing(6)
         self._header = QLabel(_t("checklist.title"))
         self._header.setProperty("role", "h2")
-        outer.addWidget(self._header)
+        head.addWidget(self._header, stretch=1)
+        self._toggle_btn = QPushButton("⟩")
+        self._toggle_btn.setProperty("role", "ghost")
+        self._toggle_btn.setFixedWidth(26)
+        self._toggle_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self._toggle_btn.clicked.connect(self._on_toggle)
+        head.addWidget(self._toggle_btn)
+        outer.addLayout(head)
 
         for step in STEPS:
             row = _StepRow(step, navigate)
@@ -117,16 +145,42 @@ class ChecklistPanel(QWidget):
             self._rows[step.key] = row
 
         outer.addStretch(1)
+        self._apply_collapsed()
 
         # Подписки
         for sig in (
             bridge.dataLoaded, bridge.projectLoaded, bridge.zonesChanged,
             bridge.calculationDone, bridge.ventilationDone,
             bridge.constructionsChanged, bridge.spacesChanged,
+            bridge.smokeSystemsChanged, bridge.equipmentChanged,
         ):
             sig.connect(self._refresh)
         on_language_change(lambda _lang: self.retranslate_ui())
         self._refresh()
+
+    # ---------- Сворачивание ----------
+    def _on_toggle(self) -> None:
+        self._collapsed = not self._collapsed
+        self._apply_collapsed()
+        cfg = user_settings.load()
+        cfg["checklist_collapsed"] = self._collapsed
+        user_settings.save(cfg)
+
+    def _apply_collapsed(self) -> None:
+        c = self._collapsed
+        self._header.setVisible(not c)
+        for row in self._rows.values():
+            row.setVisible(not c)
+        if c:
+            self.setMinimumWidth(34)
+            self.setMaximumWidth(34)
+            self._toggle_btn.setText("⟨")
+            self._toggle_btn.setToolTip(_t("checklist.expand"))
+        else:
+            self.setMinimumWidth(260)
+            self.setMaximumWidth(340)
+            self._toggle_btn.setText("⟩")
+            self._toggle_btn.setToolTip(_t("checklist.collapse"))
 
     def _refresh(self, *args: Any) -> None:
         for step in STEPS:

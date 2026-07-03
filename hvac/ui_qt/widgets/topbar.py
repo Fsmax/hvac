@@ -110,8 +110,13 @@ class TopBar(QFrame):
         self.recalc_btn.setText("▶  " + _t("topbar.recalc"))
         self.save_btn.setText(_t("topbar.save"))
         self.export_btn.setText(_t("topbar.export") + "…")
+        # Горячие клавиши — в тултипах, иначе о них знает только палитра.
+        self.recalc_btn.setToolTip(_t("topbar.recalc") + "  ·  F5")
+        self.save_btn.setToolTip(_t("topbar.save") + "  ·  Ctrl+S")
+        self.export_btn.setToolTip(_t("topbar.export") + "  ·  Ctrl+E")
         self.lang_btn.setToolTip(_t("topbar.lang_tooltip"))
-        self.theme_btn.setToolTip(_t("topbar.theme_tooltip"))
+        self.theme_btn.setToolTip(
+            _t("topbar.theme_tooltip") + "  ·  Ctrl+T")
         # Обновляем «пилюлю» проекта — если имя не задано, показываем
         # локализованный плейсхолдер.
         if not getattr(self, "_project_name", ""):

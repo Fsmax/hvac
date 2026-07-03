@@ -40,6 +40,7 @@ TOKENS = {
         "accent_dim":  "#1F4A7A",   # фон выделенной строки
         "success":     "#4ADE80",
         "warning":     "#FBBF24",
+        "warning_bg":  "#3A2E12",   # фон ленты «результаты устарели»
         "danger":      "#F87171",
         "sidebar_bg":  "#0B0F14",
     },
@@ -57,6 +58,7 @@ TOKENS = {
         "accent_dim":  "#DDE9FB",
         "success":     "#16A34A",
         "warning":     "#D97706",
+        "warning_bg":  "#FCEFDC",   # фон ленты «результаты устарели»
         "danger":      "#DC2626",
         "sidebar_bg":  "#F0F2F6",
     },

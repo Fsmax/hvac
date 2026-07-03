@@ -34,18 +34,46 @@ class CalcWorker(QObject):
     Поскольку HVACProject — обычная python-структура без Qt-зависимостей,
     его можно безопасно использовать из не-main потока. Сигналы Qt при
     эмите из worker-потока автоматически очередятся в main-loop.
+
+    supports_progress=True — fn принимает колбэк progress(i, n) -> bool
+    (см. HVACProject.recalculate) и возвращает False при отмене.
+    request_cancel() из main-потока просит остановиться на ближайшем шаге.
     """
 
     finished = Signal()
-    failed = Signal(str, str)   # (message, traceback)
+    failed = Signal(str, str)     # (message, traceback)
+    progressed = Signal(int, int)  # (сделано, всего)
+    cancelled = Signal()
 
-    def __init__(self, fn: Callable[[], object]):
+    def __init__(self, fn: Callable[..., object],
+                 supports_progress: bool = False):
         super().__init__()
         self._fn = fn
+        self._supports_progress = supports_progress
+        self._cancel = False
+
+    def request_cancel(self) -> None:
+        self._cancel = True
+
+    def _progress_cb(self, i: int, n: int) -> bool:
+        if self._cancel:
+            return False
+        # Не чаще ~200 сигналов на прогон: на 4000+ помещений очередь
+        # событий иначе захлёбывается.
+        step = max(1, n // 200)
+        if i % step == 0 or i >= n - 1:
+            self.progressed.emit(i + 1, n)
+        return True
 
     def run(self) -> None:
         try:
-            self._fn()
+            if self._supports_progress:
+                ok = self._fn(self._progress_cb)
+                if ok is False:
+                    self.cancelled.emit()
+                    return
+            else:
+                self._fn()
             self.finished.emit()
         except Exception as e:
             self.failed.emit(str(e), traceback.format_exc())
@@ -168,10 +196,12 @@ class CalculationPanel(QWidget):
     """Корневая панель расчётов."""
 
     def __init__(self, project: HVACProject, bridge: ProjectBridge,
+                 navigate: Callable[[str], None] | None = None,
                  parent: QWidget | None = None):
         super().__init__(parent)
         self.project = project
         self.bridge = bridge
+        self._navigate = navigate
         self._thread: Optional[QThread] = None
         self._worker: Optional[CalcWorker] = None
 
@@ -202,13 +232,26 @@ class CalculationPanel(QWidget):
         sub.setProperty("role", "muted")
         col.addWidget(sub)
 
-        # Прогресс-бар на всю ширину (виден только во время работы)
+        # Прогресс: полоса + «N / M помещений» + отмена (видны при работе)
+        prow = QHBoxLayout()
+        prow.setSpacing(10)
         self.progress = QProgressBar()
-        self.progress.setRange(0, 0)        # indeterminate
+        self.progress.setRange(0, 0)        # indeterminate до первого шага
         self.progress.setTextVisible(False)
         self.progress.setFixedHeight(4)
         self.progress.setVisible(False)
-        col.addWidget(self.progress)
+        prow.addWidget(self.progress, stretch=1)
+        self.progress_lbl = QLabel("")
+        self.progress_lbl.setProperty("role", "muted")
+        self.progress_lbl.setVisible(False)
+        prow.addWidget(self.progress_lbl)
+        self.cancel_btn = QPushButton(_t("panel.calc.cancel"))
+        self.cancel_btn.setProperty("role", "ghost")
+        self.cancel_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self.cancel_btn.setVisible(False)
+        self.cancel_btn.clicked.connect(self._on_cancel_clicked)
+        prow.addWidget(self.cancel_btn)
+        col.addLayout(prow)
 
         # Сетка карточек-действий
         actions = QGridLayout()
@@ -257,11 +300,14 @@ class CalculationPanel(QWidget):
         self.summary = SummaryGrid()
         col.addWidget(self.summary)
 
-        # Валидация (placeholder — детальную выведем в task #13)
+        # Валидация: сводка + ссылка на полный список в панели «Проблемы»
         col.addSpacing(8)
         self.validation_lbl = QLabel("")
         self.validation_lbl.setProperty("role", "hint")
         self.validation_lbl.setWordWrap(True)
+        self.validation_lbl.setTextFormat(Qt.RichText)
+        self.validation_lbl.setOpenExternalLinks(False)
+        self.validation_lbl.linkActivated.connect(self._on_validation_link)
         col.addWidget(self.validation_lbl)
 
         col.addStretch(1)
@@ -306,9 +352,14 @@ class CalculationPanel(QWidget):
         if not n:
             self.validation_lbl.setText(_t("panel.calc.validate.no_data"))
         elif problems:
-            self.validation_lbl.setText(
-                _t("panel.calc.validate.problems").format(
-                    n=len(problems), first=problems[0]))
+            # Текст проблемы уходит в rich-text — экранируем разметку.
+            import html
+            msg = _t("panel.calc.validate.problems").format(
+                n=len(problems), first=html.escape(str(problems[0])))
+            if self._navigate is not None:
+                msg += (' <a href="problems">'
+                        f'{_t("panel.calc.validate.open")}</a>')
+            self.validation_lbl.setText(msg)
             self.validation_lbl.setProperty("role", "warning")
         else:
             self.validation_lbl.setText(_t("panel.calc.validate.ok"))
@@ -316,9 +367,15 @@ class CalculationPanel(QWidget):
         self.validation_lbl.style().unpolish(self.validation_lbl)
         self.validation_lbl.style().polish(self.validation_lbl)
 
+    def _on_validation_link(self, href: str) -> None:
+        if href == "problems" and self._navigate is not None:
+            self._navigate("problems")
+
     # ---------- Запуск расчётов ----------
     def _run_heat(self) -> None:
-        self._start(_t("panel.calc.run.heat"), self.project.recalculate)
+        self._start(_t("panel.calc.run.heat"),
+                    lambda cb: self.project.recalculate(progress=cb),
+                    supports_progress=True)
 
     def _run_vent(self) -> None:
         self._start(_t("panel.calc.run.vent"),
@@ -329,37 +386,66 @@ class CalculationPanel(QWidget):
                      self.project.calculate_ahu_loads)
 
     def _run_all(self) -> None:
-        def chain() -> None:
-            self.project.recalculate()
+        def chain(cb) -> bool:
+            # Прогресс (и отмена) — на самой тяжёлой фазе, нагрузках.
+            if not self.project.recalculate(progress=cb):
+                return False
             self.project.calculate_ventilation()
             self.project.calculate_ahu_loads()
-        self._start(_t("panel.calc.run.all"), chain)
+            return True
+        self._start(_t("panel.calc.run.all"), chain, supports_progress=True)
 
-    def _start(self, status: str, fn: Callable[[], object]) -> None:
+    def _start(self, status: str, fn: Callable[..., object],
+               supports_progress: bool = False) -> None:
         if self._thread is not None:
             return  # уже идёт другой расчёт
         if not self.project.spaces:
             return
 
+        self.progress.setRange(0, 0)
         self.progress.setVisible(True)
+        self.progress_lbl.setText("")
+        self.progress_lbl.setVisible(supports_progress)
+        self.cancel_btn.setEnabled(True)
+        self.cancel_btn.setVisible(supports_progress)
         for card in (self.card_heat, self.card_vent,
                      self.card_ahu, self.card_all):
             card.set_busy(True)
         self.bridge.statusMessage.emit(status, 0)
+        self.bridge.busyChanged.emit(True, status)
 
         self._thread = QThread(self)
-        self._worker = CalcWorker(fn)
+        self._worker = CalcWorker(fn, supports_progress=supports_progress)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
+        self._worker.progressed.connect(self._on_progress)
         self._worker.finished.connect(self._on_finished)
         self._worker.failed.connect(self._on_failed)
-        self._worker.finished.connect(self._thread.quit)
-        self._worker.failed.connect(self._thread.quit)
+        self._worker.cancelled.connect(self._on_cancelled)
+        for sig in (self._worker.finished, self._worker.failed,
+                    self._worker.cancelled):
+            sig.connect(self._thread.quit)
         self._thread.start()
+
+    def _on_cancel_clicked(self) -> None:
+        if self._worker is not None:
+            self.cancel_btn.setEnabled(False)
+            self._worker.request_cancel()
+
+    def _on_progress(self, done: int, total: int) -> None:
+        if self.progress.maximum() != total:
+            self.progress.setRange(0, total)
+        self.progress.setValue(done)
+        self.progress_lbl.setText(
+            _t("panel.calc.progress").format(done=done, total=total))
 
     def _on_finished(self) -> None:
         self._cleanup()
         self.bridge.statusMessage.emit(_t("panel.calc.run.done"), 4000)
+
+    def _on_cancelled(self) -> None:
+        self._cleanup()
+        self.bridge.statusMessage.emit(_t("status.calc_cancelled"), 5000)
 
     def _on_failed(self, msg: str, tb: str) -> None:
         self._cleanup()
@@ -373,6 +459,8 @@ class CalculationPanel(QWidget):
 
     def _cleanup(self) -> None:
         self.progress.setVisible(False)
+        self.progress_lbl.setVisible(False)
+        self.cancel_btn.setVisible(False)
         for card in (self.card_heat, self.card_vent,
                      self.card_ahu, self.card_all):
             card.set_busy(False)
@@ -381,4 +469,5 @@ class CalculationPanel(QWidget):
             self._thread.deleteLater()
         self._thread = None
         self._worker = None
+        self.bridge.busyChanged.emit(False, "")
         self._refresh()

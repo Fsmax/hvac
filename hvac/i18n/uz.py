@@ -42,10 +42,18 @@ UZ: Dict[str, str] = {
     "sidebar.room_equipment":"Xonalardagi jihozlar",
     "sidebar.smoke":         "Tutun chiqarish",
     "sidebar.charts":        "Grafiklar",
-    "sidebar.extensions":    "Kengaytmalar v3.7",
-    "sidebar.engineering":   "Mukammal injiniring v4.1",
+    "sidebar.extensions":    "Kengaytmalar",
+    "sidebar.engineering":   "Injiniring",
     "sidebar.problems":      "Muammolar",
     "sidebar.comparison":    "Taqqoslash",
+    # Sidebar guruhlari + yig'ish
+    "sidebar.group.project":  "Loyiha",
+    "sidebar.group.model":    "Model",
+    "sidebar.group.calc":     "Hisob",
+    "sidebar.group.systems":  "Tizimlar",
+    "sidebar.group.analysis": "Tahlil",
+    "sidebar.collapse":       "Yig'ish",
+    "sidebar.expand":         "Panelni yoyish",
 
     # ========== Panel: Comparison (variantlarni taqqoslash) ==========
     "panel.comparison.title":       "Variantlarni taqqoslash",
@@ -124,6 +132,7 @@ UZ: Dict[str, str] = {
     "btn.cancel":            "Bekor qilish",
     "btn.ok":                "OK",
     "btn.close":             "Yopish",
+    "btn.more":              "Yana…",
     "btn.apply":             "Qo‘llash",
 
     # ========== Статусы ==========
@@ -150,6 +159,14 @@ UZ: Dict[str, str] = {
     "checklist.calc_hint_empty":    "bajarilmagan",
     "checklist.vent_hint":          "Σ {m3h} m³/soat",
     "checklist.vent_hint_empty":    "bajarilmagan",
+    "checklist.step_dhw":           "IST hisoblangan",
+    "checklist.dhw_hint":           "{n} tizim",
+    "checklist.dhw_hint_empty":     "berilmagan",
+    "checklist.step_smoke":         "Tutun chiqarish / dim berish",
+    "checklist.smoke_hint":         "{n} tizim",
+    "checklist.smoke_hint_empty":   "berilmagan",
+    "checklist.collapse":           "Cheklistni yig'ish",
+    "checklist.expand":             "Cheklistni yoyish",
 
     # ========== Языки ==========
     "lang.ru":               "Ruscha",
@@ -197,6 +214,18 @@ UZ: Dict[str, str] = {
     "status.kw_summary":     "Σ qish {h:.1f} kVt · Σ yoz {c:.1f} kVt",
     "status.lang_switched":  "Til o‘zgartirildi: O‘zbek (lotin)",
     "status.autosave_done":  "Avto-saqlash: {name}",
+    "status.calc_cancelled": "Hisob bekor qilindi — natijalar o'zgarmadi",
+    "status.journal_title":  "So'nggi hodisalar",
+    "status.journal_empty":  "Hodisalar hali yo'q",
+
+    # ========== «Natijalar eskirgan» lentasi ==========
+    "ribbon.stale_prefix":   "⚠ Ma'lumotlar o'zgardi — eskirgan: ",
+    "ribbon.layer.loads":    "yuklamalar",
+    "ribbon.layer.ventilation": "ventilyatsiya",
+    "ribbon.layer.ahu":      "havo tayyorlash qurilmalari",
+    "ribbon.recalc_all":     "Hammasini qayta hisoblash",
+    "ribbon.dismiss_tip":    "Keyingi o'zgarishgacha yashirish",
+
     "status.autosave_error": "Avto-saqlash: xato {err}",
     "status.template_applied": ("Shablondan yaratildi: «{title}», "
                                  "xonalar: {n}"),
@@ -437,6 +466,10 @@ UZ: Dict[str, str] = {
     "panel.spaces.status.tpl_created":  "Shablon bo‘yicha {n} ta xona yaratildi.",
     "panel.spaces.default_level":       "1-qavat",
     "panel.spaces.bulk.menu":           "Tanlanganlarni guruhli tahrir…",
+    "panel.spaces.bulk.btn":       "Guruhlab tahrirlash…",
+    "panel.spaces.bulk.scope":     "Qo'llash:",
+    "panel.spaces.bulk.scope_selected": "ajratilgan qatorlarga ({n})",
+    "panel.spaces.bulk.scope_filtered": "barcha filtrlanganlarga ({n})",
     "panel.spaces.bulk.title":          "Xonalarni guruhli tahrirlash",
     "panel.spaces.bulk.field":          "Maydon",
     "panel.spaces.bulk.value":          "Qiymat",
@@ -957,12 +990,12 @@ UZ: Dict[str, str] = {
 
     # ----- «Tizimlar va jihozlar» yagona ish stoli -----
     "panel.sysworkspace.title":      "Tizimlar va jihozlar",
-    "panel.sysworkspace.hint":       ("Chapda — manbalar va konturlar, o‘ngda — "
-                                       "xonalar. Xonalarni belgilang (tugma / "
-                                       "tugunga tortib), parametrlarni (tugunga "
-                                       "ikki marta) va jihozlarni (qatorga ikki "
-                                       "marta) bering. «Tanlashni hisoblash» — "
-                                       "AHU yuklamasi, quvurlar, nasoslar."),
+    "panel.sysworkspace.hint":       ("Xonalarni chapdagi tizimlarga belgilang, "
+                                       "so‘ng «Tanlashni hisoblash»."),
+    "panel.sysworkspace.empty_tree": "Tizimlar hali yo‘q",
+    "panel.sysworkspace.empty_tree_hint":
+        "«+ Tizim» tugmasi bilan manba yarating — xonalarni keyinroq "
+        "tugunga tortib qo‘shish mumkin.",
     "panel.sysworkspace.tree.name":  "Manba / kontur",
     "panel.sysworkspace.tree.kw":    "kVt",
     "panel.sysworkspace.rcol.device":"Jihoz",
@@ -1992,6 +2025,9 @@ UZ: Dict[str, str] = {
                                       "yoki loyihani oching."),
     "panel.calc.validate.problems": ("⚠ Validatsiya muammolari: {n}. "
                                       "Birinchi: {first}"),
+    "panel.calc.validate.open": "Ro‘yxatni ochish →",
+    "panel.calc.progress":      "{done} / {total} xona",
+    "panel.calc.cancel":        "Bekor qilish",
     "panel.calc.validate.ok":   "✓ Validatsiya muvaffaqiyatli.",
     "panel.calc.run.heat":      "Yuklamalar hisoblanmoqda…",
     "panel.calc.run.vent":      "Ventilyatsiya hisoblanmoqda…",
@@ -2031,15 +2067,14 @@ UZ: Dict[str, str] = {
 
     # ----- «Bloklar» bo'limi -----
     "panel.blocks.title":            "Bino bloklari",
-    "panel.blocks.hint":             ("QO'LDA bo'lish: pastda xonalarni ajrating "
-                                      "(sarlavha bosish bilan saralash, qidiruv, Sath/Blok "
-                                      "filtrlari) → «Blok belgilash» (mavjud / yangi / "
-                                      "olib tashlash). BLOKLAR: yaratish — «➕ Blok»; "
-                                      "nomini o'zgartirish — svodkada blok qatoriga ikki "
-                                      "marta bosish (yoki o'ng klik → ✏); o'chirish — o'ng "
-                                      "klik → ✖. Qurilma blokini qatoriga o'ng klik bilan "
-                                      "almashtiring. «1./2.» tugmalari — avto-yordamchilar: "
-                                      "faqat bo'shni to'ldiradi, qo'ldagilarga tegmaydi."),
+    "panel.blocks.hint":             ("Pastda xonalarni ajrating → «Blok "
+                                      "belgilash». «1./2.» avto-yordamchilari "
+                                      "faqat bo'shni to'ldiradi. Qolgani — "
+                                      "qatorga o'ng klikda."),
+    "panel.blocks.empty_summary":    "Bloklar hali yo'q",
+    "panel.blocks.empty_summary_hint":
+        "«+ Blok» tugmasi bilan blok yarating yoki «1. Xonalar bloklarga» "
+        "avto-yordamchisini ishga tushiring.",
     "panel.blocks.btn.assign_rooms":   "1. Xonalar bloklarga",
     "panel.blocks.btn.assign_systems": "2. Tizimlar bloklarga",
     "panel.blocks.btn.reassign":     "Hammasini qayta aniqlash",

@@ -192,6 +192,14 @@ class SystemsWorkspacePanel(QWidget):
         self.tree.itemDoubleClicked.connect(lambda *_: self._edit_node())
         self.tree.currentItemChanged.connect(lambda *_: self._update_summary())
         left_l.addWidget(self.tree, stretch=1)
+        # Пустое дерево — не тёмная пустота, а подсказка с первым действием.
+        from hvac.ui_qt.widgets.empty_state import EmptyStateHint
+        self.tree_empty = EmptyStateHint(
+            self.tree,
+            _t("panel.sysworkspace.empty_tree"),
+            _t("panel.sysworkspace.empty_tree_hint"),
+            action_text=_t("panel.zones.btn.add_system"),
+            on_action=self._add_system)
         splitter.addWidget(left)
 
         # ---------- RIGHT: сводка + таблица ----------
@@ -868,6 +876,7 @@ class SystemsWorkspacePanel(QWidget):
                 top.addChild(child)
             top.setExpanded(True)
         self.tree.setSortingEnabled(True)
+        self.tree_empty.sync(self.tree.topLevelItemCount() == 0)
 
     def _refresh_table(self) -> None:
         domain = self._domain
@@ -1036,6 +1045,10 @@ class SystemsWorkspacePanel(QWidget):
         self.compute_btn.setText(_t("panel.equipment.btn.compute"))
         self.undo_btn.setText(_t("panel.zones.btn.undo"))
         self.hint_lbl.setText(_t("panel.sysworkspace.hint"))
+        self.tree_empty.set_texts(
+            _t("panel.sysworkspace.empty_tree"),
+            _t("panel.sysworkspace.empty_tree_hint"),
+            _t("panel.zones.btn.add_system"))
         self.add_sys_btn.setText(_t("panel.zones.btn.add_system"))
         self.add_circ_btn.setText(_t("panel.zones.btn.add_circuit"))
         self.rename_btn.setText(_t("panel.zones.btn.rename"))

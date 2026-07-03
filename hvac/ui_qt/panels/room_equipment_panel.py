@@ -1,31 +1,37 @@
 # -*- coding: utf-8 -*-
-"""RoomEquipmentPanel — конечное оборудование, установленное в помещениях.
+"""Диалог конечного оборудования помещения (радиаторы, фанкойлы, диффузоры) — используется systems_workspace.
 
-Показывает таблицу: помещение → радиатор/фанкойл/диффузор. Двойной клик по
-строке открывает диалог назначения оборудования (отопление / охлаждение /
-приток / вытяжка) с контролем покрытия расчётной нагрузки.
+Мёртвый класс RoomEquipmentPanel удалён при ревизии UI (F11).
 """
 from __future__ import annotations
 
 from typing import Any, Dict
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
-    QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMenu, QMessageBox,
-    QPlainTextEdit, QPushButton, QSpinBox, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPlainTextEdit,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
 )
 
 from hvac.i18n import t as _t
 from hvac.models import Space
-from hvac.project import HVACProject
 from hvac.room_equipment import (
-    COOLING_TERMINAL_TYPES, EXHAUST_TERMINAL_TYPES, HEATING_TERMINAL_TYPES,
-    SUPPLY_TERMINAL_TYPES, RoomEquipment,
-    serialize_room_equipment, deserialize_room_equipment,
+    COOLING_TERMINAL_TYPES,
+    EXHAUST_TERMINAL_TYPES,
+    HEATING_TERMINAL_TYPES,
+    SUPPLY_TERMINAL_TYPES,
+    RoomEquipment,
 )
-from hvac.ui_qt.bridge import ProjectBridge
 
 
 _HEADER_KEYS = [
@@ -226,292 +232,3 @@ class RoomEquipmentDialog(QDialog):
             "circuit_cooling": _v(self.cool_circ_combo),
             "system_ventilation": _v(self.vent_combo),
         }
-
-
-class RoomEquipmentPanel(QWidget):
-    def __init__(self, project: HVACProject, bridge: ProjectBridge,
-                 parent: QWidget | None = None):
-        super().__init__(parent)
-        self.project = project
-        self.bridge = bridge
-        self._clip: dict | None = None          # буфер: скопированное оборудование
-        self._undo: list[dict] = []             # стек снимков для отмены
-
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(20, 20, 20, 20)
-        outer.setSpacing(12)
-
-        head = QHBoxLayout()
-        self.title_lbl = QLabel(_t("panel.room_eq.title"))
-        self.title_lbl.setProperty("role", "h1")
-        head.addWidget(self.title_lbl)
-        head.addStretch(1)
-        self.apply_btn = QPushButton(_t("panel.room_eq.btn.apply_sel"))
-        self.apply_btn.setCursor(Qt.PointingHandCursor)
-        self.apply_btn.clicked.connect(self._apply_to_selected)
-        head.addWidget(self.apply_btn)
-        self.clear_btn = QPushButton(_t("panel.room_eq.btn.clear"))
-        self.clear_btn.setCursor(Qt.PointingHandCursor)
-        self.clear_btn.clicked.connect(self._clear_selected)
-        head.addWidget(self.clear_btn)
-        outer.addLayout(head)
-
-        self.subtitle_lbl = QLabel(_t("panel.room_eq.subtitle"))
-        self.subtitle_lbl.setProperty("role", "muted")
-        outer.addWidget(self.subtitle_lbl)
-        self.hint_lbl = QLabel(_t("panel.room_eq.hint"))
-        self.hint_lbl.setProperty("role", "muted")
-        outer.addWidget(self.hint_lbl)
-
-        self.search = QLineEdit()
-        self.search.setPlaceholderText(_t("btn.search.ph"))
-        self.search.setClearButtonEnabled(True)
-        self.search.textChanged.connect(self._filter)
-        outer.addWidget(self.search)
-
-        self.table = QTableWidget(0, len(_HEADER_KEYS))
-        self.table.setHorizontalHeaderLabels([_t(k) for k in _HEADER_KEYS])
-        self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        # Множественное выделение строк (Ctrl/Shift) для групповых операций.
-        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table.verticalHeader().setVisible(False)
-        self.table.verticalHeader().setDefaultSectionSize(26)
-        self.table.horizontalHeader().setHighlightSections(False)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.cellDoubleClicked.connect(self._edit_row)
-        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.table.customContextMenuRequested.connect(self._show_context_menu)
-        widths = [80, 200, 100, 200, 100, 80, 200, 80, 120, 120, 120]
-        for i, w in enumerate(widths):
-            self.table.setColumnWidth(i, w)
-        outer.addWidget(self.table, stretch=1)
-
-        for sig in (bridge.dataLoaded, bridge.projectLoaded,
-                    bridge.calculationDone, bridge.equipmentChanged):
-            sig.connect(self._refresh)
-        self._refresh()
-
-    def retranslate_ui(self) -> None:
-        self.title_lbl.setText(_t("panel.room_eq.title"))
-        self.subtitle_lbl.setText(_t("panel.room_eq.subtitle"))
-        self.hint_lbl.setText(_t("panel.room_eq.hint"))
-        self.apply_btn.setText(_t("panel.room_eq.btn.apply_sel"))
-        self.clear_btn.setText(_t("panel.room_eq.btn.clear"))
-        self.search.setPlaceholderText(_t("btn.search.ph"))
-        self.table.setHorizontalHeaderLabels([_t(k) for k in _HEADER_KEYS])
-
-    # ---------- Выбор / снимки / отмена ----------
-    def _selected_rows(self) -> list[int]:
-        """Индексы выделенных строк (= индексы в project.spaces)."""
-        sel = self.table.selectionModel()
-        if sel is None:
-            return []
-        return sorted({idx.row() for idx in sel.selectedRows()})
-
-    def _ids_for(self, rows: list[int]) -> list[str]:
-        return [self.project.spaces[r].space_id for r in rows
-                if 0 <= r < len(self.project.spaces)]
-
-    def _warn_no_selection(self) -> None:
-        QMessageBox.information(self, _t("panel.room_eq.title"),
-                                _t("panel.room_eq.msg.no_selection"))
-
-    def _push_undo(self, space_ids: list[str]) -> None:
-        """Снимок оборудования И привязок к контурам перед изменением."""
-        eq_snap: dict = {}
-        for sid in space_ids:
-            sp = self.project._space_by_id.get(sid)
-            eq = sp.room_equipment if sp else None
-            eq_snap[sid] = serialize_room_equipment(eq) if eq else None
-        self._undo.append({
-            "eq": eq_snap,
-            "zoning": self.project.snapshot_zoning(space_ids),
-        })
-        del self._undo[:-50]                       # ограничиваем глубину
-
-    def _apply_undo(self) -> None:
-        if not self._undo:
-            return
-        snap = self._undo.pop()
-        for sid, data in snap["eq"].items():
-            sp = self.project._space_by_id.get(sid)
-            if sp is None:
-                continue
-            sp.room_equipment = deserialize_room_equipment(data) if data else None
-        self.project.restore_zoning(snap["zoning"])
-        self.project.emit("equipment_changed")
-        self.bridge.dirtyChanged.emit(True)
-        self._refresh()
-
-    def _apply_connection(self, ids: list[str], conn: dict) -> None:
-        """Записывает привязки помещений к контурам/AHU (через зонирование)."""
-        if not conn:
-            return
-        ch = conn.get("circuit_heating", "")
-        if ch:
-            self.project.assign_rooms_to_circuit("heating", ids, ch)
-        else:
-            self.project.clear_rooms_assignment("heating", ids, "circuit")
-        cc = conn.get("circuit_cooling", "")
-        if cc:
-            self.project.assign_rooms_to_circuit("cooling", ids, cc)
-        else:
-            self.project.clear_rooms_assignment("cooling", ids, "circuit")
-        sv = conn.get("system_ventilation", "")
-        if sv:
-            self.project.assign_rooms_to_system("ventilation", ids, sv)
-        else:
-            self.project.clear_rooms_assignment("ventilation", ids, "system")
-
-    # ---------- Операции ----------
-    def _edit_row(self, row: int, _col: int = 0) -> None:
-        if row < 0 or row >= len(self.project.spaces):
-            return
-        sp = self.project.spaces[row]
-        dlg = RoomEquipmentDialog(sp, self, project=self.project)
-        if dlg.exec() == QDialog.Accepted:
-            self._push_undo([sp.space_id])
-            self.project.set_room_equipment(sp.space_id, **dlg.values())
-            self._apply_connection([sp.space_id], dlg.connection())
-            self.bridge.dirtyChanged.emit(True)
-            self._refresh()
-
-    def _apply_to_selected(self) -> None:
-        rows = self._selected_rows()
-        if not rows:
-            self._warn_no_selection()
-            return
-        anchor = self.project.spaces[rows[0]]
-        dlg = RoomEquipmentDialog(
-            anchor, self, show_loads=False, project=self.project,
-            title=_t("panel.room_eq.dlg.apply_title").format(n=len(rows)))
-        if dlg.exec() != QDialog.Accepted:
-            return
-        ids = self._ids_for(rows)
-        self._push_undo(ids)
-        n = self.project.apply_room_equipment(ids, dlg.values())
-        self._apply_connection(ids, dlg.connection())
-        self.bridge.dirtyChanged.emit(True)
-        self._refresh()
-        self.bridge.statusMessage.emit(
-            _t("panel.room_eq.status.applied").format(n=n), 4000)
-
-    def _copy(self) -> None:
-        rows = self._selected_rows()
-        if not rows:
-            self._warn_no_selection()
-            return
-        eq = self.project.spaces[rows[0]].room_equipment
-        if eq is None:
-            self.bridge.statusMessage.emit(
-                _t("panel.room_eq.status.nothing_copy"), 3000)
-            return
-        self._clip = serialize_room_equipment(eq)
-        self.bridge.statusMessage.emit(
-            _t("panel.room_eq.status.copied").format(
-                room=self.project.spaces[rows[0]].number), 3000)
-
-    def _paste(self) -> None:
-        if self._clip is None:
-            return
-        rows = self._selected_rows()
-        if not rows:
-            self._warn_no_selection()
-            return
-        ids = self._ids_for(rows)
-        self._push_undo(ids)
-        n = self.project.apply_room_equipment(ids, dict(self._clip))
-        self.bridge.dirtyChanged.emit(True)
-        self._refresh()
-        self.bridge.statusMessage.emit(
-            _t("panel.room_eq.status.pasted").format(n=n), 4000)
-
-    def _clear_selected(self) -> None:
-        rows = self._selected_rows()
-        if not rows:
-            self._warn_no_selection()
-            return
-        ids = self._ids_for(rows)
-        self._push_undo(ids)
-        n = self.project.clear_room_equipment(ids)
-        self.bridge.dirtyChanged.emit(True)
-        self._refresh()
-        self.bridge.statusMessage.emit(
-            _t("panel.room_eq.status.cleared").format(n=n), 4000)
-
-    def _show_context_menu(self, pos) -> None:
-        if not self.project.spaces:
-            return
-        rows = self._selected_rows()
-        has_sel = bool(rows)
-        menu = QMenu(self)
-        act_edit = menu.addAction(_t("panel.room_eq.ctx.edit"))
-        act_apply = menu.addAction(_t("panel.room_eq.ctx.apply_sel"))
-        menu.addSeparator()
-        act_copy = menu.addAction(_t("panel.room_eq.ctx.copy"))
-        act_paste = menu.addAction(_t("panel.room_eq.ctx.paste"))
-        act_clear = menu.addAction(_t("panel.room_eq.ctx.clear"))
-        menu.addSeparator()
-        act_undo = menu.addAction(_t("panel.room_eq.ctx.undo"))
-
-        act_edit.setEnabled(len(rows) == 1)
-        act_apply.setEnabled(has_sel)
-        act_copy.setEnabled(len(rows) == 1)
-        act_paste.setEnabled(has_sel and self._clip is not None)
-        act_clear.setEnabled(has_sel)
-        act_undo.setEnabled(bool(self._undo))
-
-        chosen = menu.exec(self.table.viewport().mapToGlobal(pos))
-        if chosen is None:
-            return
-        if chosen is act_edit:
-            self._edit_row(rows[0])
-        elif chosen is act_apply:
-            self._apply_to_selected()
-        elif chosen is act_copy:
-            self._copy()
-        elif chosen is act_paste:
-            self._paste()
-        elif chosen is act_clear:
-            self._clear_selected()
-        elif chosen is act_undo:
-            self._apply_undo()
-
-    def _refresh(self, *args: Any) -> None:
-        self.table.setRowCount(len(self.project.spaces))
-        for r, sp in enumerate(self.project.spaces):
-            eq = sp.room_equipment
-            diff_type = getattr(eq, 'supply_terminal_type', '') if eq else ''
-            diff_qty = getattr(eq, 'supply_terminal_qty', 0) if eq else 0
-            cells = [
-                sp.number, sp.name,
-                f"{sp.heat_loss_w/1000:.2f}" if sp.heat_loss_w else "",
-                (eq.heating_terminal_type or "") if eq else "",
-                f"{eq.heating_terminal_power_w:.0f}" if eq and eq.heating_terminal_power_w else "",
-                f"{eq.heating_terminal_qty:.0f}" if eq and eq.heating_terminal_qty else "",
-                (diff_type or "") if eq else "",
-                f"{diff_qty:.0f}" if eq and diff_qty else "",
-                sp.circuit_heating or "",
-                sp.circuit_cooling or "",
-                sp.system_ventilation or "",
-            ]
-            for c, text in enumerate(cells):
-                item = QTableWidgetItem(str(text))
-                if c in (2, 4, 5, 7):
-                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                self.table.setItem(r, c, item)
-        self._filter(self.search.text())
-
-    def _filter(self, text: str) -> None:
-        t = text.lower().strip()
-        for r in range(self.table.rowCount()):
-            visible = True
-            if t:
-                row_text = " ".join(
-                    (it.text() if (it := self.table.item(r, c)) is not None else "")
-                    for c in range(self.table.columnCount())
-                ).lower()
-                visible = t in row_text
-            self.table.setRowHidden(r, not visible)

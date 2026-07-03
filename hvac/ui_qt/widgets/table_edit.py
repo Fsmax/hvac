@@ -78,6 +78,7 @@ class EditableTableModelMixin:
         rows = list(snap.keys())
         self._emit_rows_changed(rows)
         self.bridge.dirtyChanged.emit(True)
+        self.bridge.dataEdited.emit()
         self._after_change(rows)
 
     def _commit(self, rows, mutate) -> int:
@@ -97,6 +98,7 @@ class EditableTableModelMixin:
         self._redo_stack.clear()
         self._emit_rows_changed(changed)
         self.bridge.dirtyChanged.emit(True)
+        self.bridge.dataEdited.emit()
         self._after_change(changed)
         return len(changed)
 
