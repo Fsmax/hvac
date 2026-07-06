@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from functools import partial
 from pathlib import Path
-from typing import Dict
+from typing import Callable, Dict
 
 from PySide6.QtCore import QByteArray, Qt, QTimer
 from PySide6.QtGui import QAction, QKeySequence
@@ -146,7 +146,7 @@ class MainWindow(QMainWindow):
         body.addWidget(self.stack, stretch=1)
 
         self._panels: Dict[str, QWidget] = {}
-        self._panel_factories: Dict[str, object] = {}
+        self._panel_factories: Dict[str, Callable[[], QWidget]] = {}
         self._build_panels()
 
         # Правый dock — чек-лист (создаём ПОСЛЕ _build_panels,
@@ -619,11 +619,12 @@ class MainWindow(QMainWindow):
         """
         n = 0
         panel = self._panels.get("problems")
-        try:
-            c = panel.model.counts()
-            n = int(c.get("error", 0)) + int(c.get("warning", 0))
-        except Exception:
-            n = 0
+        if panel is not None:
+            try:
+                c = panel.model.counts()
+                n = int(c.get("error", 0)) + int(c.get("warning", 0))
+            except Exception:
+                n = 0
         self.sidebar.set_badge("problems", str(n) if n else "")
 
     def _navigate_to(self, key: str) -> None:
