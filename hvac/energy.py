@@ -116,6 +116,8 @@ class EnergyPassport:
     # ===== Годовое потребление =====
     z_heating_days: float = 0.0           # продолжительность отопит. сезона, сут
     t_avg_heating: float = 0.0            # средняя за период, °C
+    season_exact: bool = False            # True — сезон из климата города (Табл.4);
+                                          # False — эмпирическая оценка по ГСОП
     e_heating_kwh_year: float = 0.0       # тепло на отопление за год
     e_ventilation_kwh_year: float = 0.0   # нагрев приточки за год
     e_cooling_kwh_year: float = 0.0       # электроэнергия на охлаждение, кВт·ч/год
@@ -188,6 +190,26 @@ def estimate_heating_season_from_gsop(gsop: float, t_in: float = 20.0,
     z_days = max(60.0, min(z_days, 300.0))
     t_avg = t_in - (gsop / z_days)
     return {"z_days": round(z_days), "t_avg": round(t_avg, 1)}
+
+
+def heating_season_for(params) -> Dict[str, Any]:
+    """Длительность и средняя температура отопительного сезона (порог ≤8°C).
+
+    Приоритет — фактические данные климата города (ШНҚ 2.01.01-22 Табл.4 /
+    СП 131.13330: поля ``z_ht_8``/``t_ht_8`` в CLIMATE_DB). Если их нет —
+    эмпирическая оценка по ГСОП (estimate_heating_season_from_gsop).
+
+    Возвращает {"z_days", "t_avg", "exact": bool}.
+    """
+    from hvac.catalogs.climate import CLIMATE_DB
+    clim: Mapping[str, Any] = CLIMATE_DB.get(getattr(params, "city", ""), {})
+    z8, t8 = clim.get("z_ht_8"), clim.get("t_ht_8")
+    if z8 and t8 is not None:
+        return {"z_days": float(z8), "t_avg": float(t8), "exact": True}
+    season = estimate_heating_season_from_gsop(
+        getattr(params, "gsop_18", 0.0), t_in=20.0, t_threshold=8.0)
+    season["exact"] = False
+    return season
 
 
 def degree_days_heating(t_in: float, t_ht_avg: float, z_ht_days: float) -> float:
@@ -331,6 +353,37 @@ def detect_building_type(project: "HVACProject") -> str:
     return "общественное"
 
 
+def refresh_passport(project: "HVACProject") -> Optional[EnergyPassport]:
+    """Актуализирует энергопаспорт перед печатью отчёта.
+
+    Сохранённый в проекте паспорт «замораживается» на момент расчёта и
+    устаревает после любых правок помещений (реальный случай: в паспорте
+    Q=95,5 кВт от старого состава помещений при текущих 32 кВт). Экспортёры
+    записки вызывают эту функцию, чтобы отчёт был внутренне консистентен.
+
+    Пересчитывает паспорт по ТЕКУЩИМ помещениям, сохраняя настройки
+    прошлого расчёта (k_regulation, k_internal_use, internal_gain_w_m2).
+    Тип здания переопределяется заново: сохранённый тип был автоопределён
+    по старому составу помещений.
+
+    Возвращает актуальный паспорт (и записывает его в project). Если
+    паспорт не рассчитывался или в проекте нет помещений — ничего не
+    меняет и возвращает сохранённый как есть.
+    """
+    ep = project.energy_passport
+    if ep is None or not project.spaces:
+        return ep
+    fresh = calculate_passport(
+        project,
+        building_type=None,                    # переопределить по помещениям
+        k_regulation=ep.k_regulation,
+        k_internal_use=ep.k_internal_use,
+        internal_gain_w_m2=ep.internal_gain_w_m2,
+    )
+    project.energy_passport = fresh
+    return fresh
+
+
 def calculate_passport(project: "HVACProject",
                        building_type: Optional[str] = None,
                        k_regulation: float = 1.0,
@@ -357,10 +410,8 @@ def calculate_passport(project: "HVACProject",
     if building_type is None:
         building_type = detect_building_type(project)
 
-    # Длительность сезона
-    season = estimate_heating_season_from_gsop(
-        params.gsop_18, t_in=20.0, t_threshold=8.0,
-    )
+    # Длительность сезона — из климата города, если есть (иначе по ГСОП)
+    season = heating_season_for(params)
 
     # Пиковые
     q_peak_heating = sum(sp.heat_loss_w for sp in project.spaces)
@@ -461,6 +512,7 @@ def calculate_passport(project: "HVACProject",
 
         z_heating_days=season["z_days"],
         t_avg_heating=season["t_avg"],
+        season_exact=bool(season.get("exact")),
         e_heating_kwh_year=e_heating_net,
         e_ventilation_kwh_year=e_vent,
         e_cooling_kwh_year=e_cooling,

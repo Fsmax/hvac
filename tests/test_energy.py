@@ -240,5 +240,54 @@ class TestDegreeDaysDd(unittest.TestCase):
         self.assertGreater(ep.dd_shnq, 0)
 
 
+class TestHeatingSeasonForAndRefresh(unittest.TestCase):
+    """Сезон из климата города + актуализация паспорта перед печатью."""
+
+    def test_season_exact_from_climate(self):
+        from hvac.energy import heating_season_for
+        p = HVACProject()
+        p.params.apply_city("Ташкент")     # z_ht_8=129, t_ht_8=2.7
+        s = heating_season_for(p.params)
+        self.assertTrue(s["exact"])
+        self.assertAlmostEqual(s["z_days"], 129.0)
+        self.assertAlmostEqual(s["t_avg"], 2.7)
+
+    def test_season_fallback_to_gsop(self):
+        from hvac.energy import heating_season_for
+        p = HVACProject()
+        p.params.city = "Неизвестный город"
+        p.params.gsop_18 = 3000
+        s = heating_season_for(p.params)
+        self.assertFalse(s["exact"])
+        self.assertGreater(s["z_days"], 0)
+
+    def _project_with_space(self, q_loss: float) -> HVACProject:
+        from hvac.models import Space
+        p = HVACProject()
+        p.params.apply_city("Ташкент")
+        sp = Space(space_id="s1", number="1", name="Офис", level="L1",
+                   area_m2=50, volume_m3=150, height_m=3,
+                   heat_loss_w=q_loss, heat_gain_w=q_loss * 1.5)
+        p.spaces.append(sp)
+        p._space_by_id[sp.space_id] = sp
+        return p
+
+    def test_refresh_passport_recalculates_stale(self):
+        from hvac.energy import refresh_passport
+        p = self._project_with_space(3000.0)
+        p.calculate_energy_passport()
+        self.assertAlmostEqual(
+            p.energy_passport.q_peak_heating_w, 3000.0)
+        p.spaces[0].heat_loss_w = 9000.0          # правка после расчёта
+        fresh = refresh_passport(p)
+        self.assertAlmostEqual(fresh.q_peak_heating_w, 9000.0)
+        self.assertIs(fresh, p.energy_passport)
+
+    def test_refresh_passport_none_without_passport(self):
+        from hvac.energy import refresh_passport
+        p = self._project_with_space(3000.0)
+        self.assertIsNone(refresh_passport(p))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -85,6 +85,12 @@ def normative_q_ov_shnq(category: str, n_floors: int,
     return float(row[dd_band_index(dd)])
 
 
+def shnq_category_title(code: str) -> str:
+    """Человекочитаемое имя категории ШНҚ (для отчётов). Код, если неизвестна."""
+    cat = _CATEGORIES.get(code)
+    return cat.get("title", code) if cat else code
+
+
 def list_shnq_categories() -> List[Dict[str, str]]:
     """Список категорий ШНҚ для UI: [{code, title, table}]."""
     return [
