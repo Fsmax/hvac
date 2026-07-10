@@ -140,7 +140,7 @@ class EnergyPassport:
     # ===== ШНҚ 2.01.18-24 (Узбекистан) — нормативный q_ov =====
     n_floors: int = 1                     # этажность здания (по уровням)
     shnq_category: str = ""               # категория ШНҚ Табл.1-3
-    q_design_specific_w_m2: float = 0.0   # удельная расч. мощность отопл.+вент., Вт/м²
+    q_design_specific_w_m2: float = 0.0   # удельная расч. мощность отопл.+вент., Вт/м² (без монтажного запаса)
     q_ov_normative_w_m2: float = 0.0      # норматив ШНҚ q_ov, Вт/м² (0 — нет данных)
     shnq_compliant: Optional[bool] = None  # q_design ≤ q_ov? None — нет норматива
     dd_shnq: float = 0.0                  # Dd (порог сезона 10°C, КМК форм.1), °C·сут
@@ -434,7 +434,12 @@ def calculate_passport(project: "HVACProject",
     from hvac.catalogs.climate import CLIMATE_DB
     n_floors = len({sp.level for sp in project.spaces if sp.level}) or 1
     shnq_cat = building_type_to_shnq(building_type)
-    q_design_specific = ((q_peak_heating + q_peak_vent) / total_area
+    # Нормативный контроль — по РАСЧЁТНОЙ мощности. heat_loss_w помещений
+    # хранится уже с монтажным запасом (sp50.heat_loss × safety_margin_heating);
+    # запас — проектное решение, не свойство здания, из сравнения с q_ov его
+    # снимаем. Калорифер AHU (q_heater_w) считается без запаса — не делим.
+    _margin = getattr(params, "safety_margin_heating", 1.0) or 1.0
+    q_design_specific = ((q_peak_heating / _margin + q_peak_vent) / total_area
                          if total_area > 0 else 0.0)
     # Dd по КМК 2.01.04-18 форм.(1): (tв − tот.пер)·zот.пер для периода со
     # среднесуточной t ≤ 10°C. Если климат города содержит периоды ≤8/≤12°C

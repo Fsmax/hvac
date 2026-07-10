@@ -345,7 +345,7 @@ def energy_section_data(ep: "EnergyPassport", profile: Dict[str, str]) -> Dict:
         kv_main.insert(4, ["Градусо-сутки Dd, °C·сут "
                            f"({dd_src})", f"{ep.dd_shnq:.0f}"])
         kv_main += [
-            ["q удельная расчётная (отопл.+вент.), Вт/м²",
+            ["q удельная расчётная (отопл.+вент., без монтажного запаса), Вт/м²",
              f"{ep.q_design_specific_w_m2:.1f}"],
             ["q_ov норматив ШНҚ 2.01.18-24, Вт/м²",
              (f"{ep.q_ov_normative_w_m2:.0f}"
