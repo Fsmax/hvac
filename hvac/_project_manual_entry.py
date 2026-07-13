@@ -358,10 +358,29 @@ class ManualEntryMixin:
             c.key = new_key
             del self.constructions[old_key]
             self.constructions[new_key] = c
-            # Переносим ссылки элементов на новый ключ.
+            # Переносим ссылки элементов на новый ключ И синхронизируем их
+            # идентификационные поля: apply_constructions() пересобирает ключ
+            # из el.category/family/type_name/thickness_mm, и без синхронизации
+            # первый же пересчёт «воскрешал» старую запись в каталоге, а
+            # элементы перепривязывались обратно (переименование выглядело
+            # как дублирование). Элементы находим и по construction_key, и по
+            # идентификационным полям — у внутренних ограждений ключ может
+            # быть ещё не присвоен.
             for el in self.elements:
-                if el.construction_key == old_key:
+                el_cat = normalize_category(el.category, el.family,
+                                            el.type_name)
+                el_key = construction_key(el_cat, el.family, el.type_name,
+                                          el.thickness_mm)
+                if el.construction_key == old_key or el_key == old_key:
                     el.construction_key = new_key
+                    el.category = cat
+                    el.family = family
+                    el.type_name = type_name
+                    el.thickness_mm = thickness_mm
+                    # В CSV-режиме поля элемента восстанавливаются из CSV;
+                    # без флага правка слетит при перезагрузке проекта
+                    # (element_overrides сохраняются только для user_modified).
+                    el.user_modified = True
         self.emit("constructions_changed")
         return c
 

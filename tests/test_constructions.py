@@ -251,6 +251,156 @@ class TestUsage:
         assert unused_key not in proj.constructions
 
 
+# ===== Переименование конструкции (update_construction) =====
+class TestUpdateConstruction:
+    @staticmethod
+    def _project_with_element():
+        from hvac.models import BoundaryElement
+        proj = HVACProject()
+        proj.elements.append(BoundaryElement(
+            space_id="S1", row_type="external_wall", is_exterior=True,
+            element_id="E1", category="Покрытие", family="Универсал",
+            type_name="Тип-1-310 мм", boundary_length_m=5, space_height_m=3,
+            approx_area_m2=15, element_area_m2=15, thickness_mm=310,
+            function="", host_element_id="", boundary_space_count=1,
+            net_area_m2=15))
+        proj.apply_constructions()  # создаёт запись каталога и привязывает
+        return proj
+
+    def test_rename_moves_key_and_element_refs(self):
+        proj = self._project_with_element()
+        old_key = proj.elements[0].construction_key
+        c = proj.constructions[old_key]
+
+        proj.update_construction(
+            old_key, category=c.category, family=c.family,
+            type_name="Тип-1-336 мм", thickness_mm=336,
+            u_value=c.u_value, shgc=c.shgc, note=c.note)
+
+        assert old_key not in proj.constructions
+        el = proj.elements[0]
+        new_key = el.construction_key
+        assert new_key in proj.constructions
+        assert proj.constructions[new_key].type_name == "Тип-1-336 мм"
+        # Идентификационные поля элемента синхронизированы с каталогом
+        assert el.type_name == "Тип-1-336 мм"
+        assert el.thickness_mm == 336
+        # Правка должна пережить перезагрузку CSV-проекта (element_overrides)
+        assert el.user_modified
+
+    def test_rename_survives_apply_constructions(self):
+        """Регрессия: после переименования apply_constructions() «воскрешал»
+        старый ключ из полей элемента и перепривязывал элементы обратно —
+        в каталоге появлялся дубль, а переименованная запись оставалась
+        с нулём использований."""
+        proj = self._project_with_element()
+        old_key = proj.elements[0].construction_key
+        c = proj.constructions[old_key]
+        proj.update_construction(
+            old_key, category=c.category, family=c.family,
+            type_name="Тип-1-336 мм", thickness_mm=336,
+            u_value=0.234, shgc=0.0, note="")
+        new_key = proj.elements[0].construction_key
+
+        proj.apply_constructions()
+
+        assert old_key not in proj.constructions
+        assert proj.elements[0].construction_key == new_key
+        assert list(proj.construction_usage().keys()) == [new_key]
+        # U взят из переименованной записи, а не из дефолтов «самоисцеления»
+        assert proj.elements[0].u_value == pytest.approx(0.234)
+
+    def test_rename_to_existing_key_raises(self):
+        proj = self._project_with_element()
+        old_key = proj.elements[0].construction_key
+        c = proj.constructions[old_key]
+        proj.create_construction(category=c.category, family=c.family,
+                                 type_name="Тип-1-336 мм", thickness_mm=336)
+        with pytest.raises(ValueError):
+            proj.update_construction(
+                old_key, category=c.category, family=c.family,
+                type_name="Тип-1-336 мм", thickness_mm=336,
+                u_value=0.3, shgc=0.0, note="")
+
+
+# ===== Персистентность каталога в CSV-режиме (не self-contained) =====
+class TestCsvCatalogPersistence:
+    """Регрессия: в CSV-режиме load_project() применял сохранённый каталог
+    только к ключам, пересобранным из CSV. Конструкции, переименованные
+    через update_construction() или созданные вручную через
+    create_construction(), молча терялись, а apply_constructions()
+    пересоздавал запись с дефолтным U вместо пользовательского."""
+
+    SPACES_CSV = (
+        "id,number,name,level,area,volume,height\n"
+        "S1,101,Офис,L01,20,60,3\n"
+    )
+    THERMAL_CSV = (
+        "space_id,row_type,element_id,category,family,type,function,"
+        "is_exterior_wall,boundary_space_count,orientation_deg,thickness,"
+        "boundary_length_m,space_height_m,approx_area_m2,element_area,"
+        "host_element_id\n"
+        "S1,external_wall,W1,Стены,Универсал,Тип-1-310 мм,Наружные,yes,1,"
+        "180,310,5,3,15,15,\n"
+    )
+
+    def _csv_project(self, tmp_path):
+        spaces_csv = tmp_path / "spaces.csv"
+        thermal_csv = tmp_path / "thermal.csv"
+        spaces_csv.write_text(self.SPACES_CSV, encoding="utf-8")
+        thermal_csv.write_text(self.THERMAL_CSV, encoding="utf-8")
+        proj = HVACProject()
+        proj.load(str(spaces_csv), str(thermal_csv))
+        proj.apply_constructions()
+        return proj
+
+    def test_renamed_and_manual_constructions_survive_reload(self, tmp_path):
+        from hvac.io_json import save_project, load_project
+        proj = self._csv_project(tmp_path)
+        old_key = proj.elements[0].construction_key
+        c = proj.constructions[old_key]
+
+        proj.update_construction(
+            old_key, category=c.category, family=c.family,
+            type_name="Тип-1-336 мм", thickness_mm=336,
+            u_value=0.234, shgc=0.0, note="утеплено")
+        new_key = proj.elements[0].construction_key
+
+        manual = proj.create_construction(
+            category="Стены", family="Ручная кладка",
+            type_name="Кирпич 510", thickness_mm=510,
+            u_value=0.317, note="своя")
+        manual.layers = [Layer(material="Кирпич", thickness_mm=510,
+                               lambda_w_mk=0.81)]
+
+        path = tmp_path / "proj.hvac.json"
+        save_project(proj, str(path))
+        # Премисса теста — именно CSV-режим (не self-contained)
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        assert saved["self_contained"] is False
+
+        p2 = HVACProject()
+        load_project(p2, str(path))
+
+        # Переименованная запись на месте, с пользовательским U
+        assert new_key in p2.constructions
+        assert p2.constructions[new_key].u_value == pytest.approx(0.234)
+        assert p2.constructions[new_key].note == "утеплено"
+        # Созданная вручную — тоже, вместе со слоями
+        assert manual.key in p2.constructions
+        m2 = p2.constructions[manual.key]
+        assert m2.u_value == pytest.approx(0.317)
+        assert len(m2.layers) == 1
+        assert m2.layers[0].lambda_w_mk == pytest.approx(0.81)
+        # Элемент привязан к переименованному ключу (element_overrides)
+        assert p2.elements[0].construction_key == new_key
+
+        # Пересчёт привязок не «самоисцеляется» дефолтным U
+        p2.apply_constructions()
+        assert p2.elements[0].construction_key == new_key
+        assert p2.elements[0].u_value == pytest.approx(0.234)
+
+
 # ===== JSON import/export =====
 class TestImportExport:
     def test_export_then_import_roundtrip(self, tmp_path):
