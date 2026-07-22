@@ -1009,6 +1009,79 @@ RU: Dict[str, str] = {
     "panel.sysworkspace.air.both_on":"Включить отопление и охлаждение",
     "panel.sysworkspace.air.off":    "Выключить воздушный режим",
     "panel.sysworkspace.air.status": "Воздушный режим: изменено {n} помещ.",
+    "panel.sysworkspace.assistant.missing": "Заполнить только пропуски…",
+    "panel.sysworkspace.assistant.missing_title": "Безопасное назначение систем",
+    "panel.sysworkspace.assistant.missing_preview": (
+        "Будут заполнены только пустые назначения; существующие ручные связи "
+        "останутся без изменений.\n\n"
+        "Помещения: {rooms}\n"
+        "• отопление: {heat}\n• охлаждение: {cool}\n• вентиляция: {vent}\n\n"
+        "Новые системы: {systems}\n"
+        "• отопление: {heat_sys}\n• охлаждение: {cool_sys}\n"
+        "• вентиляция: {vent_sys}\n\n"
+        "Имена AUTO — предварительные. После назначения проверьте и при "
+        "необходимости объедините системы. Продолжить?"),
+    "panel.sysworkspace.assistant.missing_none": (
+        "Пропусков назначения нет — все требуемые системы зарегистрированы."),
+    "panel.sysworkspace.assistant.missing_status": (
+        "Назначено помещений: {rooms} · создано систем: {systems}"),
+    "panel.sysworkspace.assistant.finalize": "Проверить и объединить AUTO…",
+    "panel.sysworkspace.assistant.finalize_title": "Финализация AUTO-систем",
+    "panel.sysworkspace.assistant.finalize_preview": (
+        "Предварительных систем AUTO: {auto}\n"
+        "Групп объединения: {groups} · будет удалено дублей: {removed}\n"
+        "Исправлений геометрии: {geometry}\n\n{details}\n\n"
+        "После применения программа повторит полный расчёт нагрузок, "
+        "вентиляции, AHU и подбора мощностей. Продолжить?"),
+    "panel.sysworkspace.assistant.finalize_merge_line": (
+        "• {sources} → {target}: {rooms} помещ., {flow} м³/ч"),
+    "panel.sysworkspace.assistant.finalize_geometry_line": (
+        "• объём {number} → {volume} м³"),
+    "panel.sysworkspace.assistant.finalize_none": (
+        "Нет безопасных групп для объединения и исправлений геометрии."),
+    "panel.sysworkspace.assistant.finalize_status": (
+        "Объединено групп: {groups} · удалено систем: {systems} · "
+        "исправлено объёмов: {geometry} · после пересчёта назначено помещений: "
+        "{rooms} · создано систем: {created}"),
+    "panel.sysworkspace.assistant.circuits": "Создать контуры и связать AHU…",
+    "panel.sysworkspace.assistant.circuits_title": (
+        "Контуры отопления и холодоснабжения"),
+    "panel.sysworkspace.assistant.circuits_preview": (
+        "Будет создано контуров: {circuits} "
+        "(отопление {heat_circuits}, холод {cool_circuits})\n"
+        "Назначений помещений: {rooms} "
+        "(отопление {heat_rooms}, холод {cool_rooms})\n"
+        "Связей теплообменников AHU: {ahus} "
+        "(калориферы {heat_ahus}, охладители {cool_ahus})\n"
+        "Типы: радиаторы / фанкойлы / калориферы и охладители AHU\n"
+        "Конфликтов имён: {conflicts} · неоднозначных связей пропущено: {skipped}\n\n"
+        "Ручные контуры и существующие связи не изменяются. После применения "
+        "программа пересчитает AHU, трубопроводы, насосы и мощности. Продолжить?"),
+    "panel.sysworkspace.assistant.circuits_none": (
+        "Нет безопасных назначений контуров. Конфликтов имён: {conflicts}; "
+        "неоднозначных связей AHU: {skipped}."),
+    "panel.sysworkspace.assistant.circuits_status": (
+        "Создано контуров: {circuits} · назначено помещений: {rooms} · "
+        "связано теплообменников AHU: {ahus}"),
+    "panel.sysworkspace.assistant.catalog": "Подобрать котлы и чиллеры N+1…",
+    "panel.sysworkspace.assistant.catalog_title": (
+        "Каталоговый подбор источников N+1"),
+    "panel.sysworkspace.assistant.catalog_preview": (
+        "Будет подобрано источников: {systems} "
+        "(отопление {heat}, холод {cool})\n"
+        "Пропущено ручных или несовместимых систем: {skipped}\n\n"
+        "{details}\n\n"
+        "Подбор выполняется только для AUTO-систем без ручной модели. "
+        "Мощность указана на один агрегат; схема — рабочие + резервные. "
+        "Каталог предварительный. Продолжить?"),
+    "panel.sysworkspace.assistant.catalog_line": (
+        "• {system}: требуется {required} кВт → {model}, {unit} кВт "
+        "({working}+{reserve})"),
+    "panel.sysworkspace.assistant.catalog_none": (
+        "Нет AUTO-источников для безопасного каталогового подбора. "
+        "Пропущено ручных или несовместимых систем: {skipped}."),
+    "panel.sysworkspace.assistant.catalog_status": (
+        "Подобраны котлы и чиллеры с резервом N+1: {systems}"),
     # Вкладки правой панели + выбор вида оборудования
     "panel.sysworkspace.tab.rooms":  "Помещения",
     "panel.sysworkspace.tab.calc":   "Расчёт",

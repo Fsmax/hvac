@@ -20,6 +20,7 @@
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Type
 
@@ -205,6 +206,50 @@ class ZoningMixin:
         systems.pop(name, None)
         self.emit("zones_changed")
         return True
+
+    def merge_zone_systems(self, domain: str, source_names,
+                           target_name: str) -> int:
+        """Объединяет несколько систем в одну без потери связей.
+
+        Все ссылки помещений и родители контуров переводятся на target_name,
+        после чего исходные системы удаляются. Если target_name ещё нет, его
+        параметры копируются из первой исходной системы. Возвращает число
+        помещений, у которых изменилось хотя бы одно поле назначения.
+        """
+        d = self._domain(domain)
+        systems = self.systems_of(domain)
+        target_name = (target_name or "").strip()
+        sources = {
+            (name or "").strip() for name in source_names
+            if (name or "").strip() in systems
+        }
+        sources.discard(target_name)
+        if not target_name or not sources:
+            return 0
+        if target_name not in systems:
+            template_name = sorted(sources)[0]
+            target = deepcopy(systems[template_name])
+            target.name = target_name
+            systems[target_name] = target
+
+        fields = [d.space_system]
+        if domain == "ventilation":
+            fields.extend(("system_supply", "system_exhaust"))
+        changed_ids = set()
+        for space in self.spaces:
+            for field in fields:
+                if getattr(space, field, "") in sources:
+                    setattr(space, field, target_name)
+                    changed_ids.add(space.space_id)
+
+        for circuit in self.circuits_of(domain).values():
+            if getattr(circuit, d.circuit_parent_field, "") in sources:
+                setattr(circuit, d.circuit_parent_field, target_name)
+
+        for name in sources:
+            systems.pop(name, None)
+        self.emit("zones_changed")
+        return len(changed_ids)
 
     # ---------- контуры / зоны (CRUD) ----------
     def add_zone_circuit(self, domain: str, name: str, parent_system: str,

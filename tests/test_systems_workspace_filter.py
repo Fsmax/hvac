@@ -131,3 +131,177 @@ def test_assignment_ignores_filtered_out_rooms(qapp):
     assert p._space_by_id["r3"].system_heating == "Котёл C"   # R4 видим → изменён
     assert p._space_by_id["r1"].system_heating == "Котёл A"   # R2 скрыт → без изменений
     assert p._space_by_id["r2"].system_heating == "Котёл B"   # R3 скрыт → без изменений
+
+
+def test_safe_missing_assignment_assistant_can_be_undone(qapp, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    p = HVACProject()
+    sp = Space(
+        space_id="new", number="101", name="Office", level="L04 HTL",
+        block="HOTEL", area_m2=20, volume_m3=60, height_m=3,
+        room_type="Офис", is_heated=True, is_cooled=True,
+        supply_m3h=100, exhaust_m3h=100,
+    )
+    p.spaces.append(sp)
+    p._space_by_id[sp.space_id] = sp
+    panel = _panel(p)
+    monkeypatch.setattr(QMessageBox, "question", lambda *args: QMessageBox.Yes)
+
+    panel._run_missing_assignment_assistant()
+
+    assert sp.system_heating and sp.system_cooling and sp.system_ventilation
+    assert p.heating_systems and p.cooling_systems and p.ventilation_systems
+
+    panel._apply_undo()
+
+    assert not sp.system_heating
+    assert not sp.system_cooling
+    assert not sp.system_ventilation
+    assert not p.heating_systems
+    assert not p.cooling_systems
+    assert not p.ventilation_systems
+
+
+def test_auto_finalization_and_geometry_repair_can_be_undone(qapp, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    from hvac.system_assignment import (
+        apply_system_assignment_plan, build_missing_system_assignment_plan,
+    )
+
+    p = HVACProject()
+    spaces = []
+    for i, level in enumerate(("L02 RES", "L03 RES")):
+        sp = Space(
+            space_id=str(i), number=str(i), name="Bathroom", level=level,
+            block="RESIDENCE", area_m2=20, volume_m3=0 if i == 0 else 60,
+            height_m=3, room_type="Санузел", is_heated=False,
+            is_cooled=False, exhaust_m3h=100,
+        )
+        p.spaces.append(sp)
+        p._space_by_id[sp.space_id] = sp
+        spaces.append(sp)
+    apply_system_assignment_plan(p, build_missing_system_assignment_plan(p))
+    original_systems = set(p.ventilation_systems)
+    panel = _panel(p)
+    monkeypatch.setattr(QMessageBox, "question", lambda *args: QMessageBox.Yes)
+    monkeypatch.setattr(panel, "_recalculate_after_finalization", lambda: None)
+
+    panel._run_auto_finalization()
+
+    assert spaces[0].volume_m3 == 60
+    assert set(p.ventilation_systems) == {"В-AUTO-RES-SAN"}
+
+    panel._apply_undo()
+
+    assert spaces[0].volume_m3 == 0
+    assert set(p.ventilation_systems) == original_systems
+
+
+def test_geometry_recalc_assigns_new_ventilation_requirement(qapp, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    p = HVACProject()
+    sp = Space(
+        space_id="new-flow", number="HTL-111", name="Hall", level="MFL HTL",
+        block="HOTEL", area_m2=20, volume_m3=0, height_m=3,
+        room_type="Коридор", is_heated=False, is_cooled=False,
+    )
+    p.spaces.append(sp)
+    p._space_by_id[sp.space_id] = sp
+    panel = _panel(p)
+    monkeypatch.setattr(QMessageBox, "question", lambda *args: QMessageBox.Yes)
+    calls = []
+
+    def fake_recalculate():
+        calls.append(True)
+        if len(calls) == 1:
+            sp.supply_m3h = 100.0
+            sp.exhaust_m3h = 50.0
+
+    monkeypatch.setattr(panel, "_recalculate_after_finalization", fake_recalculate)
+
+    panel._run_auto_finalization()
+
+    assert len(calls) == 2
+    assert sp.volume_m3 == 60.0
+    assert sp.system_ventilation
+    assert sp.system_ventilation in p.ventilation_systems
+
+    panel._apply_undo()
+
+    assert sp.volume_m3 == 0
+    assert sp.supply_m3h == 0
+    assert sp.exhaust_m3h == 0
+    assert not sp.system_ventilation
+    assert not p.ventilation_systems
+
+
+def test_auto_circuit_assistant_and_ahu_links_can_be_undone(qapp, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    p = HVACProject()
+    p.add_zone_system("heating", "H-AUTO-HTL", block="HOTEL")
+    p.add_zone_system(
+        "ventilation", "AHU-1", block="HOTEL", kind="ahu",
+        system_type="supply_exhaust", has_heater=True, has_cooler=False,
+    )
+    sp = Space(
+        space_id="room", number="101", name="Office", level="L02 HTL",
+        block="HOTEL", area_m2=20, volume_m3=60, height_m=3,
+        room_type="Офис", is_heated=True, is_cooled=False,
+        heat_loss_w=10_000, supply_m3h=1_000, exhaust_m3h=800,
+        system_heating="H-AUTO-HTL", system_ventilation="AHU-1",
+    )
+    p.spaces.append(sp)
+    p._space_by_id[sp.space_id] = sp
+    panel = _panel(p)
+    monkeypatch.setattr(QMessageBox, "question", lambda *args: QMessageBox.Yes)
+    monkeypatch.setattr(panel, "_recalculate_after_finalization", lambda: None)
+
+    panel._run_auto_circuit_assistant()
+
+    assert set(p.heating_circuits) == {
+        "К-H-AUTO-HTL-RAD", "К-H-AUTO-HTL-AHU",
+    }
+    assert sp.circuit_heating == "К-H-AUTO-HTL-RAD"
+    assert p.ventilation_systems["AHU-1"].heating_circuit == "К-H-AUTO-HTL-AHU"
+
+    panel._apply_undo()
+
+    assert not p.heating_circuits
+    assert not sp.circuit_heating
+    assert not p.ventilation_systems["AHU-1"].heating_circuit
+
+
+def test_auto_source_catalog_assistant_can_be_undone(qapp, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    p = HVACProject()
+    p.add_zone_system("heating", "H-AUTO-HTL", block="HOTEL")
+    sp = Space(
+        space_id="room", number="101", name="Office", level="L02 HTL",
+        block="HOTEL", area_m2=20, volume_m3=60, height_m=3,
+        is_heated=True, heat_loss_w=500_000,
+        system_heating="H-AUTO-HTL",
+    )
+    p.spaces.append(sp)
+    p._space_by_id[sp.space_id] = sp
+    panel = _panel(p)
+    monkeypatch.setattr(QMessageBox, "question", lambda *args: QMessageBox.Yes)
+
+    panel._run_auto_source_catalog_assistant()
+
+    system = p.heating_systems["H-AUTO-HTL"]
+    assert system.selected_model
+    assert system.design_capacity_kw > 0
+    assert system.unit_count >= 2
+    assert system.reserve_units == 1
+
+    panel._apply_undo()
+
+    system = p.heating_systems["H-AUTO-HTL"]
+    assert not system.selected_model
+    assert system.design_capacity_kw == 0
+    assert system.unit_count == 0
+    assert system.reserve_units == 0

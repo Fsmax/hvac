@@ -1019,6 +1019,80 @@ UZ: Dict[str, str] = {
     "panel.sysworkspace.air.both_on":"Isitish va sovutishni yoqish",
     "panel.sysworkspace.air.off":    "Havoli rejimni o‘chirish",
     "panel.sysworkspace.air.status": "Havoli rejim: {n} xona o‘zgartirildi",
+    "panel.sysworkspace.assistant.missing": "Faqat bo‘shlarini to‘ldirish…",
+    "panel.sysworkspace.assistant.missing_title": "Tizimlarni xavfsiz tayinlash",
+    "panel.sysworkspace.assistant.missing_preview": (
+        "Faqat bo‘sh tayinlovlar to‘ldiriladi; mavjud qo‘lda berilgan "
+        "bog‘lanishlar o‘zgarmaydi.\n\n"
+        "Xonalar: {rooms}\n"
+        "• isitish: {heat}\n• sovutish: {cool}\n• ventilyatsiya: {vent}\n\n"
+        "Yangi tizimlar: {systems}\n"
+        "• isitish: {heat_sys}\n• sovutish: {cool_sys}\n"
+        "• ventilyatsiya: {vent_sys}\n\n"
+        "AUTO nomlari dastlabki. Tayinlangandan keyin tizimlarni tekshiring "
+        "va zarur bo‘lsa birlashtiring. Davom etilsinmi?"),
+    "panel.sysworkspace.assistant.missing_none": (
+        "Tayinlash bo‘shliqlari yo‘q — barcha kerakli tizimlar ro‘yxatda."),
+    "panel.sysworkspace.assistant.missing_status": (
+        "Tayinlangan xonalar: {rooms} · yaratilgan tizimlar: {systems}"),
+    "panel.sysworkspace.assistant.finalize": "AUTO tizimlarini tekshirish va birlashtirish…",
+    "panel.sysworkspace.assistant.finalize_title": "AUTO tizimlarini yakunlash",
+    "panel.sysworkspace.assistant.finalize_preview": (
+        "Dastlabki AUTO tizimlari: {auto}\n"
+        "Birlashtirish guruhlari: {groups} · olib tashlanadigan dublikatlar: {removed}\n"
+        "Geometriya tuzatishlari: {geometry}\n\n{details}\n\n"
+        "Qo‘llangandan keyin yuklamalar, ventilyatsiya, AHU va quvvat tanlovi "
+        "to‘liq qayta hisoblanadi. Davom etilsinmi?"),
+    "panel.sysworkspace.assistant.finalize_merge_line": (
+        "• {sources} → {target}: {rooms} xona, {flow} m³/soat"),
+    "panel.sysworkspace.assistant.finalize_geometry_line": (
+        "• {number} hajmi → {volume} m³"),
+    "panel.sysworkspace.assistant.finalize_none": (
+        "Xavfsiz birlashtirish guruhlari yoki geometriya tuzatishlari yo‘q."),
+    "panel.sysworkspace.assistant.finalize_status": (
+        "Birlashtirilgan guruhlar: {groups} · olib tashlangan tizimlar: {systems} · "
+        "tuzatilgan hajmlar: {geometry} · qayta hisobdan keyin tayinlangan "
+        "xonalar: {rooms} · yaratilgan tizimlar: {created}"),
+    "panel.sysworkspace.assistant.circuits": "Konturlar yaratish va AHU ni bog‘lash…",
+    "panel.sysworkspace.assistant.circuits_title": (
+        "Isitish va sovitish konturlari"),
+    "panel.sysworkspace.assistant.circuits_preview": (
+        "Yaratiladigan konturlar: {circuits} "
+        "(isitish {heat_circuits}, sovitish {cool_circuits})\n"
+        "Xona tayinlovlari: {rooms} "
+        "(isitish {heat_rooms}, sovitish {cool_rooms})\n"
+        "AHU issiqlik almashgich bog‘lanishlari: {ahus} "
+        "(isitgichlar {heat_ahus}, sovitgichlar {cool_ahus})\n"
+        "Turlar: radiator / fankoyl / AHU isitgich va sovitgichlari\n"
+        "Nom ziddiyatlari: {conflicts} · noaniq bog‘lanishlar o‘tkazildi: {skipped}\n\n"
+        "Qo‘lda yaratilgan konturlar va mavjud bog‘lanishlar o‘zgarmaydi. "
+        "Qo‘llangandan keyin AHU, quvurlar, nasoslar va quvvat qayta hisoblanadi. "
+        "Davom etilsinmi?"),
+    "panel.sysworkspace.assistant.circuits_none": (
+        "Xavfsiz kontur tayinlovlari yo‘q. Nom ziddiyatlari: {conflicts}; "
+        "noaniq AHU bog‘lanishlari: {skipped}."),
+    "panel.sysworkspace.assistant.circuits_status": (
+        "Yaratilgan konturlar: {circuits} · tayinlangan xonalar: {rooms} · "
+        "bog‘langan AHU issiqlik almashgichlari: {ahus}"),
+    "panel.sysworkspace.assistant.catalog": "Qozon va chillerlarni N+1 tanlash…",
+    "panel.sysworkspace.assistant.catalog_title": (
+        "Manbalarni katalog bo‘yicha N+1 tanlash"),
+    "panel.sysworkspace.assistant.catalog_preview": (
+        "Tanlanadigan manbalar: {systems} "
+        "(isitish {heat}, sovitish {cool})\n"
+        "Qo‘lda tanlangan yoki mos kelmaydigan tizimlar: {skipped}\n\n"
+        "{details}\n\n"
+        "Tanlov faqat qo‘lda modeli ko‘rsatilmagan AUTO tizimlari uchun. "
+        "Quvvat bitta agregat uchun; sxema — ishchi + zaxira. "
+        "Katalog dastlabki. Davom etilsinmi?"),
+    "panel.sysworkspace.assistant.catalog_line": (
+        "• {system}: talab {required} kW → {model}, {unit} kW "
+        "({working}+{reserve})"),
+    "panel.sysworkspace.assistant.catalog_none": (
+        "Xavfsiz katalog tanlovi uchun AUTO manbalari yo‘q. "
+        "Qo‘lda tanlangan yoki mos kelmaydigan tizimlar: {skipped}."),
+    "panel.sysworkspace.assistant.catalog_status": (
+        "N+1 zaxirali qozon va chillerlar tanlandi: {systems}"),
     # O‘ng panel ichki bo‘limlari + jihoz turini tanlash
     "panel.sysworkspace.tab.rooms":  "Xonalar",
     "panel.sysworkspace.tab.calc":   "Hisob",
