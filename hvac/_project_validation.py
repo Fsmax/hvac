@@ -57,7 +57,7 @@ class ValidationMixin:
                 add("error", "Геометрия",
                     f"Площадь = 0 у '{sp.number} {sp.name}'", sp.space_id)
             if sp.volume_m3 <= 0:
-                add("warning", "Геометрия",
+                add("error", "Геометрия",
                     f"Объём = 0 у '{sp.number} {sp.name}' (инфильтрация = 0)",
                     sp.space_id)
             if sp.area_m2 > 0 and sp.volume_m3 > 0:
