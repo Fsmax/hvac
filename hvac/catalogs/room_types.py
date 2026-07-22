@@ -10,7 +10,10 @@
 """
 
 from __future__ import annotations
+
+import re
 from typing import Dict
+
 from hvac.models import Space
 
 
@@ -128,11 +131,24 @@ def is_non_cooled_type(room_type: str) -> bool:
 
 def auto_detect_room_type(name: str) -> str:
     """Определяет тип помещения по ключевым словам в названии."""
-    n = (name or "").lower()
+    n = (name or "").casefold()
     best = ("Прочее", 0)
     for rtype, info in ROOM_TYPE_PRESETS.items():
+        whole_words = {
+            str(value).casefold()
+            for value in info.get("whole_word_keywords", ())
+        }
         for kw in info["keywords"]:
-            if kw and kw.lower() in n:
+            keyword = str(kw).casefold()
+            if not keyword:
+                continue
+            if keyword in whole_words:
+                matched = re.search(
+                    rf"(?<!\w){re.escape(keyword)}(?!\w)", n
+                ) is not None
+            else:
+                matched = keyword in n
+            if matched:
                 if len(kw) > best[1]:
                     best = (rtype, len(kw))
     return best[0]
