@@ -39,8 +39,8 @@ METHOD_CODES = (
 SYSTEM_TYPE_CODES = ("smoke_removal", "air_supply", "compensation")
 
 PURPOSE_CODES = (
-    "parking", "warehouse", "corridor", "atrium", "trading_hall",
-    "stairs", "elevator", "vestibule", "refuge",
+    "parking", "warehouse", "technical", "corridor", "atrium",
+    "trading_hall", "stairs", "elevator", "vestibule", "refuge",
 )
 
 

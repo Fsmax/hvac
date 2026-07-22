@@ -1485,6 +1485,7 @@ RU: Dict[str, str] = {
     "dlg.smoke.systype.compensation":      "Компенсирующая подача",
     "dlg.smoke.purpose.parking":           "Парковка",
     "dlg.smoke.purpose.warehouse":         "Склад",
+    "dlg.smoke.purpose.technical":         "Техническое (кабельное, электрощитовая)",
     "dlg.smoke.purpose.corridor":          "Коридор",
     "dlg.smoke.purpose.atrium":            "Атриум / зал сборки людей",
     "dlg.smoke.purpose.trading_hall":      "Торговый зал",
@@ -1518,8 +1519,9 @@ RU: Dict[str, str] = {
     "panel.smoke.scenario.single":    "Один очаг пожара",
     "panel.smoke.scenario.multiple":  "Несколько зон одновременно (запас)",
     "panel.smoke.btn_assign":         "Авто-присвоить",
-    "panel.smoke.btn_assign_tt":      ("Создать системы СДУ для парковок, складов, длинных коридоров, "
-                                        "залов сборки людей и СПВ для лестниц/лифтов."),
+    "panel.smoke.btn_assign_tt":      ("Создать системы СДУ для парковок, складов, технических "
+                                        "помещений, длинных коридоров, залов сборки людей и СПВ "
+                                        "для лестниц/лифтов."),
     "panel.smoke.btn_calc":           "▶  Рассчитать",
     "panel.smoke.card.systems.title": "Системы",
     "panel.smoke.card.systems.sub":   "Двойной клик по строке — редактировать параметры.",

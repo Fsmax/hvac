@@ -52,6 +52,38 @@ class TestAutoAssignSmoke:
         # 5000 / 1600 = 3.125 → 4 зоны
         assert parking_sys["n_zones"] == 4
 
+    def test_technical_room_kmk_uses_f3(self):
+        """Техпомещение (кабельное) при ШНК → СДУ сразу по ф.(3) Прил. 20:
+        P по ф.(4) от площади, y = 2.5, t дыма 420 °C (γ = 5 Н/м³)."""
+        project = HVACProject()
+        project.params.smoke_norm = "KMK_UZ"
+        sp = _add_space(project, "1", "B01-TEC", "B1", 200,
+                        "Технич. помещение")
+        project.auto_assign_smoke_systems()
+        sm = [s for s in project.smoke_systems.values()
+              if s.purpose == "technical"][0]
+        assert sp.smoke_system == sm.name
+        assert sm.calc_method == "kmk_zone_perimeter"
+        assert sm.fire_perimeter_m == pytest.approx(0.38 * 200 ** 0.5,
+                                                    rel=0.001)
+        assert sm.t_smoke_C == pytest.approx(420.0)
+        loads = project.calculate_smoke_loads()
+        # G = 676.8·5.374·2.5^1.5 ≈ 14 377 кг/ч; ρ(420 °C) ≈ 0.509 кг/м³
+        assert loads[sm.name]["L_smoke_m3h"] == pytest.approx(28200, rel=0.03)
+
+    def test_technical_room_sp7_falls_back_to_norm(self):
+        """Техпомещение при СП 7 (ф.3 недоступна) → упрощённо 50 м³/ч·м²."""
+        project = HVACProject()
+        project.params.smoke_norm = "SP7_RU"
+        _add_space(project, "1", "B01-TEC", "B1", 200, "Технич. помещение")
+        project.auto_assign_smoke_systems()
+        sm = [s for s in project.smoke_systems.values()
+              if s.purpose == "technical"][0]
+        assert sm.calc_method == "norm_per_m2"
+        loads = project.calculate_smoke_loads()
+        # 200 м² × 50 = 10 000 м³/ч
+        assert loads[sm.name]["L_smoke_m3h"] == pytest.approx(10000, rel=0.01)
+
 
 class TestSmokeCalculation:
 

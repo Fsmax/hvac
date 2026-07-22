@@ -1496,6 +1496,7 @@ UZ: Dict[str, str] = {
     "dlg.smoke.systype.compensation":      "Kompensatsiyalovchi havo",
     "dlg.smoke.purpose.parking":           "Avtoturargoh",
     "dlg.smoke.purpose.warehouse":         "Ombor",
+    "dlg.smoke.purpose.technical":         "Texnik xona (kabel, elektr shchit)",
     "dlg.smoke.purpose.corridor":          "Yo‘lak",
     "dlg.smoke.purpose.atrium":            "Atrium / odamlar to‘planish zali",
     "dlg.smoke.purpose.trading_hall":      "Savdo zali",
@@ -1529,8 +1530,9 @@ UZ: Dict[str, str] = {
     "panel.smoke.scenario.single":    "Bitta yong‘in o‘chog‘i",
     "panel.smoke.scenario.multiple":  "Bir vaqtda bir nechta zona (zaxira)",
     "panel.smoke.btn_assign":         "Avto-belgilash",
-    "panel.smoke.btn_assign_tt":      ("Avtoturargoh, ombor, uzun yo‘lak, odamlar to‘planish zallari "
-                                        "uchun SDU va zinapoya/liftlar uchun SPV tizimlarini yaratish."),
+    "panel.smoke.btn_assign_tt":      ("Avtoturargoh, ombor, texnik xona, uzun yo‘lak, odamlar "
+                                        "to‘planish zallari uchun SDU va zinapoya/liftlar uchun "
+                                        "SPV tizimlarini yaratish."),
     "panel.smoke.btn_calc":           "▶  Hisoblash",
     "panel.smoke.card.systems.title": "Tizimlar",
     "panel.smoke.card.systems.sub":   "Qatorga ikki marta bosing — parametrlarni tahrirlash.",
