@@ -14,9 +14,9 @@ from __future__ import annotations
 from typing import Optional
 
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFormLayout,
-    QGroupBox, QLabel, QLineEdit, QMessageBox, QStackedWidget, QVBoxLayout,
-    QWidget,
+    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
+    QFormLayout, QGroupBox, QLabel, QLineEdit, QMessageBox, QStackedWidget,
+    QVBoxLayout, QWidget,
 )
 
 from hvac.catalogs.smoke_norms import get_smoke_norm
@@ -232,6 +232,14 @@ class SmokeSystemDialog(QDialog):
         self.fire_perim_spin.setValue(self.system.fire_perimeter_m)
         f.addRow(_t("dlg.smoke.kmk_zone.perim"), self.fire_perim_spin)
 
+        self.fire_perim_auto_chk = QCheckBox(
+            _t("dlg.smoke.kmk_zone.perim_auto"))
+        self.fire_perim_auto_chk.toggled.connect(
+            self.fire_perim_spin.setDisabled)
+        self.fire_perim_auto_chk.setChecked(
+            getattr(self.system, "fire_perimeter_auto", False))
+        f.addRow("", self.fire_perim_auto_chk)
+
         self.layer_height_spin = QDoubleSpinBox()
         self.layer_height_spin.setRange(2.5, 20.0)
         self.layer_height_spin.setSuffix(" м")
@@ -422,7 +430,11 @@ class SmokeSystemDialog(QDialog):
                 sm.norm_per_m2 = self.norm_per_m2_spin.value()
                 sm.max_zone_area_m2 = self.max_zone_spin.value()
             elif m == "kmk_zone_perimeter":
-                sm.fire_perimeter_m = self.fire_perim_spin.value()
+                sm.fire_perimeter_auto = self.fire_perim_auto_chk.isChecked()
+                # При авто-режиме P живёт своей жизнью (ф.4 от привязанных
+                # помещений при каждом расчёте) — значение спина не пишем.
+                if not sm.fire_perimeter_auto:
+                    sm.fire_perimeter_m = self.fire_perim_spin.value()
                 sm.layer_height_m = self.layer_height_spin.value()
                 sm.ks_sprinkler = self.ks_spin.value()
             elif m == "kmk_corridor":

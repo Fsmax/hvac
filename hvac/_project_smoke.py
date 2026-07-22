@@ -105,6 +105,7 @@ class SmokeSystemsMixin:
                     kwargs.update(
                         calc_method="kmk_zone_perimeter",
                         fire_perimeter_m=fire_perimeter_from_area(max_area),
+                        fire_perimeter_auto=True,
                         layer_height_m=2.5,
                         t_smoke_C=420.0,
                     )
@@ -362,6 +363,15 @@ class SmokeSystemsMixin:
                 L_per_zone = sm.L_smoke_m3h
                 n_zones = max(sm.n_zones, 1)
             elif sm.calc_method in plume_methods:
+                # Авто-периметр очага: пока флаг включён, P актуализируется
+                # по ф.(4) от наибольшего из привязанных помещений — чтобы
+                # изменение привязок не оставляло устаревший P. Ручной P
+                # (флаг снят в диалоге) не трогаем.
+                if sm.calc_method == "kmk_zone_perimeter" and \
+                        getattr(sm, "fire_perimeter_auto", False) and spaces_list:
+                    from hvac.smoke_formulas import fire_perimeter_from_area
+                    sm.fire_perimeter_m = fire_perimeter_from_area(
+                        max(s.area_m2 for s in spaces_list))
                 # Формулы плюм-теории дают расход для ОДНОГО очага пожара
                 # (расчётный сценарий). Деление помещений на зоны учитывается
                 # только при компоновке СДУ (один клапан на зону), но не

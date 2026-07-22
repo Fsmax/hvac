@@ -1442,6 +1442,8 @@ RU: Dict[str, str] = {
     "dlg.smoke.norm.norm":       "Норма расхода:",
     "dlg.smoke.norm.max_zone":   "Макс. площадь зоны:",
     "dlg.smoke.kmk_zone.perim":  "P — периметр очага (макс 12):",
+    "dlg.smoke.kmk_zone.perim_auto": ("P автоматически по ф.(4) от наибольшего "
+                                      "привязанного помещения"),
     "dlg.smoke.kmk_zone.layer":  "y — высота свободной зоны:",
     "dlg.smoke.kmk_zone.ks":     "Ks (1.0 без АУПТ, 1.2 со спринклерами):",
     "dlg.smoke.kmk_zone.formula":"Формула: G = 676.8 · P · y^1.5 · Ks   [кг/ч]",

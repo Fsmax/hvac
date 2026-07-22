@@ -125,6 +125,35 @@ def test_smoke_panel_attach_spaces(qapp):
     assert dlg2.checked_ids() == {"r1"}
 
 
+def test_smoke_dialog_fire_perimeter_auto_checkbox(qapp):
+    """Чекбокс авто-P (ф.4): включён — спин P заблокирован и значение не
+    перезаписывается; выключен — ручной P сохраняется, флаг снимается."""
+    from hvac.smoke import SmokeSystem
+    from hvac.ui_qt.widgets.smoke_system_dialog import SmokeSystemDialog
+
+    sm = SmokeSystem(name="СДУ-Т", calc_method="kmk_zone_perimeter",
+                     fire_perimeter_m=5.0, fire_perimeter_auto=True)
+    dlg = SmokeSystemDialog(None, system=sm, norm_code="KMK_UZ", is_new=False)
+    assert dlg.fire_perim_auto_chk.isChecked()
+    assert not dlg.fire_perim_spin.isEnabled()
+
+    # Авто включён: OK не перетирает P значением спина
+    dlg.fire_perim_spin.setValue(9.0)
+    dlg._on_ok()
+    assert dlg.system.fire_perimeter_auto is True
+    assert dlg.system.fire_perimeter_m == 5.0
+
+    # Ручной режим: спин разблокирован, значение сохраняется
+    dlg2 = SmokeSystemDialog(None, system=dlg.system, norm_code="KMK_UZ",
+                             is_new=False)
+    dlg2.fire_perim_auto_chk.setChecked(False)
+    assert dlg2.fire_perim_spin.isEnabled()
+    dlg2.fire_perim_spin.setValue(9.0)
+    dlg2._on_ok()
+    assert dlg2.system.fire_perimeter_auto is False
+    assert dlg2.system.fire_perimeter_m == 9.0
+
+
 def test_data_panel_true_north_global_rotation(qapp):
     """Глобальный поворот сторон света: поле True North в панели «Данные»
     пишет project.params.true_north_offset_deg и применяется движком ко

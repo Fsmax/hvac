@@ -84,6 +84,30 @@ class TestAutoAssignSmoke:
         # 200 м² × 50 = 10 000 м³/ч
         assert loads[sm.name]["L_smoke_m3h"] == pytest.approx(10000, rel=0.01)
 
+    def test_fire_perimeter_follows_assignment(self):
+        """Авто-P (fire_perimeter_auto): привязка более крупного помещения
+        обновляет периметр очага при пересчёте; ручной P не трогается."""
+        project = HVACProject()
+        project.params.smoke_norm = "KMK_UZ"
+        _add_space(project, "1", "B01-TEC1", "B1", 100, "Технич. помещение")
+        project.auto_assign_smoke_systems()
+        sm = [s for s in project.smoke_systems.values()
+              if s.purpose == "technical"][0]
+        assert sm.fire_perimeter_auto is True
+        assert sm.fire_perimeter_m == pytest.approx(3.8, rel=0.01)
+
+        # Привязали помещение крупнее → P пересчитан по ф.(4): 0.38·√400
+        _add_space(project, "2", "B01-TEC2", "B1", 400, "Технич. помещение")
+        project.assign_spaces_to_smoke_system(["2"], sm.name)
+        project.calculate_smoke_loads()
+        assert sm.fire_perimeter_m == pytest.approx(7.6, rel=0.001)
+
+        # Ручной режим: пользовательский P фиксирован
+        sm.fire_perimeter_auto = False
+        sm.fire_perimeter_m = 9.0
+        project.calculate_smoke_loads()
+        assert sm.fire_perimeter_m == 9.0
+
 
 class TestSmokeCalculation:
 

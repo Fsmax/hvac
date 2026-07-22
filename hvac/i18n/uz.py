@@ -1453,6 +1453,8 @@ UZ: Dict[str, str] = {
     "dlg.smoke.norm.norm":       "Sarf normasi:",
     "dlg.smoke.norm.max_zone":   "Maks. zona yuzasi:",
     "dlg.smoke.kmk_zone.perim":  "P — o‘choq perimetri (maks 12):",
+    "dlg.smoke.kmk_zone.perim_auto": ("P — f.(4) bo‘yicha avtomatik (bog‘langan "
+                                      "eng katta xonadan)"),
     "dlg.smoke.kmk_zone.layer":  "y — erkin zona balandligi:",
     "dlg.smoke.kmk_zone.ks":     "Ks (1.0 AUPT siz, 1.2 sprinklerlar bilan):",
     "dlg.smoke.kmk_zone.formula":"Formula: G = 676.8 · P · y^1.5 · Ks   [kg/soat]",
