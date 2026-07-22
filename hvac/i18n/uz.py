@@ -1069,7 +1069,9 @@ UZ: Dict[str, str] = {
                                     "{ahu} = <b>{q} kVt</b>"),
     "panel.detail.src.required":"Kerak {req} kVt (yuklama {q} kVt × zaxira {m})",
     "panel.detail.src.picked_auto":   "Tanlov (avto): {unit} kVt × {n}",
-    "panel.detail.src.picked_manual": "Tanlov (qo‘lda): {unit} kVt × {n} · {model}",
+    "panel.detail.src.picked_manual": (
+        "Tanlov (katalog): {unit} kVt × {n} "
+        "(ishchi {working} + zaxira {reserve}) · {model}"),
     "panel.detail.src.ahu":      "shu jumladan AHU kaloriferlari/sovutgichlari: {q} kVt",
     "panel.detail.src.direct":   "To‘g‘ridan-to‘g‘ri xonalar: {n} ({q} kVt)",
     # ===== Panel: Equipment («Jihozlar» bo‘limi) =====

@@ -1059,7 +1059,9 @@ RU: Dict[str, str] = {
                                     "помещения {rooms} + приточные {ahu} "
                                     "= <b>{q} кВт</b>"),
     "panel.detail.src.picked_auto":   "Подбор (авто): {unit} кВт × {n}",
-    "panel.detail.src.picked_manual": "Подбор (ручной): {unit} кВт × {n} · {model}",
+    "panel.detail.src.picked_manual": (
+        "Подбор (каталог): {unit} кВт × {n} "
+        "(раб. {working} + резерв {reserve}) · {model}"),
     "panel.detail.src.ahu":      "в т.ч. калориферы/охладители AHU: {q} кВт",
     "panel.detail.src.direct":   "Помещений напрямую: {n} ({q} кВт)",
     # ===== Panel: Equipment (раздел «Оборудование») =====

@@ -51,6 +51,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, TYPE_CHECKING
 
+from hvac.pump_catalog import PUMP_MODELS, select_pump_units
+
 if TYPE_CHECKING:
     from hvac.pipe_sizing import PipeNetwork
 
@@ -248,6 +250,9 @@ class PumpRequirement:
     selected_flow_m3_h: float = 0.0
     selected_head_m: float = 0.0
     selected_power_w: float = 0.0
+    working_units: int = 0
+    reserve_units: int = 0
+    catalog_covered: bool = True
 
 
 def required_pump_head_m(network_dp_pa: float,
@@ -266,17 +271,7 @@ def required_pump_head_m(network_dp_pa: float,
 # Каталог типовых циркуляционных насосов (Wilo Stratos / Grundfos UPM / Magna).
 # Список (model, flow_m3_h_nominal, head_m_nominal, power_w_nominal).
 PUMP_CATALOG: List[tuple] = [
-    ("Grundfos UPM3 25-40",  2.5,  4.0,  45),
-    ("Grundfos UPM3 25-60",  3.0,  6.0,  65),
-    ("Wilo Yonos 25/6",      3.0,  6.0,  65),
-    ("Wilo Yonos 30/7",      4.5,  7.0,  85),
-    ("Grundfos Magna1 32-80", 6.0,  8.0, 120),
-    ("Grundfos Magna1 32-100", 8.0, 10.0, 180),
-    ("Wilo Stratos 40/1-12", 12.0, 12.0, 280),
-    ("Wilo Stratos 50/1-12", 18.0, 12.0, 380),
-    ("Grundfos Magna3 65-120", 30.0, 12.0, 600),
-    ("Wilo Stratos 80/1-12", 50.0, 12.0, 1100),
-    ("Wilo Stratos 100/1-12", 80.0, 12.0, 1800),
+    (m.name, m.q_max_m3_h, m.h_max_m, m.power_w) for m in PUMP_MODELS
 ]
 
 
@@ -286,11 +281,15 @@ def pick_pump(required_flow_m3_h: float, required_head_m: float
 
     Возвращает (model, flow, head, power_w) или None если ничего не подходит.
     """
-    for entry in PUMP_CATALOG:
-        model, q, h, p_w = entry
-        if q >= required_flow_m3_h and h >= required_head_m:
-            return entry
-    return None
+    pick = select_pump_units(
+        required_flow_m3_h, required_head_m,
+        flow_reserve=1.0, head_reserve=1.0,
+        reserve_units=0, max_working_units=1,
+    )
+    if pick is None:
+        return None
+    model = pick.model
+    return (model.name, model.q_max_m3_h, model.h_max_m, model.power_w)
 
 
 def design_pump(network: "PipeNetwork",
@@ -317,13 +316,20 @@ def design_pump(network: "PipeNetwork",
         t_medium_c=network.t_supply_c,
     )
 
-    pick = pick_pump(flow_m3_h, head_m)
+    pick = select_pump_units(
+        flow_m3_h, head_m,
+        flow_reserve=1.10, head_reserve=1.0,
+        reserve_units=1,
+    )
     if pick is not None:
-        model, q, h, p_w = pick
-        req.selected_model = model
-        req.selected_flow_m3_h = q
-        req.selected_head_m = h
-        req.selected_power_w = p_w
+        req.selected_model = pick.model.name
+        req.selected_flow_m3_h = pick.model.q_max_m3_h
+        req.selected_head_m = pick.model.h_max_m
+        req.selected_power_w = pick.model.power_w
+        req.working_units = pick.working_units
+        req.reserve_units = pick.reserve_units
+    else:
+        req.catalog_covered = False
     return req
 
 

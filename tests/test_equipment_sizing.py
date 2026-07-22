@@ -196,6 +196,29 @@ class TestBlockBalance:
         assert h.q_base_w == 30_000                   # контуры главнее
         assert h.required_kw == pytest.approx(30.0 * 1.10)
 
+    def test_direct_auto_assignment_keeps_block_ahu_and_dhw_loads(self):
+        """Direct room assignments must not hide non-room block loads."""
+        from hvac.dhw import DHWSystem
+
+        p = HVACProject()
+        room = _add_space(
+            p, "1", "R-1", heat_loss_w=30_000, block="HTL",
+        )
+        p.dhw_systems["DHW-HTL"] = DHWSystem(
+            name="DHW-HTL", block="HTL", q_with_circulation_w=5_000.0,
+        )
+        p.add_zone_system("heating", "T-AUTO-HTL", block="HTL")
+        p.assign_rooms_to_system("heating", [room.space_id], "T-AUTO-HTL")
+
+        sel = select_equipment(p, margin_heating=1.10)
+        h = {s.name: s for s in sel.heating}["T-AUTO-HTL"]
+        assert not h.circuits
+        assert h.q_total_w == 30_000
+        assert h.q_block_rooms_w == 30_000
+        assert h.q_block_dhw_w == 5_000
+        assert h.q_base_w == 35_000
+        assert h.required_kw == pytest.approx(35.0 * 1.10)
+
     def test_no_block_keeps_zero(self):
         p = HVACProject()
         _add_space(p, "1", "R-1", heat_loss_w=30_000, block="HTL")

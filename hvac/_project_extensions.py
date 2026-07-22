@@ -130,6 +130,16 @@ class V37ExtensionsMixin:
             self, pipe_material=pipe_material,
         )
         self.pipe_networks = result
+        for name, net in result.items():
+            circuit = self.heating_circuits.get(name)
+            if circuit is None:
+                continue
+            circuit.pump_model = net.pump_model
+            circuit.pump_flow_m3_h = net.pump_flow_m3_h
+            circuit.pump_head_m = net.pump_head_m
+            circuit.pump_working_units = net.pump_working_units
+            circuit.pump_reserve_units = net.pump_reserve_units
+            circuit.pump_catalog_covered = net.pump_catalog_covered
         self.emit("pipes_sized")
         return result
 
@@ -149,6 +159,16 @@ class V37ExtensionsMixin:
             self, pipe_material=pipe_material,
         )
         self.cooling_pipe_networks = result
+        for name, net in result.items():
+            circuit = self.cooling_circuits.get(name)
+            if circuit is None:
+                continue
+            circuit.pump_model = net.pump_model
+            circuit.pump_flow_m3_h = net.pump_flow_m3_h
+            circuit.pump_head_m = net.pump_head_m
+            circuit.pump_working_units = net.pump_working_units
+            circuit.pump_reserve_units = net.pump_reserve_units
+            circuit.pump_catalog_covered = net.pump_catalog_covered
         self.emit("cooling_pipes_sized")
         return result
 
@@ -223,6 +243,9 @@ class V37ExtensionsMixin:
                 circuit.pump_model = result[name].pump.selected_model
                 circuit.pump_flow_m3_h = result[name].pump.selected_flow_m3_h
                 circuit.pump_head_m = result[name].pump.selected_head_m
+                circuit.pump_working_units = result[name].pump.working_units
+                circuit.pump_reserve_units = result[name].pump.reserve_units
+                circuit.pump_catalog_covered = result[name].pump.catalog_covered
         self.heating_hydraulics_results = result
         self.emit("heating_hydraulics_designed")
         return result
