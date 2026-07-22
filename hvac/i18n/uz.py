@@ -1405,6 +1405,22 @@ UZ: Dict[str, str] = {
     "dlg.smoke.purpose.vestibule":         "Tambur-shlyuz",
     "dlg.smoke.purpose.refuge":            "Nogironlar uchun xavfsizlik zonasi",
 
+    # ========== Dialog: Smoke attach spaces ==========
+    "dlg.smoke_attach.title":            "Xonalarni bog‘lash: {name}",
+    "dlg.smoke_attach.search":           "Qidiruv: raqam, nom, tizim…",
+    "dlg.smoke_attach.col.number":       "Raqam",
+    "dlg.smoke_attach.col.name":         "Nomi",
+    "dlg.smoke_attach.col.level":        "Qavat",
+    "dlg.smoke_attach.col.type":         "Tur",
+    "dlg.smoke_attach.col.area":         "Yuza, m²",
+    "dlg.smoke_attach.col.current":      "Joriy tizim",
+    "dlg.smoke_attach.check_visible":    "Ko‘ringanlarni belgilash",
+    "dlg.smoke_attach.uncheck_visible":  "Belgini olib tashlash",
+    "dlg.smoke_attach.count":            "Belgilandi: {n}",
+    "dlg.smoke_attach.hint":             ("Belgilangan xonalar tizimga bog‘lanadi, belgisi "
+                                          "olinganlar — undan uziladi. Xuddi shu turdagi boshqa "
+                                          "tizimga bog‘langanlari qayta bog‘lanadi."),
+
     # ========== Panel: Smoke ==========
     "panel.smoke.title":              "Tutunni chiqarish va podpor",
     "panel.smoke.card.params.title":  "Parametrlar",
@@ -1421,6 +1437,10 @@ UZ: Dict[str, str] = {
     "panel.smoke.card.systems.sub":   "Qatorga ikki marta bosing — parametrlarni tahrirlash.",
     "panel.smoke.btn_add":            "➕  Qo‘shish",
     "panel.smoke.btn_edit":           "Tahrirlash",
+    "panel.smoke.btn_attach":         "Xonalarni bog‘lash",
+    "panel.smoke.btn_attach_tt":      ("Tanlangan SDU/SPV tizimi xizmat ko‘rsatadigan xonalarni "
+                                        "belgilash (masalan, avto-belgilash qamrab olmaydigan "
+                                        "texnik xonalar)."),
     "panel.smoke.btn_dup":            "Nusxalash",
     "panel.smoke.btn_delete":         "O‘chirish",
     "panel.smoke.col.name":           "Nomi",
@@ -1472,6 +1492,7 @@ UZ: Dict[str, str] = {
     "panel.smoke.title.del":          "Tizimni o‘chirish",
     "panel.smoke.msg.del":            "«{name}» tizimini o‘chirish va uni hamma xonalardan olib tashlash kerakmi?",
     "panel.smoke.status.deleted":     "{name} tizim o‘chirildi; bog‘lanmagan xonalar: {n}",
+    "panel.smoke.status.attached":    "{name} tizimi: bog‘landi {added}, uzildi {removed}",
     "panel.smoke.summary.total":      "Jami tizimlar: {n}",
     "panel.smoke.summary.flows":      ("Σ SDU {smoke:.1f} ming m³/soat  ·  "
                                         "Σ kompensatsiya {makeup:.1f} ming m³/soat"),

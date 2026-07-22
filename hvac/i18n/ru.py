@@ -1395,6 +1395,22 @@ RU: Dict[str, str] = {
     "dlg.smoke.purpose.vestibule":         "Тамбур-шлюз",
     "dlg.smoke.purpose.refuge":            "Зона безопасности МГН",
 
+    # ========== Dialog: Smoke attach spaces ==========
+    "dlg.smoke_attach.title":            "Привязка помещений: {name}",
+    "dlg.smoke_attach.search":           "Поиск: номер, название, система…",
+    "dlg.smoke_attach.col.number":       "Номер",
+    "dlg.smoke_attach.col.name":         "Название",
+    "dlg.smoke_attach.col.level":        "Этаж",
+    "dlg.smoke_attach.col.type":         "Тип",
+    "dlg.smoke_attach.col.area":         "Площадь, м²",
+    "dlg.smoke_attach.col.current":      "Текущая система",
+    "dlg.smoke_attach.check_visible":    "Отметить видимые",
+    "dlg.smoke_attach.uncheck_visible":  "Снять видимые",
+    "dlg.smoke_attach.count":            "Отмечено: {n}",
+    "dlg.smoke_attach.hint":             ("Отмеченные помещения будут привязаны к системе, снятые — "
+                                          "отвязаны от неё. Привязка к другой системе того же типа "
+                                          "будет переназначена."),
+
     # ========== Panel: Smoke ==========
     "panel.smoke.title":              "Дымоудаление и подпор",
     "panel.smoke.card.params.title":  "Параметры",
@@ -1411,6 +1427,10 @@ RU: Dict[str, str] = {
     "panel.smoke.card.systems.sub":   "Двойной клик по строке — редактировать параметры.",
     "panel.smoke.btn_add":            "➕  Добавить",
     "panel.smoke.btn_edit":           "Редактировать",
+    "panel.smoke.btn_attach":         "Привязать помещения",
+    "panel.smoke.btn_attach_tt":      ("Отметить помещения, обслуживаемые выбранной системой "
+                                        "СДУ/СПВ (например, техпомещения, которые авто-присвоение "
+                                        "не охватывает)."),
     "panel.smoke.btn_dup":            "Копировать",
     "panel.smoke.btn_delete":         "Удалить",
     "panel.smoke.col.name":           "Имя",
@@ -1462,6 +1482,7 @@ RU: Dict[str, str] = {
     "panel.smoke.title.del":          "Удалить систему",
     "panel.smoke.msg.del":            "Удалить систему «{name}» и снять её со всех помещений?",
     "panel.smoke.status.deleted":     "Удалена система {name}; отвязано помещений: {n}",
+    "panel.smoke.status.attached":    "Система {name}: привязано {added}, отвязано {removed}",
     "panel.smoke.summary.total":      "Всего систем: {n}",
     "panel.smoke.summary.flows":      ("Σ СДУ {smoke:.1f} тыс. м³/ч  ·  "
                                         "Σ компенсация {makeup:.1f} тыс. м³/ч"),

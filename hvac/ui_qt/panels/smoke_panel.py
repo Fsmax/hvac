@@ -16,9 +16,9 @@ from typing import Any, Dict
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QHBoxLayout, QHeaderView,
-    QInputDialog, QLabel, QMessageBox, QPushButton, QSizePolicy, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout,
+    QHeaderView, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton,
+    QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from hvac.catalogs.smoke_norms import SMOKE_NORMS, get_smoke_norm
@@ -43,6 +43,193 @@ _HEADER_KEYS = (
     "panel.smoke.col.makeup",
     "panel.smoke.col.zones",
 )
+
+_ATTACH_HEADER_KEYS = (
+    "dlg.smoke_attach.col.number",
+    "dlg.smoke_attach.col.name",
+    "dlg.smoke_attach.col.level",
+    "dlg.smoke_attach.col.type",
+    "dlg.smoke_attach.col.area",
+    "dlg.smoke_attach.col.current",
+)
+
+
+class SmokeAttachDialog(QDialog):
+    """Ручная привязка помещений к одной системе СДУ или СПВ.
+
+    Чекбокс = помещение числится на данной системе. При применении
+    отмеченные привязываются, снятые (числившиеся на системе) —
+    отвязываются. Для air_supply работает поле pressurization_system,
+    для остальных типов — smoke_system (то же правило, что и в
+    assign_spaces_to_smoke_system).
+    """
+
+    def __init__(self, project: HVACProject, system,
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self.project = project
+        self.system = system
+        self._field = ("pressurization_system"
+                       if system.system_type == "air_supply"
+                       else "smoke_system")
+        self.setWindowTitle(
+            _t("dlg.smoke_attach.title").format(name=system.name))
+        self.setModal(True)
+        self.resize(780, 540)
+
+        self._checked: set[str] = {
+            sp.space_id for sp in project.spaces
+            if getattr(sp, self._field) == system.name
+        }
+
+        outer = QVBoxLayout(self)
+
+        # Фильтры: поиск + этаж + тип помещения
+        flt = QHBoxLayout()
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText(_t("dlg.smoke_attach.search"))
+        self.search_edit.textChanged.connect(self._rebuild)
+        flt.addWidget(self.search_edit, stretch=1)
+
+        self.level_combo = QComboBox()
+        self.level_combo.addItem(_t("filter.all"))
+        for lv in sorted({sp.level for sp in project.spaces if sp.level}):
+            self.level_combo.addItem(lv)
+        self.level_combo.currentIndexChanged.connect(self._rebuild)
+        flt.addWidget(self.level_combo)
+
+        self.type_combo = QComboBox()
+        self.type_combo.addItem(_t("filter.all"))
+        for rt in sorted({sp.room_type for sp in project.spaces
+                          if sp.room_type}):
+            self.type_combo.addItem(rt)
+        self.type_combo.currentIndexChanged.connect(self._rebuild)
+        flt.addWidget(self.type_combo)
+        outer.addLayout(flt)
+
+        # Таблица помещений с чекбоксами
+        self.table = QTableWidget(0, len(_ATTACH_HEADER_KEYS))
+        self.table.setHorizontalHeaderLabels(
+            [_t(k) for k in _ATTACH_HEADER_KEYS])
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(24)
+        self.table.horizontalHeader().setHighlightSections(False)
+        for i, w in enumerate((110, 190, 90, 150, 90, 130)):
+            self.table.setColumnWidth(i, w)
+        self.table.itemChanged.connect(self._on_item_changed)
+        outer.addWidget(self.table, stretch=1)
+
+        row = QHBoxLayout()
+        self.check_btn = QPushButton(_t("dlg.smoke_attach.check_visible"))
+        self.check_btn.clicked.connect(
+            lambda: self._set_visible_checked(True))
+        row.addWidget(self.check_btn)
+        self.uncheck_btn = QPushButton(_t("dlg.smoke_attach.uncheck_visible"))
+        self.uncheck_btn.clicked.connect(
+            lambda: self._set_visible_checked(False))
+        row.addWidget(self.uncheck_btn)
+        row.addStretch(1)
+        self.count_lbl = QLabel("")
+        self.count_lbl.setProperty("role", "muted")
+        row.addWidget(self.count_lbl)
+        outer.addLayout(row)
+
+        hint = QLabel(_t("dlg.smoke_attach.hint"))
+        hint.setProperty("role", "muted")
+        hint.setWordWrap(True)
+        outer.addWidget(hint)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText(_t("btn.apply"))
+        buttons.button(QDialogButtonBox.Cancel).setText(_t("btn.cancel"))
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        outer.addWidget(buttons)
+
+        self._rebuild()
+
+    # ---------- API ----------
+    def checked_ids(self) -> set[str]:
+        """Итоговый набор space_id, которые должны числиться на системе
+        (включая отмеченные вне текущего фильтра)."""
+        return set(self._checked)
+
+    # ---------- Внутреннее ----------
+    def _match(self, sp) -> bool:
+        if self.level_combo.currentIndex() > 0 and \
+                (sp.level or "") != self.level_combo.currentText():
+            return False
+        if self.type_combo.currentIndex() > 0 and \
+                (sp.room_type or "") != self.type_combo.currentText():
+            return False
+        text = self.search_edit.text().lower().strip()
+        if text:
+            hay = " ".join((sp.number, sp.name, sp.level or "",
+                            sp.room_type or "",
+                            getattr(sp, self._field) or "")).lower()
+            if text not in hay:
+                return False
+        return True
+
+    def _rebuild(self, *args) -> None:
+        spaces = [sp for sp in self.project.spaces if self._match(sp)]
+        spaces.sort(key=lambda s: (s.level or "", s.number or ""))
+        self.table.blockSignals(True)
+        self.table.setRowCount(len(spaces))
+        for r, sp in enumerate(spaces):
+            num = QTableWidgetItem(sp.number)
+            num.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable
+                         | Qt.ItemIsUserCheckable)
+            num.setCheckState(Qt.Checked if sp.space_id in self._checked
+                              else Qt.Unchecked)
+            num.setData(Qt.UserRole, sp.space_id)
+            self.table.setItem(r, 0, num)
+            current = getattr(sp, self._field) or "—"
+            for c, text in ((1, sp.name), (2, sp.level or ""),
+                            (3, sp.room_type or ""),
+                            (4, f"{sp.area_m2:.0f}"), (5, current)):
+                item = QTableWidgetItem(str(text))
+                if c == 4:
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.table.setItem(r, c, item)
+        self.table.blockSignals(False)
+        self._update_count()
+
+    def _on_item_changed(self, item: QTableWidgetItem) -> None:
+        if item.column() != 0:
+            return
+        sid = item.data(Qt.UserRole)
+        if not sid:
+            return
+        if item.checkState() == Qt.Checked:
+            self._checked.add(sid)
+        else:
+            self._checked.discard(sid)
+        self._update_count()
+
+    def _set_visible_checked(self, checked: bool) -> None:
+        state = Qt.Checked if checked else Qt.Unchecked
+        self.table.blockSignals(True)
+        for r in range(self.table.rowCount()):
+            item = self.table.item(r, 0)
+            if item is None:
+                continue
+            item.setCheckState(state)
+            sid = item.data(Qt.UserRole)
+            if checked:
+                self._checked.add(sid)
+            else:
+                self._checked.discard(sid)
+        self.table.blockSignals(False)
+        self._update_count()
+
+    def _update_count(self) -> None:
+        self.count_lbl.setText(
+            _t("dlg.smoke_attach.count").format(n=len(self._checked)))
 
 
 class SmokePanel(QWidget):
@@ -127,6 +314,11 @@ class SmokePanel(QWidget):
         self.edit_btn = QPushButton(_t("panel.smoke.btn_edit"))
         self.edit_btn.clicked.connect(self._edit_selected)
         toolbar.addWidget(self.edit_btn)
+
+        self.attach_btn = QPushButton(_t("panel.smoke.btn_attach"))
+        self.attach_btn.setToolTip(_t("panel.smoke.btn_attach_tt"))
+        self.attach_btn.clicked.connect(self._attach_spaces)
+        toolbar.addWidget(self.attach_btn)
 
         self.dup_btn = QPushButton(_t("panel.smoke.btn_dup"))
         self.dup_btn.clicked.connect(self._duplicate_selected)
@@ -217,6 +409,8 @@ class SmokePanel(QWidget):
         self.calc_btn.setText(_t("panel.smoke.btn_calc"))
         self.add_btn.setText(_t("panel.smoke.btn_add"))
         self.edit_btn.setText(_t("panel.smoke.btn_edit"))
+        self.attach_btn.setText(_t("panel.smoke.btn_attach"))
+        self.attach_btn.setToolTip(_t("panel.smoke.btn_attach_tt"))
         self.dup_btn.setText(_t("panel.smoke.btn_dup"))
         self.del_btn.setText(_t("panel.smoke.btn_delete"))
         self.table.setHorizontalHeaderLabels([_t(k) for k in _HEADER_KEYS])
@@ -388,6 +582,47 @@ class SmokePanel(QWidget):
         self.bridge.dirtyChanged.emit(True)
         self.bridge.statusMessage.emit(
             _t("panel.smoke.status.saved").format(name=name), 3000)
+
+    def _attach_spaces(self) -> None:
+        name = self._selected_system_name()
+        if not name:
+            return
+        sm = self.project.smoke_systems.get(name)
+        if sm is None:
+            return
+        if not self.project.spaces:
+            QMessageBox.information(
+                self, _t("panel.smoke.title.no_data"),
+                _t("panel.smoke.msg.no_data"))
+            return
+        dlg = SmokeAttachDialog(self.project, sm, self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        added, removed = self._apply_attachment(sm, dlg.checked_ids())
+        if added or removed:
+            self.bridge.dirtyChanged.emit(True)
+            self.bridge.statusMessage.emit(
+                _t("panel.smoke.status.attached").format(
+                    name=name, added=added, removed=removed), 5000)
+
+    def _apply_attachment(self, sm, checked: set[str]) -> tuple[int, int]:
+        """Приводит привязки помещений к состоянию checked: отмеченные
+        привязываются к системе sm, снятые — отвязываются от неё.
+        Возвращает (привязано, отвязано)."""
+        is_pres = (sm.system_type == "air_supply")
+        field = "pressurization_system" if is_pres else "smoke_system"
+        current = {sp.space_id for sp in self.project.spaces
+                   if getattr(sp, field) == sm.name}
+        to_add = sorted(checked - current)
+        to_remove = sorted(current - checked)
+        if to_add:
+            self.project.assign_spaces_to_smoke_system(to_add, sm.name)
+        if to_remove:
+            self.project.clear_smoke_assignment(
+                to_remove, kind="pressurization" if is_pres else "smoke")
+        if to_add or to_remove:
+            self._refresh()
+        return len(to_add), len(to_remove)
 
     def _duplicate_selected(self) -> None:
         name = self._selected_system_name()
