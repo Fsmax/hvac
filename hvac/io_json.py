@@ -14,7 +14,7 @@ import os
 from dataclasses import asdict
 from typing import Optional
 from hvac.project import HVACProject
-from hvac.models import Space, BoundaryElement
+from hvac.models import Space, BoundaryElement, ProjectParameters
 from hvac.room_equipment import (
     serialize_room_equipment, deserialize_room_equipment,
 )
@@ -807,6 +807,14 @@ def load_project(project: HVACProject, path: str) -> None:
     """
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
+
+    # Открытие файла — это ЗАМЕНА состояния, а не слияние: GUI грузит в один
+    # долгоживущий объект (main_window._load_project_path, data_panel).
+    # Всё, чего нет в открываемом файле, не должно переживать загрузку —
+    # иначе системы предыдущего проекта (СДУ, ГВС, вентустановки, ahu_loads)
+    # «переезжают» в следующий и печатаются в его записке.
+    project._reset_runtime_state()
+    project.params = ProjectParameters()
 
     # Параметры
     for k, v in data.get("params", {}).items():
