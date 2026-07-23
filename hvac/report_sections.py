@@ -353,8 +353,8 @@ def energy_section_data(ep: "EnergyPassport", profile: Dict[str, str]) -> Dict:
         ]
         if ep.shnq_compliant is None:
             verdict = ("Норматив q_ov для данного типа здания не табулирован "
-                       "в ШНҚ 2.01.18-24 Табл. 1–3 — соответствие не "
-                       "оценивается.")
+                       "в ШНҚ 2.01.18-24 Табл. 1–3 (жилые и общественные "
+                       "здания) — соответствие не оценивается.")
             verdict_ok = None
         elif ep.shnq_compliant:
             verdict = (f"СООТВЕТСТВУЕТ ШНҚ 2.01.18-24: "

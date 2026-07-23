@@ -43,6 +43,17 @@ _BUILDING_TYPE_MAP = {
     "жилое 10-12":         "residential",
     "жилое 12+":           "residential",
     "общественное":        "office",   # обобщённый общественный — берём офис
+    # Производственные здания (ОПУ, насосные, склады): Табл. 1–3 ШНҚ
+    # охватывают только жилые/общественные — q_ov не табулирован,
+    # normative_q_ov_shnq вернёт None, отчёт печатает «не оценивается».
+    "производственное":    "industrial",
+}
+
+
+# Категории вне Табл. 1–3 (q_ov не табулирован), но с человекочитаемым
+# именем для отчётов.
+_EXTRA_TITLES = {
+    "industrial": "Производственное здание (вне Табл. 1–3)",
 }
 
 
@@ -88,7 +99,9 @@ def normative_q_ov_shnq(category: str, n_floors: int,
 def shnq_category_title(code: str) -> str:
     """Человекочитаемое имя категории ШНҚ (для отчётов). Код, если неизвестна."""
     cat = _CATEGORIES.get(code)
-    return cat.get("title", code) if cat else code
+    if cat:
+        return cat.get("title", code)
+    return _EXTRA_TITLES.get(code, code)
 
 
 def list_shnq_categories() -> List[Dict[str, str]]:

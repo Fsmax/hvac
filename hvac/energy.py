@@ -328,6 +328,17 @@ def energy_class_for_deviation(deviation_percent: float) -> Dict[str, str]:
     return {"class": "?", "description": "Вне диапазона"}
 
 
+# Технические/производственные типы помещений: их доминирование в составе
+# означает производственное здание (ОПУ, насосные, склады энергообъектов),
+# для которого q_ov ШНҚ 2.01.18-24 не табулирован — Табл. 1–3 охватывают
+# только жилые и общественные здания. «Архив / хранилище» и «Гараж /
+# автостоянка» сюда сознательно не входят: архивы и паркинги — обычные
+# спутники офисных/жилых зданий и не должны перетягивать тип.
+INDUSTRIAL_ROOM_TYPES = frozenset({
+    "Технич. помещение", "Серверная", "Склад", "Холодильная камера",
+})
+
+
 def detect_building_type(project: "HVACProject") -> str:
     """Эвристика для определения типа здания по составу помещений."""
     total_area = sum(sp.area_m2 for sp in project.spaces)
@@ -343,12 +354,15 @@ def detect_building_type(project: "HVACProject") -> str:
     office_area = by_type.get("Офис", 0) + by_type.get("Конференц-зал", 0)
     res_area = by_type.get("Жилая комната", 0)
     shop_area = by_type.get("Магазин / торговля", 0)
+    tech_area = sum(a for t, a in by_type.items()
+                    if t in INDUSTRIAL_ROOM_TYPES)
 
     # Доминирующий тип
     shares = [(hotel_area, "гостиница"),
               (office_area, "офис"),
               (res_area, "жилое 4-5 этажей"),
-              (shop_area, "магазин")]
+              (shop_area, "магазин"),
+              (tech_area, "производственное")]
     shares.sort(reverse=True)
     if shares[0][0] / total_area >= 0.30:
         return shares[0][1]

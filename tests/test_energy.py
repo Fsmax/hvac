@@ -9,6 +9,7 @@ from hvac.energy import (
     normative_qh, energy_class_for_deviation,
     ENERGY_CLASS_THRESHOLDS, BASE_HEATING_NORMS_KWH_M2,
     degree_days_heating, heating_period_at, calculate_passport,
+    detect_building_type,
 )
 from hvac.project import HVACProject
 from hvac.catalogs.shnq_energy import (
@@ -242,6 +243,50 @@ class TestDegreeDaysDd(unittest.TestCase):
         ep = calculate_passport(p)
         self.assertFalse(ep.dd_exact)
         self.assertGreater(ep.dd_shnq, 0)
+
+
+class TestIndustrialBuildingType(unittest.TestCase):
+    """Производственные здания: тип по техпомещениям, q_ov не нормируется."""
+
+    @staticmethod
+    def _space(room_type: str, area: float):
+        from hvac.models import Space
+        return Space(space_id=f"{room_type}-{area}", number="", name=room_type,
+                     level="1 этаж", area_m2=area, volume_m3=area * 3.0,
+                     room_type=room_type)
+
+    def _opu_like(self) -> HVACProject:
+        # Состав как у Гузар ОПУ: серверная(реле)+тех+склад = 47% площади
+        p = HVACProject()
+        p.params.city = "Гузар"
+        p.spaces = [self._space("Серверная", 185),
+                    self._space("Технич. помещение", 21),
+                    self._space("Склад", 12),
+                    self._space("Офис", 58),
+                    self._space("Санузел", 20),
+                    self._space("Коридор", 32)]
+        return p
+
+    def test_detect_industrial_by_tech_share(self):
+        self.assertEqual(detect_building_type(self._opu_like()),
+                         "производственное")
+
+    def test_office_with_small_server_room_stays_office(self):
+        p = HVACProject()
+        p.spaces = [self._space("Офис", 100), self._space("Серверная", 10)]
+        self.assertEqual(detect_building_type(p), "офис")
+
+    def test_mapping_and_norm_absent(self):
+        self.assertEqual(building_type_to_shnq("производственное"),
+                         "industrial")
+        self.assertIsNone(normative_q_ov_shnq("industrial", 1, 1500))
+
+    def test_passport_industrial_not_rated(self):
+        ep = calculate_passport(self._opu_like())
+        self.assertEqual(ep.building_type, "производственное")
+        self.assertEqual(ep.shnq_category, "industrial")
+        self.assertEqual(ep.q_ov_normative_w_m2, 0.0)
+        self.assertIsNone(ep.shnq_compliant)
 
 
 class TestHeatingSeasonForAndRefresh(unittest.TestCase):
