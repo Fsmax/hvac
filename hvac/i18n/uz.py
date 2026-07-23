@@ -2049,10 +2049,6 @@ UZ: Dict[str, str] = {
     "export.no_path.title":          "Yo‘l yo‘q",
     "export.no_path.msg":            "Saqlash faylini ko‘rsating.",
     "export.err.title":              "Eksport xatosi",
-    "export.blocked.title":          "Yakuniy chiqarish bloklandi",
-    "export.blocked.msg":            ("{n} ta jiddiy muammo topildi. Ularni «Muammolar → Xizmat "
-                                        "ko‘rsatish matritsasi» bo‘limida tuzating."),
-    "export.blocked.more":           "…yana {n} ta",
     "export.fmt.excel.title":        "To‘liq Excel hisobot",
     "export.fmt.excel.desc":         ("14 ta varaq: xonalar, to‘siqlar, xulosalar, IIV, energo-pasport, "
                                         "shudring nuqtasi, havo o‘tkazgichlar, quvurlar."),

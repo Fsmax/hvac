@@ -106,19 +106,11 @@ def test_assignment_to_undefined_system_is_blocking():
     assert "heating_unknown" in row.blockers
 
 
-def test_zero_volume_and_service_gaps_block_final_export():
+def test_zero_volume_and_service_gaps_reported():
+    # Диагностика для панели «Проблемы»; экспорт записки она не блокирует.
     project = _project(_space(volume_m3=0.0))
 
     blockers = export_blockers(project)
 
     assert any(r["category"] == "Геометрия" for r in blockers)
     assert any(r["category"] == "Обслуживание" for r in blockers)
-
-
-def test_gas_export_is_exempt_from_service_quality_gate():
-    from hvac.ui_qt.export_center import _blocking_export_issues
-
-    project = _project(_space())
-
-    assert _blocking_export_issues(project, "gas_load") == []
-    assert _blocking_export_issues(project, "excel")

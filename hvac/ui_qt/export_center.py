@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (
 
 from hvac.i18n import t as _t
 from hvac.project import HVACProject
-from hvac.service_coverage import export_blockers
 
 
 @dataclass
@@ -175,24 +174,6 @@ FORMATS = [
         ".xlsx", "export.fmt.hlgc.name", _hlgc,
     ),
 ]
-
-
-_QUALITY_GATED_FORMATS = frozenset({
-    "excel", "pdf", "docx", "equipment", "revit", "revit_live",
-    "spec_gost", "passports", "hlgc",
-})
-
-
-def _blocking_export_issues(project: HVACProject,
-                            format_key: str) -> list[dict]:
-    """Critical issues that prevent a final-design export.
-
-    Gas-load output is independent of room service coverage and remains
-    available even while the building model is incomplete.
-    """
-    if format_key not in _QUALITY_GATED_FORMATS:
-        return []
-    return export_blockers(project)
 
 
 # ---------- worker ----------
@@ -540,20 +521,9 @@ class ExportCenter(QDialog):
                 self, _t("export.no_data.title"),
                 _t("export.no_data.msg"))
             return
-        blockers = _blocking_export_issues(self.project, fmt.key)
-        if blockers:
-            shown = blockers[:8]
-            details = "\n".join(f"• {item['msg']}" for item in shown)
-            if len(blockers) > len(shown):
-                details += "\n" + _t("export.blocked.more").format(
-                    n=len(blockers) - len(shown))
-            QMessageBox.critical(
-                self,
-                _t("export.blocked.title"),
-                _t("export.blocked.msg").format(n=len(blockers))
-                + "\n\n" + details,
-            )
-            return
+        # Незакрытые проблемы модели (панель «Проблемы») экспорт не
+        # блокируют: записку выпускают и по неполной модели, диагностика
+        # остаётся в панели.
         path = self.path_edit.text().strip()
         if not path:
             QMessageBox.warning(
