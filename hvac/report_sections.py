@@ -297,7 +297,7 @@ def energy_section_data(ep: "EnergyPassport", profile: Dict[str, str]) -> Dict:
     uz = profile.get("energy_primary") == "SHNQ"
     season_src = ("по климату города" if ep.season_exact
                   else "оценка по ГСОП")
-    dd_src = ("климат города, ШНҚ 2.01.01-22 Табл.4, интерп. на ≤10°C"
+    dd_src = ("климат города, ШНҚ 2.01.01-22 Табл.4, период ≤12°C"
               if ep.dd_exact else "приближение по ГСОП")
 
     kv_main: List[List[str]] = [

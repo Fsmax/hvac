@@ -196,7 +196,7 @@ class TestShnqEnergy(unittest.TestCase):
 
 
 class TestDegreeDaysDd(unittest.TestCase):
-    """Dd по КМК 2.01.04-18 форм.(1) с порогом сезона 10°C."""
+    """Dd по КМК 2.01.04-18 форм.(1), период ≤12°C (ШНҚ 2.01.01-22 Табл.4)."""
 
     def test_formula(self):
         # Dd = (tв − tот.пер)·zот.пер
@@ -207,9 +207,13 @@ class TestDegreeDaysDd(unittest.TestCase):
     def test_zero_duration(self):
         self.assertEqual(degree_days_heating(20.0, 4.0, 0), 0.0)
 
-    def test_heating_period_interp_to_10(self):
-        # ШНҚ даёт ≤8 и ≤12; при 10°C — ровно середина (среднее)
+    def test_heating_period_thresholds(self):
         clim = {"z_ht_8": 100, "t_ht_8": 2.0, "z_ht_12": 140, "t_ht_12": 4.0}
+        # порог 12 (нормативный, по умолчанию) → ровно табличная колонка ≤12°C
+        r12 = heating_period_at(clim)
+        self.assertAlmostEqual(r12["z_days"], 140.0)
+        self.assertAlmostEqual(r12["t_avg"], 4.0)
+        # промежуточный порог 10°C — линейная интерполяция (середина)
         r = heating_period_at(clim, 10.0)
         self.assertAlmostEqual(r["z_days"], 120.0)   # (100+140)/2
         self.assertAlmostEqual(r["t_avg"], 3.0)      # (2+4)/2
@@ -227,8 +231,8 @@ class TestDegreeDaysDd(unittest.TestCase):
         p.params.city = "Ташкент"   # z_ht_8/12 есть в climate.json
         ep = calculate_passport(p)
         self.assertTrue(ep.dd_exact)
-        # Dd = (20 − (2.7+4.0)/2)·(129+166)/2 = 16.65·147.5
-        self.assertAlmostEqual(ep.dd_shnq, 16.65 * 147.5, places=1)
+        # Dd по периоду ≤12°C: (20 − 4.0)·166 = 2656
+        self.assertAlmostEqual(ep.dd_shnq, (20.0 - 4.0) * 166, places=1)
 
     def test_passport_approx_without_period_data(self):
         """Город без полей ≤8/≤12 → Dd приближённый (dd_exact=False)."""
