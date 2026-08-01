@@ -1,12 +1,5 @@
 {
   "version": "0.0.1",
-  "configurations": [
-    {
-      "name": "fintask-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "D:\\Finance", "run", "dev"],
-      "port": 3000,
-      "autoPort": true
-    }
-  ]
+  "_comment": "HVAC Calculator — десктопное приложение на PySide6, dev-сервера у него нет. Запуск: python hvac_calc.py (GUI) или HVAC_cli.bat (CLI). Конфигурации ниже нужны только для веб-превью, поэтому список пуст.",
+  "configurations": []
 }

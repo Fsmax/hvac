@@ -30,7 +30,27 @@ spaces.csv
 thermal_all.csv
 *_for_revit.csv
 
+# ---- Разовые пробы и выгрузки по объектам ----
+# Скрипты вида _probe_*.py / _scratch_*.py — отработанные разовые пробы,
+# сложены в _archive/. Новые писать в D:\Nurbek\_extract, а не сюда.
+_archive/
+_revit_live_test/
+_*.tsv
+_*.json
+*.bak-*
+*.docx
+ARCH/
+*_revit_loads.csv
+*_revit_vent.csv
+*_loads_round*.csv
+*_facade_review.csv
+*.pre-cleanglazing.csv
+vent_no_system.csv
+new/
+graphify-out/
+
 # ---- OS ----
 Thumbs.db
 desktop.ini
 .DS_Store
+tools/out/
