@@ -2,15 +2,38 @@
 # Линтер (ruff) и статическая типизация (mypy) прогоняются в CI —
 # см. .github/workflows/ci.yml.
 
+[project]
+name = "hvac-calculator"
+version = "4.0.0"
+description = "HVAC Calculator for heat loss, ventilation and building systems"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "PySide6>=6.10",
+    "matplotlib>=3.10",
+    "openpyxl>=3.1",
+    "reportlab>=4.5",
+    "python-docx>=1.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.15",
+    "mypy>=1.10",
+]
+
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 100
 # Внешние скрипты Revit/Dynamo живут вне пакета и не линтуются.
 extend-exclude = ["dynamo", "revit_dynamo_apply_results.py",
                   "revit_dynamo_hvac_write_csv.py"]
 
 [tool.ruff.lint]
-# По умолчанию ruff включает pyflakes (F) + подмножество pycodestyle (E).
+# Фиксируем набор правил, чтобы обновление ruff не меняло CI-гейт.
+# Включены pyflakes (F) + точечные проверки pycodestyle (E).
+select = ["E4", "E7", "E9", "F"]
 # F-коды (неиспользуемые импорты/переменные, undefined-name, дубли ключей)
 # — реальные проблемы, держим включёнными. Компактный стиль кода
 # (несколько операторов в строке, короткие имена циклов) — осознанный,
@@ -22,7 +45,8 @@ ignore = [
 ]
 
 [tool.mypy]
-python_version = "3.10"
+# Mypy runs in the Python 3.12 lint job; Ruff enforces the 3.11 syntax floor.
+python_version = "3.12"
 ignore_missing_imports = true       # PySide6/matplotlib/openpyxl без стабов
 implicit_optional = true            # legacy: `x: str = None` допускаем
 warn_redundant_casts = true

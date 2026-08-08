@@ -10,24 +10,27 @@ jobs:
     name: Lint & types
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:
           python-version: "3.12"
-          cache: pip
 
-      - name: Install linters
-        run: |
-          python -m pip install --upgrade pip
-          pip install ruff mypy
+      - name: Set up uv
+        uses: astral-sh/setup-uv@ed21f2f24f8dd64503750218de024bcf64c7250a # v7.1.5
+        with:
+          version: "0.12.1"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked --python 3.12
 
       - name: Ruff (linter)
-        run: ruff check hvac/
+        run: uv run --locked --python 3.12 ruff check hvac/
 
       - name: Mypy (type gate on calc core)
-        run: mypy
+        run: uv run --locked --python 3.12 mypy
 
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -38,13 +41,18 @@ jobs:
         python-version: ["3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@ed21f2f24f8dd64503750218de024bcf64c7250a # v7.1.5
+        with:
+          version: "0.12.1"
+          enable-cache: true
 
       - name: Install Qt system libraries (headless PySide6)
         # UI-тесты импортируют PySide6.QtWidgets. Даже под
@@ -55,10 +63,10 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libegl1 libgl1 libxkbcommon0 libdbus-1-3
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+      - name: Install locked dependencies
+        run: uv sync --locked --python ${{ matrix.python-version }}
 
       - name: Run test suite
-        run: python -m pytest tests/ -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --locked --python ${{ matrix.python-version }} python -m pytest tests/ -q

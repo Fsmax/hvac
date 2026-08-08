@@ -181,10 +181,12 @@ class SourcePickDialog(QDialog):
         for r in range(self.table.rowCount()):
             visible = True
             if text:
-                hay = " ".join(
-                    (self.table.item(r, c).text() if self.table.item(r, c)
-                     else "")
-                    for c in (C_MODEL, C_MANUF, C_FAMILY, C_NOTE)).lower()
+                parts = []
+                for c in (C_MODEL, C_MANUF, C_FAMILY, C_NOTE):
+                    item = self.table.item(r, c)
+                    if item is not None:
+                        parts.append(item.text())
+                hay = " ".join(parts).lower()
                 visible = text in hay
             self.table.setRowHidden(r, not visible)
 

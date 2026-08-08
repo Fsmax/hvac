@@ -15,8 +15,8 @@
 Расчётное ядро без изменений — все ваши проекты v3.x открываются.
 
 ```bash
-pip install PySide6 matplotlib openpyxl reportlab python-docx
-python hvac_calc.py
+uv sync --locked
+uv run python hvac_calc.py
 ```
 
 - 12 разделов в боковой панели: Главная, Данные, Помещения, Конструкции,
@@ -173,10 +173,12 @@ hvac_v4/
 ## Зависимости
 
 ```bash
-pip install -r requirements.txt
-# или вручную:
-pip install PySide6 matplotlib openpyxl reportlab python-docx
+uv sync --locked
 ```
+
+`uv.lock` — канонический набор версий для воспроизводимой установки.
+`requirements*.txt` сохранены как legacy-вход для `pip` и не фиксируют
+точные транзитивные версии.
 
 | Пакет         | Версия | Зачем                                        |
 |---------------|--------|----------------------------------------------|
@@ -296,8 +298,8 @@ TABS_REGISTRY.append(MyTab)
 ## Тесты
 
 ```bash
-pip install -r requirements-dev.txt
-python -m pytest tests/ -q
+uv sync --locked
+uv run --locked python -m pytest tests/ -q
 ```
 
 **659 тестов** покрывают расчётное ядро: парсеры, движки СП 50/60,
@@ -325,4 +327,4 @@ mypy                  # статическая типизация расчётн
 
 **Версия:** 4.0
 **Дата:** 2026
-**Совместимость:** Revit 2024+, Python 3.10+, PySide6 6.10+
+**Совместимость:** Revit 2024+, Python 3.11–3.12, PySide6 6.10+

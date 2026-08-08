@@ -1,8 +1,8 @@
 # Зависимости для разработки и CI.
 # Включают рантайм (requirements.txt) + инструменты тестирования.
 #
-#   pip install -r requirements-dev.txt
-#   python -m pytest tests/ -q
+# For a reproducible development environment use `uv sync --locked`.
+# This file remains as a legacy pip entry point.
 
 -r requirements.txt
 

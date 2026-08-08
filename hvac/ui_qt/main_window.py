@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 from typing import Dict
@@ -146,7 +147,7 @@ class MainWindow(QMainWindow):
         body.addWidget(self.stack, stretch=1)
 
         self._panels: Dict[str, QWidget] = {}
-        self._panel_factories: Dict[str, object] = {}
+        self._panel_factories: Dict[str, Callable[[], QWidget]] = {}
         self._build_panels()
 
         # Правый dock — чек-лист (создаём ПОСЛЕ _build_panels,
@@ -620,8 +621,9 @@ class MainWindow(QMainWindow):
         n = 0
         panel = self._panels.get("problems")
         try:
-            c = panel.model.counts()
-            n = int(c.get("error", 0)) + int(c.get("warning", 0))
+            if isinstance(panel, ProblemsPanel):
+                c = panel.model.counts()
+                n = int(c.get("error", 0)) + int(c.get("warning", 0))
         except Exception:
             n = 0
         self.sidebar.set_badge("problems", str(n) if n else "")
@@ -923,10 +925,10 @@ class MainWindow(QMainWindow):
             splitters = dict(st.get("splitters") or {})
             for pkey, panel in self._panels.items():
                 for i, sp in enumerate(panel.findChildren(QSplitter)):
-                    splitters[f"{pkey}:{i}"] = bytes(
-                        sp.saveState().toBase64()).decode("ascii")
+                    splitters[f"{pkey}:{i}"] = (
+                        bytes(sp.saveState().toBase64().data()).decode("ascii"))
             st["geometry"] = bytes(
-                self.saveGeometry().toBase64()).decode("ascii")
+                self.saveGeometry().toBase64().data()).decode("ascii")
             st["splitters"] = splitters
             cfg["window"] = st
             user_settings.save(cfg)

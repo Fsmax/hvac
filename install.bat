@@ -12,7 +12,7 @@ python --version
 if errorlevel 1 (
     echo.
     echo [ОШИБКА] Python не найден в PATH.
-    echo Скачайте Python 3.11+ с https://www.python.org/downloads/
+    echo Скачайте Python 3.11 или 3.12 с https://www.python.org/downloads/
     echo При установке поставьте галочку "Add Python to PATH".
     pause
     exit /b 1

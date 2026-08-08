@@ -1,3 +1,4 @@
+# Legacy pip entry point. The reproducible installation is `uv sync --locked`.
 PySide6>=6.10
 matplotlib>=3.10
 openpyxl>=3.1

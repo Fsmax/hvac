@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional, cast
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -126,7 +126,7 @@ class ChartsPanel(QWidget):
             "legend.edgecolor": t["border"],
             "legend.labelcolor": t["text"],
         }
-        matplotlib.rcParams.update(rc)
+        matplotlib.rcParams.update(cast(Any, rc))
         self.figure.patch.set_facecolor(t["bg"])
 
     # ---------- Перерисовка ----------
