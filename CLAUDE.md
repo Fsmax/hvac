@@ -13,7 +13,8 @@
 
 Полные роли — в `.claude/agents/engineer.md` и `.claude/agents/developer.md`.
 
-Скиллы под Revit (загружай по теме задачи, не все сразу):
+Скиллы (загружай по теме задачи, не все сразу):
+`hvac-norms` — нормативы ШНҚ/КМК/СП, PDF первоисточников и поиск по ним ·
 `revit-bridge` — мост в живую модель · `revit-api` — сам API, единицы,
 транзакции, MEP · `revit-plugin` — .NET add-in, csproj, .addin, деплой ·
 `revit-family` — шаблоны .rft и авторинг семейств.

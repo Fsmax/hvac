@@ -2,7 +2,7 @@
 """HVAC Calculator — пакет для расчёта теплопотерь, теплопоступлений,
 вентиляции, дымоудаления, ГВС, энергопаспорта и гидравлики ОВ."""
 
-__version__ = "4.0"
+__version__ = "4.0.0"
 
 from hvac.project import HVACProject
 from hvac.models import Space, BoundaryElement, Construction, ProjectParameters
