@@ -65,6 +65,7 @@ files = [
     "hvac/models.py",
     "hvac/parsers.py",
     "hvac/data_loader.py",
+    "hvac/catalogs/shnq_ducts.py",
     "hvac/psychro.py",
     "hvac/dew_point.py",
     "hvac/dhw.py",
