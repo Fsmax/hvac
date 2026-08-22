@@ -37,6 +37,8 @@ catalog_files = [
      "hvac/catalogs/data"),
     (str(project_root / "hvac" / "catalogs" / "data" / "shnq_energy.json"),
      "hvac/catalogs/data"),
+    (str(project_root / "hvac" / "catalogs" / "data" / "shnq_2_04_05_22_ducts.json"),
+     "hvac/catalogs/data"),
     (str(project_root / "hvac" / "catalogs" / "data" / "kmk_thermal.json"),
      "hvac/catalogs/data"),
     (str(project_root / "hvac" / "catalogs" / "data" / "radiators.json"),

@@ -1,0 +1,1322 @@
+{
+  "schemaVersion": "1.0",
+  "document": "ШНҚ 2.04.05-22",
+  "edition": "2024-08-05 (приказ № 01/2-39)",
+  "entries": [
+    {
+      "key": "placement.air_distributor.unregulated_zone.distance",
+      "value": 1,
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["air_distributor", "air_distributor.unregulated_zone"],
+        "building": ["all"],
+        "element": ["air_terminal"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "23",
+        "pagePdf": 6,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Если воздухораспределитель находится в рабочей или обслуживаемой зоне, скорость и температуру воздуха на расстоянии 1 m от него не нормируют."
+    },
+    {
+      "key": "opening.transfer.door_undercut.height.min",
+      "range": {
+        "min": 0.02,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["transfer_opening", "transfer_opening.door_undercut"],
+        "building": ["residential"],
+        "element": ["internal_door"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "191",
+        "pagePdf": 25,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Для перетока вентиляционного воздуха в жилом здании под внутренней дверью предусматривается подрез, образующий щель высотой не менее 0,02 m; альтернатива — переточная решётка."
+    },
+    {
+      "key": "opening.transfer.grille.free_area.min",
+      "range": {
+        "min": 0.015,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m²",
+      "appliesTo": {
+        "kind": ["transfer_opening", "transfer_opening.grille"],
+        "building": ["residential"],
+        "element": ["transfer_grille"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "191",
+        "pagePdf": 25,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Свободная площадь переточной вентиляционной решётки во внутренней двери жилого здания должна быть не менее 0,015 m²; альтернатива — дверной подрез."
+    },
+    {
+      "key": "routing.ventilation_system.other_room_group.residential_administrative_public.area.max",
+      "range": {
+        "min": null,
+        "max": 200,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m²",
+      "appliesTo": {
+        "kind": ["ventilation_system_combination", "collecting_duct_connection"],
+        "building": ["residential", "administrative", "public"],
+        "element": ["rooms_from_other_group"],
+        "combination": ["residential_with_administrative_or_public"],
+        "fireDamper": ["required_on_connected_group_collecting_duct"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "199",
+        "pagePdf": 26,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "При объединении жилых помещений с административно-бытовыми либо общественными помещениями допускается присоединять помещения другой группы общей площадью не более 200 m², если на сборном воздуховоде присоединяемой группы установлен огнезадерживающий клапан."
+    },
+    {
+      "key": "routing.ventilation_system.other_room_group.industrial_g_d_administrative.area.max",
+      "range": {
+        "min": null,
+        "max": 200,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m²",
+      "appliesTo": {
+        "kind": ["ventilation_system_combination", "collecting_duct_connection"],
+        "building": ["industrial", "administrative"],
+        "element": ["rooms_from_other_group"],
+        "combination": ["industrial_g_or_d_with_administrative"],
+        "fireCategory": ["G", "D"],
+        "occupancy": ["excluding_mass_occupancy"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "199",
+        "pagePdf": 26,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "При объединении производственных помещений категорий Г или Д с административно-бытовыми помещениями допускается присоединять помещения другой группы общей площадью не более 200 m²; помещения с массовым пребыванием людей исключены."
+    },
+    {
+      "key": "routing.ventilation_system.other_room_group.industrial_a_b_v_other_industrial_storage.area.max",
+      "range": {
+        "min": null,
+        "max": 200,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m²",
+      "appliesTo": {
+        "kind": ["ventilation_system_combination", "collecting_duct_connection"],
+        "building": ["industrial", "warehouse"],
+        "element": ["rooms_from_other_group"],
+        "combination": ["industrial_a_b_v_with_other_industrial_or_storage"],
+        "fireCategory": ["A", "B", "V"],
+        "excludedUse": ["residential", "mass_occupancy"],
+        "fireDamper": ["required_on_collecting_duct"],
+        "condition": ["clause_296_requirements_apply"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "199",
+        "pagePdf": 26,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Для указанного в п. 199 объединения производственных помещений категорий А, Б или В с иными производственными либо складскими помещениями допускается присоединять помещения другой группы общей площадью не более 200 m². Жилые помещения и помещения массового пребывания исключены; на сборном воздуховоде требуется огнезадерживающий клапан и соблюдение п. 296."
+    },
+    {
+      "key": "placement.air_intake.above_stable_snow.min",
+      "range": {
+        "min": 1,
+        "max": null,
+        "minInclusive": false,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["air_intake", "air_intake.general"],
+        "building": ["all"],
+        "element": ["opening_bottom"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "213",
+        "pagePdf": 28,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Низ отверстия наружного воздухозабора располагают более чем на 1 m выше уровня устойчивого снежного покрова либо на высоте, обоснованной расчётом."
+    },
+    {
+      "key": "placement.air_intake.above_ground.min",
+      "range": {
+        "min": 2,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["air_intake", "air_intake.general"],
+        "building": ["all"],
+        "element": ["opening_bottom"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "213",
+        "pagePdf": 28,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Расчёт может заменить условие высоты над устойчивым снежным покровом, но в любом случае низ отверстия наружного воздухозабора должен быть не ниже 2 m от поверхности земли."
+    },
+    {
+      "key": "placement.air_intake.dust_sand.above_ground.min",
+      "range": {
+        "min": 3,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["air_intake", "air_intake.dust_sand_region"],
+        "building": ["all"],
+        "element": ["opening_bottom"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "213",
+        "pagePdf": 28,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "В местах песчаных бурь или интенсивного переноса пыли и песка низ воздухозаборного отверстия располагают не ниже 3 m от земли и предусматривают камеру осаждения пыли и песка."
+    },
+    {
+      "key": "placement.supply_jet.inclined_downward.height.min",
+      "range": {
+        "min": 2,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["supply_air_distribution", "supply_jet.inclined_downward"],
+        "building": ["industrial"],
+        "element": ["air_terminal"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "232",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "В производственном помещении наклонённую вниз приточную струю выпускают с высоты 2 m и более от пола."
+    },
+    {
+      "key": "placement.supply_jet.vertical_downward.height.min",
+      "range": {
+        "min": 4,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["supply_air_distribution", "supply_jet.vertical_downward"],
+        "building": ["industrial"],
+        "element": ["air_terminal"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "232",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "В производственном помещении вертикальную приточную струю выпускают с высоты 4 m и более от пола."
+    },
+    {
+      "key": "placement.exhaust.upper_zone.opening_bottom.height.min",
+      "range": {
+        "min": 2,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["general_exhaust", "upper_zone_exhaust"],
+        "building": ["all"],
+        "element": ["opening_bottom"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "237",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Для удаления избытков теплоты, влаги и вредных газов низ верхнего вытяжного отверстия располагают под потолком или покрытием, но не ниже 2 m от пола."
+    },
+    {
+      "key": "placement.exhaust.upper_zone.explosive_non_hydrogen.ceiling_distance",
+      "value": null,
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["general_exhaust", "upper_zone_exhaust"],
+        "building": ["all"],
+        "element": ["opening_top"],
+        "medium": ["explosive_gas_vapor_aerosol_non_hydrogen"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "237",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unreadable",
+      "noteRu": "Цифра 0,4 m читается, но официальный узбекский текст буквально задаёт расстояние от потолка/покрытия до верха отверстия «не менее 0,4 m», что противоречит контексту верхней зоны. Направление ограничения не нормализовано; требуется инженерная сверка."
+    },
+    {
+      "key": "placement.exhaust.upper_zone.hydrogen.low_room.ceiling_distance",
+      "value": null,
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["general_exhaust", "upper_zone_exhaust"],
+        "building": ["all"],
+        "element": ["opening_top"],
+        "medium": ["hydrogen_air_mixture"],
+        "roomHeight": ["up_to_4_m"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "237",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unreadable",
+      "noteRu": "Для помещения высотой до 4 m цифра 0,1 m читается, но официальный текст буквально содержит «не менее 0,1 m» от потолка/покрытия до верха отверстия. Направление ограничения для верхней зоны неоднозначно; требуется инженерная сверка."
+    },
+    {
+      "key": "placement.exhaust.upper_zone.hydrogen.high_room.ceiling_distance",
+      "value": null,
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["general_exhaust", "upper_zone_exhaust"],
+        "building": ["all"],
+        "element": ["opening_top"],
+        "medium": ["hydrogen_air_mixture"],
+        "roomHeight": ["above_4_m"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "237",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unreadable",
+      "noteRu": "Для помещения выше 4 m читаются 0,025 высоты помещения и предел 0,4 m, однако направление ограничения в официальной фразе неоднозначно. Машиночитаемое число не принято; требуется инженерная сверка."
+    },
+    {
+      "key": "placement.exhaust.lower_zone.opening_bottom.height.max",
+      "range": {
+        "min": null,
+        "max": 0.3,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["general_exhaust", "lower_zone_exhaust"],
+        "building": ["all"],
+        "element": ["opening_bottom"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "238",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Низ вытяжного отверстия для удаления воздуха из нижней зоны располагают не более чем на 0,3 m выше пола."
+    },
+    {
+      "key": "placement.emergency_exhaust.lighter_than_air.opening_bottom.height.min",
+      "range": {
+        "min": 2,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["emergency_exhaust", "emergency_exhaust.upper_zone"],
+        "building": ["industrial"],
+        "element": ["grille_or_branch_pipe_opening_bottom"],
+        "medium": ["gas_or_vapor_lighter_than_air"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "246 (по п. 237)",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "При аварийном удалении поступивших в производственное помещение газов или паров легче воздуха решётки либо патрубки размещают в верхней зоне по п. 246 (PDF 31) с учётом п. 237: числовое требование к низу отверстия не ниже 2 m от пола напечатано на PDF 30. Специальные расстояния для взрывоопасных лёгких газов и паров сохранены отдельными emergency/unreadable-записями."
+    },
+    {
+      "key": "placement.emergency_exhaust.upper_zone.explosive_non_hydrogen.ceiling_distance",
+      "value": null,
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["emergency_exhaust", "emergency_exhaust.upper_zone"],
+        "building": ["industrial"],
+        "element": ["grille_or_branch_pipe_opening_top"],
+        "medium": ["explosive_gas_or_vapor_non_hydrogen_lighter_than_air"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "246 (по п. 237)",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unreadable",
+      "noteRu": "Пункт 246 (PDF 31) направляет аварийные решётки или патрубки для газов и паров легче воздуха в верхнюю зону с учётом п. 237. Для неводородной взрывоопасной смеси цифра 0,4 m на PDF 30 читается, но направление ограничения от потолка или покрытия до верха отверстия семантически неоднозначно; аэрозоли из аварийной области п. 246 исключены."
+    },
+    {
+      "key": "placement.emergency_exhaust.upper_zone.hydrogen.low_room.ceiling_distance",
+      "value": null,
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["emergency_exhaust", "emergency_exhaust.upper_zone"],
+        "building": ["industrial"],
+        "element": ["grille_or_branch_pipe_opening_top"],
+        "medium": ["hydrogen_air_mixture"],
+        "roomHeight": ["up_to_4_m"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "246 (по п. 237)",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unreadable",
+      "noteRu": "Пункт 246 (PDF 31) направляет аварийную вытяжку водородно-воздушной смеси в верхнюю зону с учётом п. 237. Для помещения высотой до 4 m цифра 0,1 m на PDF 30 читается, но направление ограничения от потолка или покрытия до верха отверстия семантически неоднозначно."
+    },
+    {
+      "key": "placement.emergency_exhaust.upper_zone.hydrogen.high_room.ceiling_distance",
+      "value": null,
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["emergency_exhaust", "emergency_exhaust.upper_zone"],
+        "building": ["industrial"],
+        "element": ["grille_or_branch_pipe_opening_top"],
+        "medium": ["hydrogen_air_mixture"],
+        "roomHeight": ["above_4_m"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "246 (по п. 237)",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unreadable",
+      "noteRu": "Пункт 246 (PDF 31) направляет аварийную вытяжку водородно-воздушной смеси в верхнюю зону с учётом п. 237. Для помещения выше 4 m значения 0,025 высоты и предел 0,4 m на PDF 30 читаются, но направление ограничения семантически неоднозначно."
+    },
+    {
+      "key": "placement.emergency_exhaust.heavier_than_air.opening_bottom.height.max",
+      "range": {
+        "min": null,
+        "max": 0.3,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["emergency_exhaust", "emergency_exhaust.lower_zone"],
+        "building": ["industrial"],
+        "element": ["grille_or_branch_pipe_opening_bottom"],
+        "medium": ["gas_or_vapor_heavier_than_air"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "246 (по п. 238)",
+        "pagePdf": 30,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "При аварийном удалении поступивших в производственное помещение газов или паров тяжелее воздуха решётки либо патрубки размещают в рабочей или нижней зоне по п. 246 (PDF 31) с учётом п. 238: числовое требование к низу отверстия не выше 0,3 m от пола напечатано на PDF 30."
+    },
+    {
+      "key": "velocity.air_curtain.exterior_wall.max",
+      "range": {
+        "min": null,
+        "max": 8,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m/s",
+      "appliesTo": {
+        "kind": ["air_curtain", "air_curtain.exterior_wall"],
+        "building": ["all"],
+        "element": ["slot_or_opening"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "254",
+        "pagePdf": 32,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Скорость выхода воздуха из щели или отверстия воздушной либо воздушно-тепловой завесы у наружной стены принимают не более 8 m/s."
+    },
+    {
+      "key": "velocity.air_curtain.gate_technological_opening.max",
+      "range": {
+        "min": null,
+        "max": 25,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m/s",
+      "appliesTo": {
+        "kind": ["air_curtain", "air_curtain.gate_technological_opening"],
+        "building": ["all"],
+        "element": ["slot_or_opening"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "254",
+        "pagePdf": 32,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Скорость выхода воздуха из щели или отверстия воздушной либо воздушно-тепловой завесы у ворот и технологического проёма принимают не более 25 m/s."
+    },
+    {
+      "key": "placement.air_shower.distributor.horizontal_adjustment.max",
+      "range": {
+        "min": null,
+        "max": 180,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "degree",
+      "appliesTo": {
+        "kind": ["air_distributor", "air_shower.distributor"],
+        "building": ["industrial"],
+        "element": ["air_terminal"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "261",
+        "pagePdf": 33,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Воздухораспределитель воздушного душирования рабочего места должен позволять направлять струю в горизонтальной плоскости на угол до 180°."
+    },
+    {
+      "key": "placement.air_shower.distributor.vertical_adjustment.max",
+      "range": {
+        "min": null,
+        "max": 30,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "degree",
+      "appliesTo": {
+        "kind": ["air_distributor", "air_shower.distributor"],
+        "building": ["industrial"],
+        "element": ["air_terminal"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "261",
+        "pagePdf": 33,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Воздухораспределитель воздушного душирования рабочего места должен позволять направлять струю в вертикальной плоскости на угол до 30°."
+    },
+    {
+      "key": "placement.fire_damper.room_group_area.max",
+      "range": {
+        "min": null,
+        "max": 300,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m²",
+      "appliesTo": {
+        "kind": ["transit_collecting_duct", "fire_damper"],
+        "building": ["industrial"],
+        "element": ["served_room_group"],
+        "fireCategory": ["A", "B", "V1", "V2", "V3"],
+        "roomUse": ["non_warehouse"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "296",
+        "pagePdf": 38,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Условие размещения огнезадерживающего клапана на каждом транзитном сборном воздуховоде относится к группе помещений категорий А, Б или В1–В3 площадью не более 300 m²; склады исключены."
+    },
+    {
+      "key": "placement.fire_damper.nearest_fan.distance.max",
+      "range": {
+        "min": null,
+        "max": 1,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["transit_collecting_duct", "fire_damper"],
+        "building": ["industrial"],
+        "element": ["branch"],
+        "fireCategory": ["A", "B", "V1", "V2", "V3"],
+        "servedGroupArea": ["up_to_300_m2"],
+        "roomUse": ["non_warehouse"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "296",
+        "pagePdf": 38,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Огнезадерживающий клапан на транзитном сборном воздуховоде группы помещений одной категории А, Б или В1–В3 общей площадью не более 300 m², кроме складов, устанавливают в ответвлении на расстоянии не более 1 m от ближайшего вентилятора."
+    },
+    {
+      "key": "routing.horizontal_collector.floor_duct_count.max",
+      "range": {
+        "min": null,
+        "max": 5,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "count",
+      "appliesTo": {
+        "kind": ["horizontal_collector", "floor_duct_connection"],
+        "building": ["all"],
+        "element": ["collector"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "296",
+        "pagePdf": 38,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "К одному горизонтальному коллектору допускается присоединять не более пяти поэтажных воздуховодов."
+    },
+    {
+      "key": "clearance.duct.combustible_communications",
+      "value": null,
+      "unit": "mm",
+      "appliesTo": {
+        "kind": ["duct_routing", "duct_to_combustible_communications"],
+        "building": ["all"],
+        "element": ["duct_wall"],
+        "adjacentElement": ["gas_pipe", "combustible_fluid_pipe", "cable", "electric_wire", "sewer_pipe"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "318",
+        "pagePdf": 42,
+        "table": null
+      },
+      "status": "unreadable",
+      "noteRu": "Цифра 50 mm читается, но официальный узбекский текст буквально запрещает размещение коммуникаций «на расстоянии не менее 50 mm» от стенки воздуховода, что логически инвертирует ожидаемое ограничение. Направление зазора не нормализовано; пересечения с перечисленными коммуникациями запрещены однозначно."
+    },
+    {
+      "key": "slope.exhaust.combustible_gas_lighter_than_air.min",
+      "range": {
+        "min": 0.005,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "ratio",
+      "appliesTo": {
+        "kind": ["duct_routing", "exhaust_duct.combustible_gas"],
+        "building": ["all"],
+        "element": ["duct"],
+        "medium": ["combustible_gas_lighter_than_air"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "319",
+        "pagePdf": 43,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Вытяжной воздуховод общеобменной или местной системы с горючей газовоздушной смесью легче воздуха проектируют с уклоном не менее 0,005 по направлению движения смеси."
+    },
+    {
+      "key": "slope.duct.condensate_or_liquid.min",
+      "range": {
+        "min": 0.005,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "ratio",
+      "appliesTo": {
+        "kind": ["duct_routing", "duct.condensate_or_liquid"],
+        "building": ["all"],
+        "element": ["duct"],
+        "medium": ["condensate_or_liquid"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "320",
+        "pagePdf": 43,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Воздуховод, в котором возможны конденсация влаги или оседание другой жидкости, проектируют с уклоном не менее 0,005 по ходу воздуха и предусматривают отвод жидкости."
+    },
+    {
+      "key": "placement.smoke_intake.served_corridor_length.max",
+      "range": {
+        "min": null,
+        "max": 30,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_intake"],
+        "building": ["all"],
+        "element": ["corridor_or_hall"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "328",
+        "pagePdf": 44,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Дымоприёмное устройство размещают под потолком коридора или холла либо в дымовой шахте; длина обслуживаемого им коридора не должна превышать 30 m."
+    },
+    {
+      "key": "routing.smoke_intake.per_floor.max",
+      "range": {
+        "min": null,
+        "max": 2,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "count",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_intake"],
+        "building": ["all"],
+        "element": ["floor_system"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "328",
+        "pagePdf": 44,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "К вытяжной системе коридора или холла допускается присоединять не более двух дымоприёмных устройств на одном этаже."
+    },
+    {
+      "key": "smoke_zoning.room_area.division_trigger",
+      "range": {
+        "min": 1600,
+        "max": null,
+        "minInclusive": false,
+        "maxInclusive": false
+      },
+      "unit": "m²",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_zoning"],
+        "building": ["all"],
+        "element": ["room_area"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "330",
+        "pagePdf": 44,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Помещение площадью более 1600 m² разделяют на дымовые зоны с учётом возможности возникновения пожара в одной из них."
+    },
+    {
+      "key": "smoke_zoning.zone_area.max",
+      "range": {
+        "min": null,
+        "max": 1600,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m²",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_zoning"],
+        "building": ["all"],
+        "element": ["smoke_zone_area"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "330",
+        "pagePdf": 45,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Площадь одной дымовой зоны не должна превышать 1600 m²."
+    },
+    {
+      "key": "placement.smoke_curtain.bottom.height.min",
+      "range": {
+        "min": 2.5,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_zoning"],
+        "building": ["all"],
+        "element": ["dense_noncombustible_smoke_curtain_bottom"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "330",
+        "pagePdf": 44,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Плотная вертикальная завеса из негорючих материалов, образующая дымовой резервуар и опускающаяся от потолка или покрытия к полу, не должна иметь нижнюю кромку ниже 2,5 m от пола."
+    },
+    {
+      "key": "placement.smoke_exhaust.window_adjacent_zone.width.max",
+      "range": {
+        "min": null,
+        "max": 15,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "natural_smoke_exhaust.window_transom"],
+        "building": ["all"],
+        "element": ["window_adjacent_zone"],
+        "storeys": ["single_storey"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "333",
+        "pagePdf": 45,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "В помещении одноэтажного здания естественное удаление дыма через оконные фрамуги допускается для примыкающей к окнам зоны шириной не более 15 m; для многоэтажных зданий пункт требует механическую вытяжку."
+    },
+    {
+      "key": "placement.smoke_exhaust.window_transom.height.min",
+      "range": {
+        "min": 2.2,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "natural_smoke_exhaust.window_transom"],
+        "building": ["all"],
+        "element": ["transom_bottom"],
+        "storeys": ["single_storey"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "333",
+        "pagePdf": 45,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "В помещении одноэтажного здания низ оконной фрамуги или створки для естественного удаления дыма располагают не ниже 2,2 m от пола; для многоэтажных зданий пункт требует механическую вытяжку."
+    },
+    {
+      "key": "routing.smoke_exhaust.vertical_collector.branches_per_floor.max",
+      "range": {
+        "min": null,
+        "max": 4,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "count",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "mechanical_smoke_exhaust"],
+        "building": ["all"],
+        "element": ["room_branch", "smoke_zone_branch"],
+        "collector": ["vertical"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "333",
+        "pagePdf": 45,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "При механическом дымоудалении к вертикальному коллектору на каждом этаже допускается присоединять ответвления не более чем от четырёх отдельных помещений либо не более чем от четырёх дымовых зон."
+    },
+    {
+      "key": "placement.smoke_intake.served_area.max",
+      "range": {
+        "min": null,
+        "max": 900,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m²",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_intake"],
+        "building": ["all"],
+        "element": ["served_area"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "334",
+        "pagePdf": 46,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Одно дымоприёмное устройство должно обслуживать площадь не более 900 m²; устройства размещают равномерно по помещению, дымовой зоне или резервуару."
+    },
+    {
+      "key": "placement.smoke_discharge.combustible_roof.height.min",
+      "range": {
+        "min": 2,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_discharge.roof"],
+        "building": ["all"],
+        "element": ["outlet"],
+        "roofMaterial": ["combustible", "hardly_combustible"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "334",
+        "pagePdf": 46,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Выброс дыма в атмосферу предусматривают не ниже 2 m над кровлей из горючих или трудногорючих материалов."
+    },
+    {
+      "key": "placement.smoke_discharge.protected_roof.distance.min",
+      "range": {
+        "min": 2,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_discharge.roof"],
+        "building": ["all"],
+        "element": ["roof_protection_from_outlet_edge"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "334",
+        "pagePdf": 46,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Выброс дыма допускается ниже 2 m над кровлей, если кровля защищена негорючими материалами на расстоянии не менее 2 m от края выбросного отверстия."
+    },
+    {
+      "key": "placement.smoke_shaft.hot_shop.mouth_height.min",
+      "range": {
+        "min": 6,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_shaft.hot_shop"],
+        "building": ["industrial"],
+        "element": ["shaft_mouth"],
+        "condition": ["without_drencher_irrigation"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "335",
+        "pagePdf": 46,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Без дренчерного орошения при выбросе дыма из нижних этажей или подвала в аэрируемый пролёт горячего цеха устье дымовой шахты располагают не ниже 6 m от пола; при дренчерном орошении действует отдельная альтернатива 3 m."
+    },
+    {
+      "key": "clearance.smoke_shaft.hot_shop.horizontal.min",
+      "range": {
+        "min": 1,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_shaft.hot_shop"],
+        "building": ["industrial"],
+        "element": ["shaft_mouth_to_building_structure_horizontal"],
+        "condition": ["without_drencher_irrigation"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "335",
+        "pagePdf": 46,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Без дренчерного орошения устье дымовой шахты в аэрируемом пролёте горячего цеха располагают на расстоянии не менее 1 m по горизонтали от строительных конструкций; при дренчерном орошении действует отдельная альтернатива по высоте."
+    },
+    {
+      "key": "clearance.smoke_shaft.hot_shop.vertical.min",
+      "range": {
+        "min": 3,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_shaft.hot_shop"],
+        "building": ["industrial"],
+        "element": ["shaft_mouth_to_building_structure_vertical"],
+        "condition": ["without_drencher_irrigation"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "335",
+        "pagePdf": 46,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Без дренчерного орошения устье дымовой шахты в аэрируемом пролёте горячего цеха располагают на расстоянии не менее 3 m по вертикали от строительных конструкций; при дренчерном орошении действует отдельная альтернатива по высоте."
+    },
+    {
+      "key": "placement.smoke_shaft.hot_shop.drencher_mouth_height.min",
+      "range": {
+        "min": 3,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_exhaust", "smoke_shaft.hot_shop.drencher"],
+        "building": ["industrial"],
+        "element": ["shaft_mouth"],
+        "condition": ["with_drencher_irrigation"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "335",
+        "pagePdf": 46,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "При дренчерном орошении устья дымовой шахты в аэрируемом пролёте горячего цеха допускается расположить его не ниже 3 m от пола."
+    },
+    {
+      "key": "velocity.smoke_pressurization.open_doorway.design",
+      "value": 1.3,
+      "unit": "m/s",
+      "appliesTo": {
+        "kind": ["smoke_pressurization", "smoke_pressurization.open_doorway"],
+        "building": ["all"],
+        "element": ["vestibule_airlock_doorway"],
+        "condition": ["one_open_door_to_corridor_hall_or_basement"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "340",
+        "pagePdf": 47,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Расход подпорного воздуха в тамбур-шлюз при одной открытой двери в коридор, холл или подвал определяют расчётом либо по скорости 1,3 m/s в дверном проёме."
+    },
+    {
+      "key": "clearance.air_intake.smoke_discharge.min",
+      "range": {
+        "min": 5,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["smoke_pressurization", "air_intake_to_smoke_discharge"],
+        "building": ["all"],
+        "element": ["outdoor_air_intake"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "342",
+        "pagePdf": 48,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Отверстия забора наружного воздуха для противодымной защиты располагают не ближе 5 m от мест выброса дыма."
+    },
+    {
+      "key": "clearance.exhaust.air_intake.horizontal.min",
+      "range": {
+        "min": 10,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["industrial_exhaust", "exhaust_to_air_intake"],
+        "building": ["industrial"],
+        "element": ["exhaust_outlet"],
+        "normMode": ["prescriptive_alternative_to_calculation"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "365",
+        "pagePdf": 51,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Место выброса производственной вентиляции располагают по расчёту либо не ближе 10 m по горизонтали от устройства забора наружного воздуха."
+    },
+    {
+      "key": "clearance.exhaust.air_intake.vertical_if_horizontal_under_10m.design",
+      "value": 6,
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["industrial_exhaust", "exhaust_to_air_intake"],
+        "building": ["industrial"],
+        "element": ["exhaust_outlet"],
+        "horizontalCondition": ["distance_under_10_m"],
+        "normMode": ["prescriptive_alternative_to_calculation"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "365",
+        "pagePdf": 51,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Если в предписывающей альтернативе расчёту горизонтальное расстояние между выбросом производственной вентиляции и наружным воздухозабором менее 10 m, официальный текст задаёт расстояние по вертикали 6 m без отдельного оператора «не менее»; сохранено буквальное точное значение."
+    },
+    {
+      "key": "placement.local_exhaust.hazardous.above_high_roof_part.min",
+      "range": {
+        "min": 2,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["industrial_exhaust", "local_exhaust.hazardous"],
+        "building": ["industrial"],
+        "element": ["exhaust_outlet"],
+        "condition": ["distance_to_high_roof_part_under_10_m"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "365",
+        "pagePdf": 51,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Если до возвышающейся части кровли менее 10 m, выброс местного отсоса вредных веществ располагают не менее чем на 2 m выше этой части кровли."
+    },
+    {
+      "key": "placement.emergency_exhaust.opening_bottom.above_ground.min",
+      "range": {
+        "min": 3,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["industrial_exhaust", "emergency_exhaust"],
+        "building": ["industrial"],
+        "element": ["opening_bottom"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "365",
+        "pagePdf": 51,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Низ выбросного отверстия аварийной вентиляции располагают не ниже 3 m от поверхности земли."
+    },
+    {
+      "key": "clearance.explosive_exhaust.ignition_source.absolute_floor",
+      "range": {
+        "min": 10,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["industrial_exhaust", "local_exhaust.explosive_mixture"],
+        "building": ["industrial"],
+        "element": ["exhaust_outlet_to_ignition_source"],
+        "calculation": ["lz_equals_4d_times_q_over_qz"],
+        "valueRole": ["absolute_floor_not_complete_design_distance"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "366",
+        "pagePdf": 52,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Для местного отсоса взрывоопасной парогазовоздушной смеси расстояние от выброса до ближайшего возможного источника воспламенения определяют по формуле lz = 4D·q/qz, при этом абсолютный нижний предел равен 10 m. Запись хранит только этот пол и сама по себе не задаёт полного расчётного расстояния."
+    },
+    {
+      "key": "placement.natural_air_intake.warm_period.opening_bottom.height.max",
+      "range": {
+        "min": null,
+        "max": 1.8,
+        "minInclusive": false,
+        "maxInclusive": true
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["natural_air_intake", "natural_air_intake.warm_period"],
+        "building": ["industrial"],
+        "element": ["openable_window_or_opening_bottom"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "399",
+        "pagePdf": 56,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Низ открываемого окна или проёма естественного притока в производственном помещении для тёплого периода располагают не выше 1,8 m от пола или рабочей площадки."
+    },
+    {
+      "key": "placement.natural_air_intake.cold_period.opening_bottom.height.min",
+      "range": {
+        "min": 3.2,
+        "max": null,
+        "minInclusive": true,
+        "maxInclusive": false
+      },
+      "unit": "m",
+      "appliesTo": {
+        "kind": ["natural_air_intake", "natural_air_intake.cold_period"],
+        "building": ["industrial"],
+        "element": ["openable_window_or_opening_bottom"]
+      },
+      "source": {
+        "document": "ШНҚ 2.04.05-22",
+        "edition": "2024-08-05 (приказ № 01/2-39)",
+        "clause": "399",
+        "pagePdf": 56,
+        "table": null
+      },
+      "status": "unverified",
+      "noteRu": "Низ открываемого окна или проёма естественного притока в производственном помещении для холодного периода располагают не ниже 3,2 m от пола или рабочей площадки."
+    }
+  ]
+}
