@@ -100,6 +100,8 @@ SP7_RU = SmokeNorm(
         "parking_above":     18.0,   # надземная закрытая парковка
         "warehouse_low":     50.0,   # склад категории В4 и ниже
         "warehouse_high":   100.0,   # склад категорий В1–В3
+        "technical":         50.0,   # техпомещения с горючей нагрузкой
+                                     # (кабельные, электрощитовые)
         "corridor":          60.0,   # коридор (упрощённо; точно — формула)
         "office_assembly":   30.0,   # помещения сборки людей
         "trading_hall":      60.0,   # торговый зал
@@ -149,6 +151,7 @@ KMK_UZ = SmokeNorm(
         "parking_above":     18.0,
         "warehouse_low":     50.0,
         "warehouse_high":   100.0,
+        "technical":         50.0,
         "corridor":          60.0,
         "office_assembly":   30.0,
         "trading_hall":      60.0,
@@ -199,6 +202,7 @@ NFPA_92 = SmokeNorm(
         "parking_above":      9.0,
         "warehouse_low":     27.0,   # ≈ 1.5 cfm/sqft typical
         "warehouse_high":    54.0,   # ≈ 3.0 cfm/sqft high challenge
+        "technical":         27.0,   # ≈ 1.5 cfm/sqft (electrical/cable rooms)
         "corridor":          18.0,   # ≈ 1.0 cfm/sqft IBC base
         "office_assembly":   18.0,
         "trading_hall":      36.0,   # ≈ 2.0 cfm/sqft mall typical

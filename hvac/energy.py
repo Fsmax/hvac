@@ -116,6 +116,8 @@ class EnergyPassport:
     # ===== Годовое потребление =====
     z_heating_days: float = 0.0           # продолжительность отопит. сезона, сут
     t_avg_heating: float = 0.0            # средняя за период, °C
+    season_exact: bool = False            # True — сезон из климата города (Табл.4);
+                                          # False — эмпирическая оценка по ГСОП
     e_heating_kwh_year: float = 0.0       # тепло на отопление за год
     e_ventilation_kwh_year: float = 0.0   # нагрев приточки за год
     e_cooling_kwh_year: float = 0.0       # электроэнергия на охлаждение, кВт·ч/год
@@ -138,11 +140,11 @@ class EnergyPassport:
     # ===== ШНҚ 2.01.18-24 (Узбекистан) — нормативный q_ov =====
     n_floors: int = 1                     # этажность здания (по уровням)
     shnq_category: str = ""               # категория ШНҚ Табл.1-3
-    q_design_specific_w_m2: float = 0.0   # удельная расч. мощность отопл.+вент., Вт/м²
+    q_design_specific_w_m2: float = 0.0   # удельная расч. мощность отопл.+вент., Вт/м² (без монтажного запаса)
     q_ov_normative_w_m2: float = 0.0      # норматив ШНҚ q_ov, Вт/м² (0 — нет данных)
     shnq_compliant: Optional[bool] = None  # q_design ≤ q_ov? None — нет норматива
-    dd_shnq: float = 0.0                  # Dd (порог сезона 10°C, КМК форм.1), °C·сут
-    dd_exact: bool = False                # True — по климату ≤10°C; False — приближение по ГСОП
+    dd_shnq: float = 0.0                  # Dd (период ≤12°C ШНҚ 2.01.01-22, КМК форм.1), °C·сут
+    dd_exact: bool = False                # True — по климату ≤12°C; False — приближение по ГСОП
 
     note: str = ""
 
@@ -190,28 +192,50 @@ def estimate_heating_season_from_gsop(gsop: float, t_in: float = 20.0,
     return {"z_days": round(z_days), "t_avg": round(t_avg, 1)}
 
 
+def heating_season_for(params) -> Dict[str, Any]:
+    """Длительность и средняя температура отопительного сезона (порог ≤8°C).
+
+    Приоритет — фактические данные климата города (ШНҚ 2.01.01-22 Табл.4 /
+    СП 131.13330: поля ``z_ht_8``/``t_ht_8`` в CLIMATE_DB). Если их нет —
+    эмпирическая оценка по ГСОП (estimate_heating_season_from_gsop).
+
+    Возвращает {"z_days", "t_avg", "exact": bool}.
+    """
+    from hvac.catalogs.climate import CLIMATE_DB
+    clim: Mapping[str, Any] = CLIMATE_DB.get(getattr(params, "city", ""), {})
+    z8, t8 = clim.get("z_ht_8"), clim.get("t_ht_8")
+    if z8 and t8 is not None:
+        return {"z_days": float(z8), "t_avg": float(t8), "exact": True}
+    season = estimate_heating_season_from_gsop(
+        getattr(params, "gsop_18", 0.0), t_in=20.0, t_threshold=8.0)
+    season["exact"] = False
+    return season
+
+
 def degree_days_heating(t_in: float, t_ht_avg: float, z_ht_days: float) -> float:
     """Градус-сутки отопительного периода Dd, °C·сут — КМК 2.01.04-18 форм.(1):
 
         Dd = (tв − tот.пер) · zот.пер
 
     где tот.пер, zот.пер — средняя температура (°C) и длительность (сут)
-    периода со среднесуточной температурой воздуха ≤ 10 °C. Этот же Dd
-    используют Табл.2а/2б/2в (R₀^тр) и нормативы q_ov ШНҚ 2.01.18-24.
+    отопительного периода. Форм.(1) отсылает за периодом (≤10 °C) к
+    отменённой ҚМҚ 2.01.01-94; действующая ШНҚ 2.01.01-22 Табл.4 табулирует
+    только ≤8 °C и ≤12 °C — принят период ≤12 °C. Этот же Dd используют
+    Табл.2а/2б/2в (R₀^тр) и нормативы q_ov ШНҚ 2.01.18-24.
     """
     if z_ht_days <= 0:
         return 0.0
     return (t_in - t_ht_avg) * z_ht_days
 
 
-def heating_period_at(clim: Mapping[str, Any], threshold: float = 10.0
+def heating_period_at(clim: Mapping[str, Any], threshold: float = 12.0
                       ) -> Optional[Dict[str, float]]:
     """(z, t_avg) периода со среднесуточной t ≤ threshold °C из климата города.
 
     ШНҚ 2.01.01-22 «Строительная климатология» Табл.4 табулирует пороги ≤8°C
-    (z_ht_8/t_ht_8) и ≤12°C (z_ht_12/t_ht_12). Период ≤10°C, требуемый КМК
-    форм.(1), получается ЛИНЕЙНОЙ ИНТЕРПОЛЯЦИЕЙ по порогу между ними
-    (при threshold=10 — ровно середина: среднее ≤8 и ≤12).
+    (z_ht_8/t_ht_8) и ≤12°C (z_ht_12/t_ht_12). Для нормативного Dd принят
+    период ≤12°C (threshold=12 — ровно табличная колонка ≤12°C); промежуточный
+    порог даёт линейную интерполяцию между ≤8 и ≤12.
 
     Возвращает {"z_days", "t_avg"} либо None, если в климате нет полей ≤8/≤12.
     """
@@ -304,6 +328,17 @@ def energy_class_for_deviation(deviation_percent: float) -> Dict[str, str]:
     return {"class": "?", "description": "Вне диапазона"}
 
 
+# Технические/производственные типы помещений: их доминирование в составе
+# означает производственное здание (ОПУ, насосные, склады энергообъектов),
+# для которого q_ov ШНҚ 2.01.18-24 не табулирован — Табл. 1–3 охватывают
+# только жилые и общественные здания. «Архив / хранилище» и «Гараж /
+# автостоянка» сюда сознательно не входят: архивы и паркинги — обычные
+# спутники офисных/жилых зданий и не должны перетягивать тип.
+INDUSTRIAL_ROOM_TYPES = frozenset({
+    "Технич. помещение", "Серверная", "Склад", "Холодильная камера",
+})
+
+
 def detect_building_type(project: "HVACProject") -> str:
     """Эвристика для определения типа здания по составу помещений."""
     total_area = sum(sp.area_m2 for sp in project.spaces)
@@ -319,16 +354,50 @@ def detect_building_type(project: "HVACProject") -> str:
     office_area = by_type.get("Офис", 0) + by_type.get("Конференц-зал", 0)
     res_area = by_type.get("Жилая комната", 0)
     shop_area = by_type.get("Магазин / торговля", 0)
+    tech_area = sum(a for t, a in by_type.items()
+                    if t in INDUSTRIAL_ROOM_TYPES)
 
     # Доминирующий тип
     shares = [(hotel_area, "гостиница"),
               (office_area, "офис"),
               (res_area, "жилое 4-5 этажей"),
-              (shop_area, "магазин")]
+              (shop_area, "магазин"),
+              (tech_area, "производственное")]
     shares.sort(reverse=True)
     if shares[0][0] / total_area >= 0.30:
         return shares[0][1]
     return "общественное"
+
+
+def refresh_passport(project: "HVACProject") -> Optional[EnergyPassport]:
+    """Актуализирует энергопаспорт перед печатью отчёта.
+
+    Сохранённый в проекте паспорт «замораживается» на момент расчёта и
+    устаревает после любых правок помещений (реальный случай: в паспорте
+    Q=95,5 кВт от старого состава помещений при текущих 32 кВт). Экспортёры
+    записки вызывают эту функцию, чтобы отчёт был внутренне консистентен.
+
+    Пересчитывает паспорт по ТЕКУЩИМ помещениям, сохраняя настройки
+    прошлого расчёта (k_regulation, k_internal_use, internal_gain_w_m2).
+    Тип здания переопределяется заново: сохранённый тип был автоопределён
+    по старому составу помещений.
+
+    Возвращает актуальный паспорт (и записывает его в project). Если
+    паспорт не рассчитывался или в проекте нет помещений — ничего не
+    меняет и возвращает сохранённый как есть.
+    """
+    ep = project.energy_passport
+    if ep is None or not project.spaces:
+        return ep
+    fresh = calculate_passport(
+        project,
+        building_type=None,                    # переопределить по помещениям
+        k_regulation=ep.k_regulation,
+        k_internal_use=ep.k_internal_use,
+        internal_gain_w_m2=ep.internal_gain_w_m2,
+    )
+    project.energy_passport = fresh
+    return fresh
 
 
 def calculate_passport(project: "HVACProject",
@@ -357,10 +426,8 @@ def calculate_passport(project: "HVACProject",
     if building_type is None:
         building_type = detect_building_type(project)
 
-    # Длительность сезона
-    season = estimate_heating_season_from_gsop(
-        params.gsop_18, t_in=20.0, t_threshold=8.0,
-    )
+    # Длительность сезона — из климата города, если есть (иначе по ГСОП)
+    season = heating_season_for(params)
 
     # Пиковые
     q_peak_heating = sum(sp.heat_loss_w for sp in project.spaces)
@@ -383,19 +450,25 @@ def calculate_passport(project: "HVACProject",
     from hvac.catalogs.climate import CLIMATE_DB
     n_floors = len({sp.level for sp in project.spaces if sp.level}) or 1
     shnq_cat = building_type_to_shnq(building_type)
-    q_design_specific = ((q_peak_heating + q_peak_vent) / total_area
+    # Нормативный контроль — по РАСЧЁТНОЙ мощности. heat_loss_w помещений
+    # хранится уже с монтажным запасом (sp50.heat_loss × safety_margin_heating);
+    # запас — проектное решение, не свойство здания, из сравнения с q_ov его
+    # снимаем. Калорифер AHU (q_heater_w) считается без запаса — не делим.
+    _margin = getattr(params, "safety_margin_heating", 1.0) or 1.0
+    q_design_specific = ((q_peak_heating / _margin + q_peak_vent) / total_area
                          if total_area > 0 else 0.0)
-    # Dd по КМК 2.01.04-18 форм.(1): (tв − tот.пер)·zот.пер для периода со
-    # среднесуточной t ≤ 10°C. Если климат города содержит периоды ≤8/≤12°C
-    # (ШНҚ 2.01.01-22 Табл.4) — Dd считается ТОЧНО (интерполяция на 10°C);
-    # иначе — приближение базовым ГСОП (та же база tв=+20°C, но порог ≤8°C —
-    # период ≤10°C чуть длиннее, поэтому это оценка снизу).
+    # Dd по КМК 2.01.04-18 форм.(1): (tв − tот.пер)·zот.пер. Форм.(1)
+    # отсылает за периодом (≤10°C) к отменённой ҚМҚ 2.01.01-94; действующая
+    # ШНҚ 2.01.01-22 Табл.4 табулирует только ≤8°C и ≤12°C — Dd считается
+    # по табличному периоду ≤12°C. Если полей ≤8/≤12 в климате нет —
+    # приближение базовым ГСОП (та же база tв=+20°C, но порог ≤8°C —
+    # период ≤12°C длиннее, поэтому это оценка снизу).
     t_in_shnq = 20.0
     _clim: Mapping[str, Any] = CLIMATE_DB.get(params.city, {})
-    _period10 = heating_period_at(_clim, 10.0)
-    if _period10:
-        dd_shnq = degree_days_heating(t_in_shnq, _period10["t_avg"],
-                                      _period10["z_days"])
+    _period12 = heating_period_at(_clim, 12.0)
+    if _period12:
+        dd_shnq = degree_days_heating(t_in_shnq, _period12["t_avg"],
+                                      _period12["z_days"])
         dd_exact = True
     else:
         dd_shnq = params.gsop_18           # уже база tв=+20°C
@@ -461,6 +534,7 @@ def calculate_passport(project: "HVACProject",
 
         z_heating_days=season["z_days"],
         t_avg_heating=season["t_avg"],
+        season_exact=bool(season.get("exact")),
         e_heating_kwh_year=e_heating_net,
         e_ventilation_kwh_year=e_vent,
         e_cooling_kwh_year=e_cooling,

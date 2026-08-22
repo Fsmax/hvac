@@ -221,6 +221,7 @@ class SourcePickDialog(QDialog):
         out = {
             "design_capacity_kw": float(m.q_kw),
             "unit_count": int(units),
+            "reserve_units": 1 if self.reserve.isChecked() else 0,
             "selected_model": (m.manufacturer + " " + m.name).strip(),
         }
         if self.domain == "heating":

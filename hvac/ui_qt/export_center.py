@@ -521,6 +521,9 @@ class ExportCenter(QDialog):
                 self, _t("export.no_data.title"),
                 _t("export.no_data.msg"))
             return
+        # Незакрытые проблемы модели (панель «Проблемы») экспорт не
+        # блокируют: записку выпускают и по неполной модели, диагностика
+        # остаётся в панели.
         path = self.path_edit.text().strip()
         if not path:
             QMessageBox.warning(

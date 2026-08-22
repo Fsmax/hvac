@@ -14,7 +14,7 @@ import os
 from dataclasses import asdict
 from typing import Optional
 from hvac.project import HVACProject
-from hvac.models import Space, BoundaryElement
+from hvac.models import Space, BoundaryElement, ProjectParameters
 from hvac.room_equipment import (
     serialize_room_equipment, deserialize_room_equipment,
 )
@@ -274,6 +274,9 @@ def _serialize_pipe_network(net) -> dict:
         "pump_head_m": getattr(net, "pump_head_m", 0.0),
         "pump_flow_m3_h": getattr(net, "pump_flow_m3_h", 0.0),
         "pump_model": getattr(net, "pump_model", ""),
+        "pump_working_units": getattr(net, "pump_working_units", 0),
+        "pump_reserve_units": getattr(net, "pump_reserve_units", 0),
+        "pump_catalog_covered": getattr(net, "pump_catalog_covered", True),
         "pipe_material": net.pipe_material,
         "insulated": getattr(net, "insulated", False),
         "note": net.note,
@@ -805,6 +808,14 @@ def load_project(project: HVACProject, path: str) -> None:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Открытие файла — это ЗАМЕНА состояния, а не слияние: GUI грузит в один
+    # долгоживущий объект (main_window._load_project_path, data_panel).
+    # Всё, чего нет в открываемом файле, не должно переживать загрузку —
+    # иначе системы предыдущего проекта (СДУ, ГВС, вентустановки, ahu_loads)
+    # «переезжают» в следующий и печатаются в его записке.
+    project._reset_runtime_state()
+    project.params = ProjectParameters()
+
     # Параметры
     for k, v in data.get("params", {}).items():
         if hasattr(project.params, k):
@@ -890,22 +901,42 @@ def load_project(project: HVACProject, path: str) -> None:
                 and os.path.exists(spaces_csv) and os.path.exists(thermal_csv):
             project.load(spaces_csv, thermal_csv)
 
-        # U-значения, слои и note конструкций
-        from hvac.models import Layer
+        # U-значения, слои и note конструкций. Каталог только что пересобран
+        # из CSV, поэтому известные ключи обновляем, а отсутствующие
+        # восстанавливаем из сохранённого словаря целиком: это конструкции,
+        # переименованные через update_construction() или созданные вручную
+        # через create_construction() — их ключей в CSV нет, и без
+        # восстановления они молча терялись (первый же apply_constructions()
+        # пересоздавал запись с дефолтным U вместо пользовательского).
+        # Побочный эффект: ключи из сохранённого файла, которых больше нет
+        # в CSV (например, после ре-экспорта с переименованными типами),
+        # воскресают неиспользуемыми строками каталога — это приемлемо,
+        # их убирает «Удалить неиспользуемые».
+        from hvac.data_loader import is_excluded_category
+        from hvac.models import Construction, Layer
         for key, info in data.get("constructions", {}).items():
+            layers = [
+                Layer(**{kk: vv for kk, vv in (l or {}).items()
+                         if kk in Layer.__dataclass_fields__})
+                for l in (info.get("layers", []) or [])
+            ]
             if key in project.constructions:
                 con = project.constructions[key]
                 con.u_value = info.get("u_value", 0)
                 con.shgc = info.get("shgc", 0)
                 if info.get("note"):
                     con.note = info["note"]
-                layers_raw = info.get("layers", []) or []
-                if layers_raw:
-                    con.layers = [
-                        Layer(**{kk: vv for kk, vv in (l or {}).items()
-                                 if kk in Layer.__dataclass_fields__})
-                        for l in layers_raw
-                    ]
+                if layers:
+                    con.layers = layers
+            else:
+                if is_excluded_category(info.get("category", "")):
+                    continue
+                valid = {k: v for k, v in info.items()
+                         if k in Construction.__dataclass_fields__
+                         and k != "layers"}
+                con = Construction(**valid)
+                con.layers = layers
+                project.constructions[key] = con
 
         # Пользовательские настройки помещений
         overrides = data.get("space_overrides", {})
@@ -1041,6 +1072,9 @@ def load_project(project: HVACProject, path: str) -> None:
             pump_head_m=info_dict.get("pump_head_m", 0.0),
             pump_flow_m3_h=info_dict.get("pump_flow_m3_h", 0.0),
             pump_model=info_dict.get("pump_model", ""),
+            pump_working_units=info_dict.get("pump_working_units", 0),
+            pump_reserve_units=info_dict.get("pump_reserve_units", 0),
+            pump_catalog_covered=info_dict.get("pump_catalog_covered", True),
             pipe_material=info_dict.get("pipe_material", "steel"),
             insulated=info_dict.get("insulated", False),
             note=info_dict.get("note", ""),

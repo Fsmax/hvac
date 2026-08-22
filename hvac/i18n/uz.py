@@ -818,6 +818,29 @@ UZ: Dict[str, str] = {
     "panel.problems.summary":        "Xatolar: {e} · Ogohlantirishlar: {w} · Ma'lumot: {i}",
     "panel.problems.empty":          "Muammolar topilmadi — loyiha joyida.",
     "panel.problems.not_calculated": "Ma'lumotni yuklab, hisobni bajaring — tekshiruvlar ko‘rinadi.",
+    "panel.problems.tab.issues":     "Tekshiruvlar",
+    "panel.problems.tab.coverage":   "Xizmat ko‘rsatish matritsasi",
+    "panel.coverage.summary":        ("Jami: {total} · Tizim tayinlash kerak: {missing} · "
+                                        "Tayyor: {ready}"),
+    "panel.coverage.only_missing":   "Faqat tayinlanmaganlar",
+    "panel.coverage.search":         "Xona yoki tizim bo‘yicha qidirish…",
+    "panel.coverage.col.number":     "№",
+    "panel.coverage.col.name":       "Xona",
+    "panel.coverage.col.level":      "Qavat",
+    "panel.coverage.col.heating":    "Isitish",
+    "panel.coverage.col.cooling":    "Sovutish",
+    "panel.coverage.col.ventilation": "Ventilyatsiya",
+    "panel.coverage.col.smoke":      "Tutun/bosim",
+    "panel.coverage.col.status":     "Holat",
+    "panel.coverage.not_required":   "Talab qilinmaydi",
+    "panel.coverage.not_assigned":   "TAYINLANMAGAN",
+    "panel.coverage.unknown_system": "Katalogda yo‘q: {name}",
+    "panel.coverage.air_prefix":     "Havo orqali: {name}",
+    "panel.coverage.no_flow":        "Havo sarfi yo‘q",
+    "panel.coverage.supply":         "K: {value}",
+    "panel.coverage.exhaust":        "S: {value}",
+    "panel.coverage.ready":          "Tayyor",
+    "panel.coverage.problem":        "Tizim tayinlash kerak",
 
     # ========== Panel: Properties ==========
     "panel.props.empty":      "—",
@@ -1019,6 +1042,80 @@ UZ: Dict[str, str] = {
     "panel.sysworkspace.air.both_on":"Isitish va sovutishni yoqish",
     "panel.sysworkspace.air.off":    "Havoli rejimni o‘chirish",
     "panel.sysworkspace.air.status": "Havoli rejim: {n} xona o‘zgartirildi",
+    "panel.sysworkspace.assistant.missing": "Faqat bo‘shlarini to‘ldirish…",
+    "panel.sysworkspace.assistant.missing_title": "Tizimlarni xavfsiz tayinlash",
+    "panel.sysworkspace.assistant.missing_preview": (
+        "Faqat bo‘sh tayinlovlar to‘ldiriladi; mavjud qo‘lda berilgan "
+        "bog‘lanishlar o‘zgarmaydi.\n\n"
+        "Xonalar: {rooms}\n"
+        "• isitish: {heat}\n• sovutish: {cool}\n• ventilyatsiya: {vent}\n\n"
+        "Yangi tizimlar: {systems}\n"
+        "• isitish: {heat_sys}\n• sovutish: {cool_sys}\n"
+        "• ventilyatsiya: {vent_sys}\n\n"
+        "AUTO nomlari dastlabki. Tayinlangandan keyin tizimlarni tekshiring "
+        "va zarur bo‘lsa birlashtiring. Davom etilsinmi?"),
+    "panel.sysworkspace.assistant.missing_none": (
+        "Tayinlash bo‘shliqlari yo‘q — barcha kerakli tizimlar ro‘yxatda."),
+    "panel.sysworkspace.assistant.missing_status": (
+        "Tayinlangan xonalar: {rooms} · yaratilgan tizimlar: {systems}"),
+    "panel.sysworkspace.assistant.finalize": "AUTO tizimlarini tekshirish va birlashtirish…",
+    "panel.sysworkspace.assistant.finalize_title": "AUTO tizimlarini yakunlash",
+    "panel.sysworkspace.assistant.finalize_preview": (
+        "Dastlabki AUTO tizimlari: {auto}\n"
+        "Birlashtirish guruhlari: {groups} · olib tashlanadigan dublikatlar: {removed}\n"
+        "Geometriya tuzatishlari: {geometry}\n\n{details}\n\n"
+        "Qo‘llangandan keyin yuklamalar, ventilyatsiya, AHU va quvvat tanlovi "
+        "to‘liq qayta hisoblanadi. Davom etilsinmi?"),
+    "panel.sysworkspace.assistant.finalize_merge_line": (
+        "• {sources} → {target}: {rooms} xona, {flow} m³/soat"),
+    "panel.sysworkspace.assistant.finalize_geometry_line": (
+        "• {number} hajmi → {volume} m³"),
+    "panel.sysworkspace.assistant.finalize_none": (
+        "Xavfsiz birlashtirish guruhlari yoki geometriya tuzatishlari yo‘q."),
+    "panel.sysworkspace.assistant.finalize_status": (
+        "Birlashtirilgan guruhlar: {groups} · olib tashlangan tizimlar: {systems} · "
+        "tuzatilgan hajmlar: {geometry} · qayta hisobdan keyin tayinlangan "
+        "xonalar: {rooms} · yaratilgan tizimlar: {created}"),
+    "panel.sysworkspace.assistant.circuits": "Konturlar yaratish va AHU ni bog‘lash…",
+    "panel.sysworkspace.assistant.circuits_title": (
+        "Isitish va sovitish konturlari"),
+    "panel.sysworkspace.assistant.circuits_preview": (
+        "Yaratiladigan konturlar: {circuits} "
+        "(isitish {heat_circuits}, sovitish {cool_circuits})\n"
+        "Xona tayinlovlari: {rooms} "
+        "(isitish {heat_rooms}, sovitish {cool_rooms})\n"
+        "AHU issiqlik almashgich bog‘lanishlari: {ahus} "
+        "(isitgichlar {heat_ahus}, sovitgichlar {cool_ahus})\n"
+        "Turlar: radiator / fankoyl / AHU isitgich va sovitgichlari\n"
+        "Nom ziddiyatlari: {conflicts} · noaniq bog‘lanishlar o‘tkazildi: {skipped}\n\n"
+        "Qo‘lda yaratilgan konturlar va mavjud bog‘lanishlar o‘zgarmaydi. "
+        "Qo‘llangandan keyin AHU, quvurlar, nasoslar va quvvat qayta hisoblanadi. "
+        "Davom etilsinmi?"),
+    "panel.sysworkspace.assistant.circuits_none": (
+        "Xavfsiz kontur tayinlovlari yo‘q. Nom ziddiyatlari: {conflicts}; "
+        "noaniq AHU bog‘lanishlari: {skipped}."),
+    "panel.sysworkspace.assistant.circuits_status": (
+        "Yaratilgan konturlar: {circuits} · tayinlangan xonalar: {rooms} · "
+        "bog‘langan AHU issiqlik almashgichlari: {ahus}"),
+    "panel.sysworkspace.assistant.catalog": "Qozon va chillerlarni N+1 tanlash…",
+    "panel.sysworkspace.assistant.catalog_title": (
+        "Manbalarni katalog bo‘yicha N+1 tanlash"),
+    "panel.sysworkspace.assistant.catalog_preview": (
+        "Tanlanadigan manbalar: {systems} "
+        "(isitish {heat}, sovitish {cool})\n"
+        "Qo‘lda tanlangan yoki mos kelmaydigan tizimlar: {skipped}\n\n"
+        "{details}\n\n"
+        "Tanlov faqat qo‘lda modeli ko‘rsatilmagan AUTO tizimlari uchun. "
+        "Quvvat bitta agregat uchun; sxema — ishchi + zaxira. "
+        "Katalog dastlabki. Davom etilsinmi?"),
+    "panel.sysworkspace.assistant.catalog_line": (
+        "• {system}: talab {required} kW → {model}, {unit} kW "
+        "({working}+{reserve})"),
+    "panel.sysworkspace.assistant.catalog_none": (
+        "Xavfsiz katalog tanlovi uchun AUTO manbalari yo‘q. "
+        "Qo‘lda tanlangan yoki mos kelmaydigan tizimlar: {skipped}."),
+    "panel.sysworkspace.assistant.catalog_status": (
+        "N+1 zaxirali qozon va chillerlar tanlandi: {systems}"),
     # O‘ng panel ichki bo‘limlari + jihoz turini tanlash
     "panel.sysworkspace.tab.rooms":  "Xonalar",
     "panel.sysworkspace.tab.calc":   "Hisob",
@@ -1069,7 +1166,9 @@ UZ: Dict[str, str] = {
                                     "{ahu} = <b>{q} kVt</b>"),
     "panel.detail.src.required":"Kerak {req} kVt (yuklama {q} kVt × zaxira {m})",
     "panel.detail.src.picked_auto":   "Tanlov (avto): {unit} kVt × {n}",
-    "panel.detail.src.picked_manual": "Tanlov (qo‘lda): {unit} kVt × {n} · {model}",
+    "panel.detail.src.picked_manual": (
+        "Tanlov (katalog): {unit} kVt × {n} "
+        "(ishchi {working} + zaxira {reserve}) · {model}"),
     "panel.detail.src.ahu":      "shu jumladan AHU kaloriferlari/sovutgichlari: {q} kVt",
     "panel.detail.src.direct":   "To‘g‘ridan-to‘g‘ri xonalar: {n} ({q} kVt)",
     # ===== Panel: Equipment («Jihozlar» bo‘limi) =====
@@ -1354,6 +1453,8 @@ UZ: Dict[str, str] = {
     "dlg.smoke.norm.norm":       "Sarf normasi:",
     "dlg.smoke.norm.max_zone":   "Maks. zona yuzasi:",
     "dlg.smoke.kmk_zone.perim":  "P — o‘choq perimetri (maks 12):",
+    "dlg.smoke.kmk_zone.perim_auto": ("P — f.(4) bo‘yicha avtomatik (bog‘langan "
+                                      "eng katta xonadan)"),
     "dlg.smoke.kmk_zone.layer":  "y — erkin zona balandligi:",
     "dlg.smoke.kmk_zone.ks":     "Ks (1.0 AUPT siz, 1.2 sprinklerlar bilan):",
     "dlg.smoke.kmk_zone.formula":"Formula: G = 676.8 · P · y^1.5 · Ks   [kg/soat]",
@@ -1397,6 +1498,7 @@ UZ: Dict[str, str] = {
     "dlg.smoke.systype.compensation":      "Kompensatsiyalovchi havo",
     "dlg.smoke.purpose.parking":           "Avtoturargoh",
     "dlg.smoke.purpose.warehouse":         "Ombor",
+    "dlg.smoke.purpose.technical":         "Texnik xona (kabel, elektr shchit)",
     "dlg.smoke.purpose.corridor":          "Yo‘lak",
     "dlg.smoke.purpose.atrium":            "Atrium / odamlar to‘planish zali",
     "dlg.smoke.purpose.trading_hall":      "Savdo zali",
@@ -1404,6 +1506,22 @@ UZ: Dict[str, str] = {
     "dlg.smoke.purpose.elevator":          "Lift shaxtasi",
     "dlg.smoke.purpose.vestibule":         "Tambur-shlyuz",
     "dlg.smoke.purpose.refuge":            "Nogironlar uchun xavfsizlik zonasi",
+
+    # ========== Dialog: Smoke attach spaces ==========
+    "dlg.smoke_attach.title":            "Xonalarni bog‘lash: {name}",
+    "dlg.smoke_attach.search":           "Qidiruv: raqam, nom, tizim…",
+    "dlg.smoke_attach.col.number":       "Raqam",
+    "dlg.smoke_attach.col.name":         "Nomi",
+    "dlg.smoke_attach.col.level":        "Qavat",
+    "dlg.smoke_attach.col.type":         "Tur",
+    "dlg.smoke_attach.col.area":         "Yuza, m²",
+    "dlg.smoke_attach.col.current":      "Joriy tizim",
+    "dlg.smoke_attach.check_visible":    "Ko‘ringanlarni belgilash",
+    "dlg.smoke_attach.uncheck_visible":  "Belgini olib tashlash",
+    "dlg.smoke_attach.count":            "Belgilandi: {n}",
+    "dlg.smoke_attach.hint":             ("Belgilangan xonalar tizimga bog‘lanadi, belgisi "
+                                          "olinganlar — undan uziladi. Xuddi shu turdagi boshqa "
+                                          "tizimga bog‘langanlari qayta bog‘lanadi."),
 
     # ========== Panel: Smoke ==========
     "panel.smoke.title":              "Tutunni chiqarish va podpor",
@@ -1414,13 +1532,18 @@ UZ: Dict[str, str] = {
     "panel.smoke.scenario.single":    "Bitta yong‘in o‘chog‘i",
     "panel.smoke.scenario.multiple":  "Bir vaqtda bir nechta zona (zaxira)",
     "panel.smoke.btn_assign":         "Avto-belgilash",
-    "panel.smoke.btn_assign_tt":      ("Avtoturargoh, ombor, uzun yo‘lak, odamlar to‘planish zallari "
-                                        "uchun SDU va zinapoya/liftlar uchun SPV tizimlarini yaratish."),
+    "panel.smoke.btn_assign_tt":      ("Avtoturargoh, ombor, texnik xona, uzun yo‘lak, odamlar "
+                                        "to‘planish zallari uchun SDU va zinapoya/liftlar uchun "
+                                        "SPV tizimlarini yaratish."),
     "panel.smoke.btn_calc":           "▶  Hisoblash",
     "panel.smoke.card.systems.title": "Tizimlar",
     "panel.smoke.card.systems.sub":   "Qatorga ikki marta bosing — parametrlarni tahrirlash.",
     "panel.smoke.btn_add":            "➕  Qo‘shish",
     "panel.smoke.btn_edit":           "Tahrirlash",
+    "panel.smoke.btn_attach":         "Xonalarni bog‘lash",
+    "panel.smoke.btn_attach_tt":      ("Tanlangan SDU/SPV tizimi xizmat ko‘rsatadigan xonalarni "
+                                        "belgilash (masalan, avto-belgilash qamrab olmaydigan "
+                                        "texnik xonalar)."),
     "panel.smoke.btn_dup":            "Nusxalash",
     "panel.smoke.btn_delete":         "O‘chirish",
     "panel.smoke.col.name":           "Nomi",
@@ -1472,6 +1595,7 @@ UZ: Dict[str, str] = {
     "panel.smoke.title.del":          "Tizimni o‘chirish",
     "panel.smoke.msg.del":            "«{name}» tizimini o‘chirish va uni hamma xonalardan olib tashlash kerakmi?",
     "panel.smoke.status.deleted":     "{name} tizim o‘chirildi; bog‘lanmagan xonalar: {n}",
+    "panel.smoke.status.attached":    "{name} tizimi: bog‘landi {added}, uzildi {removed}",
     "panel.smoke.summary.total":      "Jami tizimlar: {n}",
     "panel.smoke.summary.flows":      ("Σ SDU {smoke:.1f} ming m³/soat  ·  "
                                         "Σ kompensatsiya {makeup:.1f} ming m³/soat"),

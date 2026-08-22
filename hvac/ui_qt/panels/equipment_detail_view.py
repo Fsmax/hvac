@@ -336,6 +336,7 @@ class EquipmentDetailView(QWidget):
                     else "panel.detail.src.picked_auto")
         rows.append(_t(pick_key).format(
             unit=f"{src.unit_kw:g}", n=src.units,
+            working=src.working_units, reserve=src.reserve_units,
             model=src.selected_model or "—"))
         if src.q_ahu_w > 0:
             rows.append(_t("panel.detail.src.ahu").format(
@@ -347,7 +348,7 @@ class EquipmentDetailView(QWidget):
             rows.append(_t("panel.detail.source_circ").format(
                 name=c.name, q=f"{c.q_total_w / 1000:.1f}", rooms=c.n_rooms,
                 dn=f"{c.dn_mm:.0f}" if c.dn_mm else "—",
-                pump=c.pump_model or "—"))
+                pump=c.pump_display))
         self.body.setHtml("<br>".join(rows))
 
     def _show_circuit(self, domain: str, name: str) -> None:
@@ -367,7 +368,7 @@ class EquipmentDetailView(QWidget):
             qa=f"{cs.q_ahu_w / 1000:.1f}",
             dn=f"{cs.dn_mm:.0f}" if cs.dn_mm else "—",
             dp=f"{cs.dp_pa / 1000:.1f}" if cs.dp_pa else "—",
-            pump=cs.pump_model or "—"))
+            pump=cs.pump_display))
 
     # ----------------------------------------------------------- i18n
     def retranslate_ui(self) -> None:

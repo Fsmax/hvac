@@ -22,6 +22,7 @@
 """
 from __future__ import annotations
 
+from copy import deepcopy
 import re
 from typing import Any, Optional
 
@@ -34,6 +35,10 @@ from PySide6.QtWidgets import (
 )
 
 from hvac.air_heating import apply_air_heating
+from hvac.circuit_assignment import (
+    apply_auto_circuit_assignment_plan,
+    build_auto_circuit_assignment_plan,
+)
 from hvac.equipment_sizing import (
     EquipmentSelection, SourceSelection, select_equipment,
 )
@@ -43,6 +48,16 @@ from hvac.room_equipment import (
     serialize_room_equipment, deserialize_room_equipment,
 )
 from hvac.sizing_helpers import suggest_ahu_size
+from hvac.system_assignment import (
+    apply_system_assignment_plan, build_missing_system_assignment_plan,
+)
+from hvac.system_finalization import (
+    apply_auto_merge_proposals, apply_geometry_repairs,
+    build_system_finalization_plan,
+)
+from hvac.source_catalog_assignment import (
+    apply_auto_source_catalog_plan, build_auto_source_catalog_plan,
+)
 from hvac.ui_qt.bridge import ProjectBridge
 from hvac.ui_qt.panels.equipment_panel import (
     _AHUDialog, _CircuitDialog as _EditCircuitDialog, _SourceDialog,
@@ -344,7 +359,7 @@ class SystemsWorkspacePanel(QWidget):
         return it.data(0, Qt.UserRole) or ("", "")
 
     # ---- undo (зонирование + приборы) ----
-    def _push_undo(self, ids: list[str]) -> None:
+    def _push_undo(self, ids: list[str]) -> dict:
         eq_snap = {}
         air_snap = {}
         for sid in ids:
@@ -354,9 +369,11 @@ class SystemsWorkspacePanel(QWidget):
             if sp is not None:
                 air_snap[sid] = (sp.air_heating, sp.air_cooling,
                                  sp.supply_m3h, sp.ach_calculated)
-        self._undo.append({"zoning": self.project.snapshot_zoning(ids),
-                           "eq": eq_snap, "air": air_snap})
+        entry = {"zoning": self.project.snapshot_zoning(ids),
+                 "eq": eq_snap, "air": air_snap}
+        self._undo.append(entry)
         del self._undo[:-50]
+        return entry
 
     def _apply_undo(self) -> None:
         if not self._undo:
@@ -371,7 +388,30 @@ class SystemsWorkspacePanel(QWidget):
             if sp is not None:
                 sp.air_heating, sp.air_cooling = ah, ac
                 sp.supply_m3h, sp.ach_calculated = sup, ach
-        self.project.restore_zoning(snap.get("zoning", {}))
+        registry_snapshot = snap.get("system_registries")
+        removed_systems = 0
+        if registry_snapshot is not None:
+            for attr, value in registry_snapshot.items():
+                setattr(self.project, attr, deepcopy(value))
+        else:
+            for domain, name in snap.get("created_systems", ()):
+                if self.project.systems_of(domain).pop(name, None) is not None:
+                    removed_systems += 1
+        for sid, values in snap.get("geometry", {}).items():
+            sp = self.project._space_by_id.get(sid)
+            if sp is not None:
+                sp.volume_m3, sp.ach_calculated = values
+        for sid, values in snap.get("calculation_spaces", {}).items():
+            sp = self.project._space_by_id.get(sid)
+            if sp is None:
+                continue
+            for field, value in values.items():
+                setattr(sp, field, deepcopy(value))
+        for attr, value in snap.get("calculation_artifacts", {}).items():
+            setattr(self.project, attr, deepcopy(value))
+        restored = self.project.restore_zoning(snap.get("zoning", {}))
+        if (removed_systems or registry_snapshot is not None) and not restored:
+            self.project.emit("zones_changed")
         self.project.emit("equipment_changed")
         self.bridge.dirtyChanged.emit(True)
         self._refresh()
@@ -664,6 +704,23 @@ class SystemsWorkspacePanel(QWidget):
     # ================= помощник + подбор =================
     def _show_assistant_menu(self) -> None:
         menu = QMenu(self)
+        menu.addAction(
+            _t("panel.sysworkspace.assistant.missing"),
+            self._run_missing_assignment_assistant,
+        )
+        menu.addAction(
+            _t("panel.sysworkspace.assistant.finalize"),
+            self._run_auto_finalization,
+        )
+        menu.addAction(
+            _t("panel.sysworkspace.assistant.circuits"),
+            self._run_auto_circuit_assistant,
+        )
+        menu.addAction(
+            _t("panel.sysworkspace.assistant.catalog"),
+            self._run_auto_source_catalog_assistant,
+        )
+        menu.addSeparator()
         for mode, key in (("by_prefix", "panel.zones.mode.by_prefix"),
                           ("by_level", "panel.zones.mode.by_level"),
                           ("by_type_family", "panel.zones.mode.by_type")):
@@ -676,12 +733,269 @@ class SystemsWorkspacePanel(QWidget):
         if not self.project.spaces:
             return
         self._push_undo([sp.space_id for sp in self.project.spaces])
-        n = self.project.auto_assign_zones(mode=mode, overwrite=True,
+        n = self.project.auto_assign_zones(mode=mode, overwrite=False,
                                            system=self._domain)
         self.bridge.dirtyChanged.emit(True)
         self._refresh()
         self.bridge.statusMessage.emit(
             _t("panel.zones.status.assigned_sys").format(n=n), 4000)
+
+    def _run_missing_assignment_assistant(self) -> None:
+        """Preview and safely fill only critical service-assignment gaps."""
+        if not self.project.spaces:
+            return
+        plan = build_missing_system_assignment_plan(self.project)
+        if not plan.assignments and not plan.systems:
+            QMessageBox.information(
+                self, _t("panel.sysworkspace.assistant.missing_title"),
+                _t("panel.sysworkspace.assistant.missing_none"))
+            return
+        rooms = plan.assignment_counts()
+        systems = plan.system_counts()
+        message = _t("panel.sysworkspace.assistant.missing_preview").format(
+            rooms=len(plan.affected_space_ids),
+            heat=rooms["heating"], cool=rooms["cooling"],
+            vent=rooms["ventilation"],
+            systems=len(plan.systems),
+            heat_sys=systems["heating"], cool_sys=systems["cooling"],
+            vent_sys=systems["ventilation"],
+        )
+        if QMessageBox.question(
+                self, _t("panel.sysworkspace.assistant.missing_title"),
+                message) != QMessageBox.Yes:
+            return
+        undo = self._push_undo(list(plan.affected_space_ids))
+        result = apply_system_assignment_plan(self.project, plan)
+        undo["created_systems"] = result.created_systems
+        if result.assignments_changed or result.created_systems:
+            self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+        self.bridge.statusMessage.emit(
+            _t("panel.sysworkspace.assistant.missing_status").format(
+                rooms=result.rooms_changed,
+                systems=len(result.created_systems)),
+            5000,
+        )
+
+    def _push_finalization_undo(self, geometry_ids: list[str]) -> dict:
+        """Full snapshot because finalization also recalculates the project."""
+        all_ids = [space.space_id for space in self.project.spaces]
+        entry = self._push_undo(all_ids)
+        entry["system_registries"] = {
+            attr: deepcopy(getattr(self.project, attr))
+            for attr in (
+                "heating_systems", "cooling_systems", "ventilation_systems",
+                "heating_circuits", "cooling_circuits", "duct_zones",
+            )
+        }
+        entry["geometry"] = {
+            sid: (self.project._space_by_id[sid].volume_m3,
+                  self.project._space_by_id[sid].ach_calculated)
+            for sid in geometry_ids if sid in self.project._space_by_id
+        }
+        calc_fields = (
+            "heat_loss_w", "heat_gain_w", "heat_gain_sensible_w",
+            "heat_gain_latent_w", "heat_loss_breakdown",
+            "heat_gain_breakdown", "supply_m3h", "exhaust_m3h", "hood_m3h",
+            "ach_calculated", "ventilation_breakdown",
+        )
+        entry["calculation_spaces"] = {
+            space.space_id: {
+                field: deepcopy(getattr(space, field, None))
+                for field in calc_fields
+            }
+            for space in self.project.spaces
+        }
+        entry["calculation_artifacts"] = {
+            attr: deepcopy(getattr(self.project, attr))
+            for attr in (
+                "ahu_loads", "pipe_networks", "cooling_pipe_networks",
+                "heating_hydraulics_results",
+            )
+        }
+        return entry
+
+    def _recalculate_after_finalization(self) -> None:
+        """Use the same load/vent/load/AHU order as the full calculation."""
+        steps = (
+            self.project.recalculate,
+            self.project.calculate_ventilation,
+            self.project.recalculate,
+            self.project.calculate_ahu_loads,
+            self.project.size_pipes,
+            self.project.design_heating_hydraulics,
+            self.project.size_cooling_pipes,
+        )
+        for step in steps:
+            try:
+                step()
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception(
+                    "systems finalization: step %s failed",
+                    getattr(step, "__name__", "?"),
+                )
+
+    def _run_auto_finalization(self) -> None:
+        plan = build_system_finalization_plan(self.project)
+        if not plan.merge_proposals and not plan.geometry_repairs:
+            QMessageBox.information(
+                self, _t("panel.sysworkspace.assistant.finalize_title"),
+                _t("panel.sysworkspace.assistant.finalize_none"))
+            return
+        detail_lines = []
+        for proposal in plan.merge_proposals[:8]:
+            flow = max(proposal.supply_m3h, proposal.exhaust_m3h)
+            detail_lines.append(
+                _t("panel.sysworkspace.assistant.finalize_merge_line").format(
+                    sources=len(proposal.source_names),
+                    target=proposal.target_name,
+                    rooms=proposal.rooms, flow=f"{flow:.0f}",
+                ))
+        for repair in plan.geometry_repairs[:4]:
+            detail_lines.append(
+                _t("panel.sysworkspace.assistant.finalize_geometry_line").format(
+                    number=repair.number, volume=f"{repair.new_volume_m3:.2f}",
+                ))
+        message = _t("panel.sysworkspace.assistant.finalize_preview").format(
+            auto=plan.auto_system_count,
+            groups=len(plan.merge_proposals),
+            removed=plan.systems_removed,
+            geometry=len(plan.geometry_repairs),
+            details="\n".join(detail_lines),
+        )
+        if QMessageBox.question(
+                self, _t("panel.sysworkspace.assistant.finalize_title"),
+                message) != QMessageBox.Yes:
+            return
+        self._push_finalization_undo(
+            [repair.space_id for repair in plan.geometry_repairs])
+        merged = apply_auto_merge_proposals(
+            self.project, plan.merge_proposals)
+        geometry = apply_geometry_repairs(
+            self.project, plan.geometry_repairs)
+        self._recalculate_after_finalization()
+        # Repaired geometry can turn a previously zero-flow room into a room
+        # that now requires supply/exhaust.  Fill only those newly exposed
+        # gaps, then consolidate any new regular Lxx AUTO riser and recalculate
+        # AHU/source capacities once more.
+        followup_plan = build_missing_system_assignment_plan(self.project)
+        followup = apply_system_assignment_plan(self.project, followup_plan)
+        extra_plan = build_system_finalization_plan(self.project)
+        extra_merged = apply_auto_merge_proposals(
+            self.project, extra_plan.merge_proposals)
+        if (followup.assignments_changed or followup.created_systems
+                or extra_merged.proposals_applied):
+            self._recalculate_after_finalization()
+        self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+        self.bridge.statusMessage.emit(
+            _t("panel.sysworkspace.assistant.finalize_status").format(
+                groups=(merged.proposals_applied
+                        + extra_merged.proposals_applied),
+                systems=(merged.systems_removed
+                         + extra_merged.systems_removed),
+                geometry=geometry.repaired,
+                rooms=followup.rooms_changed,
+                created=len(followup.created_systems),
+            ),
+            6000,
+        )
+
+    def _run_auto_circuit_assistant(self) -> None:
+        """Create separate room/AHU circuits without replacing manual links."""
+        plan = build_auto_circuit_assignment_plan(self.project)
+        actionable = bool(
+            plan.circuits or plan.room_assignments or plan.ahu_links)
+        if not actionable:
+            QMessageBox.information(
+                self, _t("panel.sysworkspace.assistant.circuits_title"),
+                _t("panel.sysworkspace.assistant.circuits_none").format(
+                    conflicts=len(plan.conflicts),
+                    skipped=len(plan.skipped_ahu_links),
+                ))
+            return
+        circuits = plan.circuit_counts()
+        rooms = plan.room_counts()
+        ahus = plan.ahu_counts()
+        message = _t(
+            "panel.sysworkspace.assistant.circuits_preview").format(
+                circuits=len(plan.circuits),
+                heat_circuits=circuits["heating"],
+                cool_circuits=circuits["cooling"],
+                rooms=len(plan.affected_space_ids),
+                heat_rooms=rooms["heating"],
+                cool_rooms=rooms["cooling"],
+                ahus=len(plan.ahu_links),
+                heat_ahus=ahus["heating"],
+                cool_ahus=ahus["cooling"],
+                conflicts=len(plan.conflicts),
+                skipped=len(plan.skipped_ahu_links),
+            )
+        if QMessageBox.question(
+                self, _t("panel.sysworkspace.assistant.circuits_title"),
+                message) != QMessageBox.Yes:
+            return
+        self._push_finalization_undo([])
+        result = apply_auto_circuit_assignment_plan(self.project, plan)
+        if (result.created_circuits or result.rooms_changed
+                or result.ahu_links_changed):
+            self._recalculate_after_finalization()
+            self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+        self.bridge.statusMessage.emit(
+            _t("panel.sysworkspace.assistant.circuits_status").format(
+                circuits=len(result.created_circuits),
+                rooms=result.rooms_changed,
+                ahus=result.ahu_links_changed,
+            ),
+            6000,
+        )
+
+    def _run_auto_source_catalog_assistant(self) -> None:
+        """Select compatible preliminary source models with N+1 reserve."""
+        plan = build_auto_source_catalog_plan(self.project, reserve_units=1)
+        if not plan.picks:
+            QMessageBox.information(
+                self, _t("panel.sysworkspace.assistant.catalog_title"),
+                _t("panel.sysworkspace.assistant.catalog_none").format(
+                    skipped=len(plan.skipped),
+                ))
+            return
+        counts = plan.counts()
+        detail_lines = [
+            _t("panel.sysworkspace.assistant.catalog_line").format(
+                system=item.system_name,
+                required=f"{item.required_kw:.1f}",
+                model=item.model_name,
+                unit=f"{item.unit_kw:.0f}",
+                working=item.working_units,
+                reserve=item.reserve_units,
+            )
+            for item in plan.picks[:12]
+        ]
+        message = _t("panel.sysworkspace.assistant.catalog_preview").format(
+            systems=len(plan.picks),
+            heat=counts["heating"],
+            cool=counts["cooling"],
+            skipped=len(plan.skipped),
+            details="\n".join(detail_lines),
+        )
+        if QMessageBox.question(
+                self, _t("panel.sysworkspace.assistant.catalog_title"),
+                message) != QMessageBox.Yes:
+            return
+        self._push_finalization_undo([])
+        result = apply_auto_source_catalog_plan(self.project, plan)
+        if result.systems_changed:
+            self.bridge.dirtyChanged.emit(True)
+        self._refresh()
+        self.bridge.statusMessage.emit(
+            _t("panel.sysworkspace.assistant.catalog_status").format(
+                systems=result.systems_changed,
+            ),
+            6000,
+        )
 
     def _compute(self) -> None:
         # Сначала поднимаем расход приточки по нагрузке (воздушное отопление/
@@ -987,7 +1301,7 @@ class SystemsWorkspacePanel(QWidget):
             if cs is None:
                 self.summary_lbl.setText(name)
                 return
-            pump = cs.pump_model or "—"
+            pump = cs.pump_display
             self.summary_lbl.setText(_t("panel.sysworkspace.sum.circuit").format(
                 name=name, load=f"{cs.q_total_w / 1000:.1f}",
                 dn=f"{cs.dn_mm:.0f}" if cs.dn_mm else "—",

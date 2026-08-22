@@ -113,10 +113,10 @@ class TestPumpHead:
 
 class TestPumpCatalog:
     def test_picks_first_fitting(self):
-        """Q=1.5 м³/ч, H=3 м → UPM3 25-40 (Q=2.5, H=4)."""
+        """Q=1.5 m³/h, H=3 m selects the first unified small pump."""
         p = pick_pump(1.5, 3.0)
         assert p is not None
-        assert "UPM3 25-40" in p[0]
+        assert "UPS 25-40" in p[0]
 
     def test_picks_larger_when_needed(self):
         """Q=10 м³/ч, H=10 м → Magna1 32-100 (8) недостаточен → Stratos 40/1."""
@@ -125,10 +125,11 @@ class TestPumpCatalog:
         q, h = p[1], p[2]
         assert q >= 10.0 and h >= 11.0
 
-    def test_none_when_too_big(self):
-        """Q=200, H=20 — каталог не покрывает."""
+    def test_large_tpe_point_is_covered(self):
+        """The unified catalog covers large plant-room duty points."""
         p = pick_pump(200.0, 20.0)
-        assert p is None
+        assert p is not None
+        assert p[1] >= 200.0 and p[2] >= 20.0
 
 
 class TestDesignPump:

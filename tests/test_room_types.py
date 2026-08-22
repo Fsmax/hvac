@@ -51,6 +51,14 @@ class TestAutoDetect:
         # длина "office" = 6, "data center" = 11 → серверная
         assert result == "Серверная"
 
+    def test_servery_is_kitchen_not_server_room(self):
+        """Food servery is a kitchen/service area, not an IT server room."""
+        assert auto_detect_room_type("SERVERY") == "Кухня"
+
+    def test_server_must_be_a_separate_word(self):
+        """The keyword 'server' must not match inside unrelated words."""
+        assert auto_detect_room_type("OBSERVER ROOM") == "Прочее"
+
 
 class TestApplyDefaults:
 

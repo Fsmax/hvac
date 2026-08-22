@@ -387,10 +387,17 @@ class CalculationPanel(QWidget):
 
     def _run_all(self) -> None:
         def chain(cb) -> bool:
-            # Прогресс (и отмена) — на самой тяжёлой фазе, нагрузках.
-            if not self.project.recalculate(progress=cb):
+            # Тепловые нагрузки зависят от рассчитанных расходов воздуха.
+            # Два прохода устраняют ситуацию, когда первый "Рассчитать всё"
+            # оставляет нагрузки от старых/нулевых расходов вентиляции.
+            def phase_progress(phase: int) -> Callable[[int, int], bool]:
+                return lambda i, n: cb(phase * n + i, 2 * n)
+
+            if not self.project.recalculate(progress=phase_progress(0)):
                 return False
             self.project.calculate_ventilation()
+            if not self.project.recalculate(progress=phase_progress(1)):
+                return False
             self.project.calculate_ahu_loads()
             return True
         self._start(_t("panel.calc.run.all"), chain, supports_progress=True)

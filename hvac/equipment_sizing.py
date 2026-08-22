@@ -47,6 +47,18 @@ class CircuitSelection:
     pump_model: str = ""
     pump_flow_m3_h: float = 0.0
     pump_head_m: float = 0.0
+    pump_working_units: int = 0
+    pump_reserve_units: int = 0
+    pump_catalog_covered: bool = True
+
+    @property
+    def pump_display(self) -> str:
+        if not self.pump_model:
+            return "—"
+        if self.pump_working_units or self.pump_reserve_units:
+            return (f"{self.pump_model} "
+                    f"({self.pump_working_units}+{self.pump_reserve_units})")
+        return self.pump_model
 
 
 @dataclass
@@ -70,6 +82,10 @@ class SourceSelection:
     required_kw: float = 0.0        # q_base × margin
     unit_kw: float = 0.0            # типоразмер единичного агрегата
     units: int = 0                  # количество агрегатов
+    working_units: int = 0          # рабочих агрегатов
+    reserve_units: int = 0          # резервных агрегатов
+    installed_kw: float = 0.0       # установленная мощность, включая резерв
+    n_plus_one_ok: bool = False      # рабочие агрегаты покрывают required
     manual: bool = False            # подбор задан вручную (override авто)
     selected_model: str = ""        # выбранная модель (ручной подбор)
 
@@ -146,6 +162,12 @@ def _select_domain(project, domain: str, margin: float) -> List[SourceSelection]
                 pump_model=getattr(cobj, "pump_model", "") if cobj else "",
                 pump_flow_m3_h=getattr(cobj, "pump_flow_m3_h", 0.0) if cobj else 0.0,
                 pump_head_m=getattr(cobj, "pump_head_m", 0.0) if cobj else 0.0,
+                pump_working_units=(getattr(cobj, "pump_working_units", 0)
+                                    if cobj else getattr(net, "pump_working_units", 0)),
+                pump_reserve_units=(getattr(cobj, "pump_reserve_units", 0)
+                                    if cobj else getattr(net, "pump_reserve_units", 0)),
+                pump_catalog_covered=(getattr(cobj, "pump_catalog_covered", True)
+                                      if cobj else getattr(net, "pump_catalog_covered", True)),
             ))
         direct = direct_by_system.get(sname, [])
         src.n_direct_rooms = len(direct)
@@ -167,7 +189,16 @@ def _select_domain(project, domain: str, margin: float) -> List[SourceSelection]
                 src.q_block_ahu_w = row.get("ahu_q_cooler_w", 0.0)
         q_block = (src.q_block_rooms_w + src.q_block_ahu_w
                    + src.q_block_dhw_w)
-        src.q_base_w = src.q_total_w if src.q_total_w > 0 else q_block
+        if src.circuits:
+            # Explicit circuits are authoritative; the block balance remains
+            # informational because it can include rooms owned by other sources.
+            src.q_base_w = src.q_total_w
+        elif q_block > 0:
+            # Direct AUTO assignments cover the block rooms, but the source must
+            # also carry block-level AHU and DHW loads that are not room fields.
+            src.q_base_w = max(src.q_total_w, q_block)
+        else:
+            src.q_base_w = src.q_total_w
         src.required_kw = src.q_base_w * margin / 1000.0
         # Ручной подбор (если задан) имеет приоритет над авто-расчётом.
         manual_kw = getattr(sysobj, "design_capacity_kw", 0.0) or 0.0
@@ -175,9 +206,20 @@ def _select_domain(project, domain: str, margin: float) -> List[SourceSelection]
             src.manual = True
             src.unit_kw = manual_kw
             src.units = getattr(sysobj, "unit_count", 0) or 1
+            src.reserve_units = min(
+                max(int(getattr(sysobj, "reserve_units", 0) or 0), 0),
+                src.units,
+            )
+            src.working_units = src.units - src.reserve_units
             src.selected_model = getattr(sysobj, "selected_model", "") or ""
         else:
             src.unit_kw, src.units = pick_units(src.required_kw, ladder)
+            src.working_units = src.units
+        src.installed_kw = src.unit_kw * src.units
+        src.n_plus_one_ok = bool(
+            src.reserve_units > 0
+            and src.working_units * src.unit_kw >= src.required_kw
+        )
         out.append(src)
     return out
 

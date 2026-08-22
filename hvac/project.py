@@ -132,6 +132,10 @@ class HVACProject(
         # с тем же element_id. Используется для теплопотерь через внутренние
         # перегородки (sp50.heat_loss). Тот же флаг dirty, что и у _elements.
         self._spaces_by_wall_eid: Dict[str, List[str]] = {}
+        # Есть ли хоть одна стена, общая для двух помещений. В ручных
+        # проектах у каждого помещения свои элементы (уникальные element_id),
+        # поэтому смежность по стенам недоступна в принципе.
+        self._has_shared_walls: bool = False
         self._elements_index_dirty: bool = True
 
         # Каталоги систем
@@ -225,6 +229,8 @@ class HVACProject(
                 wall_idx[eid].append(el.space_id)
         self._elements_by_space = dict(idx)
         self._spaces_by_wall_eid = dict(wall_idx)
+        self._has_shared_walls = any(
+            sid != sids[0] for sids in wall_idx.values() for sid in sids[1:])
         self._elements_index_dirty = False
 
     def wall_neighbor_space_ids(self, element_id: str,
@@ -242,6 +248,18 @@ class HVACProject(
             seen.add(sid)
             out.append(sid)
         return out
+
+    def has_wall_adjacency(self) -> bool:
+        """Есть ли в проекте хоть одна стена, общая для двух помещений.
+
+        True — геометрия из Revit: смежность помещений определяется по
+        общему element_id стены (wall_neighbor_space_ids). False — ручной
+        проект: каждый элемент принадлежит одному помещению, соседей по
+        стенам искать бессмысленно (расчёты используют балансовые
+        эвристики, см. sp50._has_supplied_neighbor)."""
+        if self._elements_index_dirty:
+            self._rebuild_elements_index()
+        return self._has_shared_walls
 
     def elements_for(self, space_id: str) -> List[BoundaryElement]:
         """Возвращает список ограждений помещения через ленивый индекс.

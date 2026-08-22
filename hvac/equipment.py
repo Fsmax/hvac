@@ -117,6 +117,9 @@ class HeatingCircuit:
     pump_model: str = ""
     pump_flow_m3_h: float = 0.0
     pump_head_m: float = 0.0
+    pump_working_units: int = 0
+    pump_reserve_units: int = 0
+    pump_catalog_covered: bool = True
     pump_head_reserve: float = 1.3         # запас на загрязнение/балансировку
 
     # Материал труб для этого контура (steel / pex / ppr)
@@ -140,6 +143,9 @@ class CoolingCircuit:
     pump_model: str = ""
     pump_flow_m3_h: float = 0.0
     pump_head_m: float = 0.0
+    pump_working_units: int = 0
+    pump_reserve_units: int = 0
+    pump_catalog_covered: bool = True
     pump_head_reserve: float = 1.3
 
     pipe_material: str = "steel"
@@ -248,6 +254,7 @@ class HeatingSystem:
     # авто-подбора по нагрузке. 0 / "" — авто.
     design_capacity_kw: float = 0.0        # единичная мощность агрегата, кВт
     unit_count: int = 0                    # количество агрегатов (каскад/резерв)
+    reserve_units: int = 0                 # из unit_count: резервные агрегаты N+1
     selected_model: str = ""               # выбранная модель
     note: str = ""
 
@@ -267,5 +274,6 @@ class CoolingSystem:
     # Ручной подбор (override авто-расчёта) — см. HeatingSystem.
     design_capacity_kw: float = 0.0
     unit_count: int = 0
+    reserve_units: int = 0
     selected_model: str = ""
     note: str = ""

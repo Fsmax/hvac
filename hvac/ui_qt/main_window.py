@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
-from typing import Dict
+from typing import Callable, Dict
 
 from PySide6.QtCore import QByteArray, Qt, QTimer
 from PySide6.QtGui import QAction, QKeySequence
@@ -620,12 +620,12 @@ class MainWindow(QMainWindow):
         """
         n = 0
         panel = self._panels.get("problems")
-        try:
-            if isinstance(panel, ProblemsPanel):
+        if panel is not None:
+            try:
                 c = panel.model.counts()
                 n = int(c.get("error", 0)) + int(c.get("warning", 0))
-        except Exception:
-            n = 0
+            except Exception:
+                n = 0
         self.sidebar.set_badge("problems", str(n) if n else "")
 
     def _navigate_to(self, key: str) -> None:

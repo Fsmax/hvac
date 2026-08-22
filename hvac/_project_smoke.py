@@ -47,6 +47,7 @@ class SmokeSystemsMixin:
         smoke_type_map = {
             "Гараж / автостоянка": ("parking_closed", "parking"),
             "Склад":                ("warehouse_low", "warehouse"),
+            "Технич. помещение":    ("technical",     "technical"),
             "Коридор":              ("corridor",      "corridor"),
             "Конференц-зал":        ("office_assembly", "atrium"),
             "Магазин / торговля":   ("trading_hall",  "trading_hall"),
@@ -73,12 +74,13 @@ class SmokeSystemsMixin:
 
             level_short = level[:3].replace(" ", "")
             type_short = {"parking": "PRK", "warehouse": "WHS",
-                          "corridor": "COR", "atrium": "ATR",
+                          "technical": "TEC", "corridor": "COR",
+                          "atrium": "ATR",
                           "trading_hall": "TRD"}.get(purpose, "GEN")
             sys_name = f"СДУ-{level_short}-{type_short}"
 
             if sys_name not in self.smoke_systems:
-                self.smoke_systems[sys_name] = SmokeSystem(
+                kwargs = dict(
                     name=sys_name,
                     system_type="smoke_removal",
                     purpose=purpose,
@@ -90,6 +92,24 @@ class SmokeSystemsMixin:
                     fire_rating=norm.default_fire_rating,
                     note=f"Авто: {norm.title}; уровень {level}, тип {room_type}",
                 )
+                # Технические помещения (кабельные, электрощитовые): расход
+                # определяет очаг, а не площадь — если норматив поддерживает
+                # ф.(3) Прил. 20 (G = 676.8·P·y^1.5·Ks), ставим её сразу.
+                # P — по ф.(4) от наибольшего помещения группы, y — минимум
+                # 2.5 м, t дыма 420 °C (γ = 5 Н/м³, горение твёрдых
+                # материалов; 300 °C — коридорное значение).
+                if purpose == "technical" and \
+                        "kmk_zone_perimeter" in norm.available_calc_methods:
+                    from hvac.smoke_formulas import fire_perimeter_from_area
+                    max_area = max(s.area_m2 for s in spaces_list)
+                    kwargs.update(
+                        calc_method="kmk_zone_perimeter",
+                        fire_perimeter_m=fire_perimeter_from_area(max_area),
+                        fire_perimeter_auto=True,
+                        layer_height_m=2.5,
+                        t_smoke_C=420.0,
+                    )
+                self.smoke_systems[sys_name] = SmokeSystem(**kwargs)
                 n_smoke += 1
 
             zone_area = 0
@@ -343,6 +363,15 @@ class SmokeSystemsMixin:
                 L_per_zone = sm.L_smoke_m3h
                 n_zones = max(sm.n_zones, 1)
             elif sm.calc_method in plume_methods:
+                # Авто-периметр очага: пока флаг включён, P актуализируется
+                # по ф.(4) от наибольшего из привязанных помещений — чтобы
+                # изменение привязок не оставляло устаревший P. Ручной P
+                # (флаг снят в диалоге) не трогаем.
+                if sm.calc_method == "kmk_zone_perimeter" and \
+                        getattr(sm, "fire_perimeter_auto", False) and spaces_list:
+                    from hvac.smoke_formulas import fire_perimeter_from_area
+                    sm.fire_perimeter_m = fire_perimeter_from_area(
+                        max(s.area_m2 for s in spaces_list))
                 # Формулы плюм-теории дают расход для ОДНОГО очага пожара
                 # (расчётный сценарий). Деление помещений на зоны учитывается
                 # только при компоновке СДУ (один клапан на зону), но не
@@ -432,6 +461,7 @@ class SmokeSystemsMixin:
         smoke_key_by_purpose = {
             "parking":      "parking_closed",
             "warehouse":    "warehouse_low",
+            "technical":    "technical",
             "corridor":     "corridor",
             "atrium":       "office_assembly",
             "trading_hall": "trading_hall",

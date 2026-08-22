@@ -46,6 +46,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
+from hvac.pump_catalog import select_pump_units
+
 if TYPE_CHECKING:
     from hvac.project import HVACProject
     from hvac.models import Space
@@ -175,6 +177,9 @@ class PipeNetwork:
     pump_head_m: float = 0.0             # требуемый напор насоса с запасом
     pump_flow_m3_h: float = 0.0          # требуемая подача
     pump_model: str = ""                 # подобранная модель из мини-каталога
+    pump_working_units: int = 0
+    pump_reserve_units: int = 0
+    pump_catalog_covered: bool = True
 
     pipe_material: str = "steel"
     insulated: bool = False              # для холода True (изоляция)
@@ -373,11 +378,13 @@ def select_pump(flow_m3_h: float, head_m: float,
     """
     if flow_m3_h <= 0 or head_m <= 0:
         return ("—", 0.0, 0.0)
-    q_req = flow_m3_h * flow_reserve
-    h_req = head_m * head_reserve
-    for model, q_max, h_max, _ in PUMP_CATALOG:
-        if q_max >= q_req and h_max >= h_req:
-            return (model, q_max, h_max)
+    pick = select_pump_units(
+        flow_m3_h, head_m,
+        flow_reserve=flow_reserve, head_reserve=head_reserve,
+        reserve_units=1,
+    )
+    if pick is not None:
+        return (pick.model.name, pick.model.q_max_m3_h, pick.model.h_max_m)
     # Слишком большой расход — берём самый крупный с пометкой
     model, q_max, h_max, _ = PUMP_CATALOG[-1]
     return (f"{model} (требует уточнения — превышен каталог)", q_max, h_max)
@@ -594,8 +601,19 @@ def build_circuit_network(
     pump_head = net.total_pressure_loss_pa / (density * 9.81) * 1.3
     net.pump_head_m = pump_head
     net.pump_flow_m3_h = g_total / density
-    model, _, _ = select_pump(net.pump_flow_m3_h, pump_head / 1.3)
-    net.pump_model = model
+    pump_pick = select_pump_units(
+        net.pump_flow_m3_h, pump_head / 1.3,
+        flow_reserve=1.1, head_reserve=1.3, reserve_units=1,
+    )
+    if pump_pick is None:
+        model, _, _ = select_pump(net.pump_flow_m3_h, pump_head / 1.3)
+        net.pump_model = model
+        net.pump_catalog_covered = False
+    else:
+        net.pump_model = pump_pick.model.name
+        net.pump_working_units = pump_pick.working_units
+        net.pump_reserve_units = pump_pick.reserve_units
+        net.pump_catalog_covered = True
 
     return net
 
@@ -824,8 +842,21 @@ def recompute_pipe_network(net: PipeNetwork) -> None:
     pump_head = (net.total_pressure_loss_pa + static_pa) / (density * 9.81) * 1.3
     net.pump_head_m = pump_head
     net.pump_flow_m3_h = net.total_flow_kg_h / density
-    model, _, _ = select_pump(net.pump_flow_m3_h, pump_head / 1.3)
-    net.pump_model = model
+    pump_pick = select_pump_units(
+        net.pump_flow_m3_h, pump_head / 1.3,
+        flow_reserve=1.1, head_reserve=1.3, reserve_units=1,
+    )
+    if pump_pick is None:
+        model, _, _ = select_pump(net.pump_flow_m3_h, pump_head / 1.3)
+        net.pump_model = model
+        net.pump_working_units = 0
+        net.pump_reserve_units = 0
+        net.pump_catalog_covered = False
+    else:
+        net.pump_model = pump_pick.model.name
+        net.pump_working_units = pump_pick.working_units
+        net.pump_reserve_units = pump_pick.reserve_units
+        net.pump_catalog_covered = True
 
 
 # ============================================================================
@@ -855,4 +886,7 @@ def network_summary(net: PipeNetwork) -> Dict:
         "pump_head_m": net.pump_head_m,
         "pump_flow_m3_h": net.pump_flow_m3_h,
         "pump_model": net.pump_model,
+        "pump_working_units": net.pump_working_units,
+        "pump_reserve_units": net.pump_reserve_units,
+        "pump_catalog_covered": net.pump_catalog_covered,
     }

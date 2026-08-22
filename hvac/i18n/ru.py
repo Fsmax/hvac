@@ -812,6 +812,29 @@ RU: Dict[str, str] = {
     "panel.problems.summary":        "Ошибок: {e} · Предупреждений: {w} · Инфо: {i}",
     "panel.problems.empty":          "Проблем не найдено — проект в порядке.",
     "panel.problems.not_calculated": "Загрузите данные и выполните расчёт, чтобы увидеть проверки.",
+    "panel.problems.tab.issues":     "Проверки",
+    "panel.problems.tab.coverage":   "Матрица обслуживания",
+    "panel.coverage.summary":        ("Всего: {total} · Требуют назначения: {missing} · "
+                                        "Готовы: {ready}"),
+    "panel.coverage.only_missing":   "Только не назначенные",
+    "panel.coverage.search":         "Поиск по помещению или системе…",
+    "panel.coverage.col.number":     "№",
+    "panel.coverage.col.name":       "Помещение",
+    "panel.coverage.col.level":      "Уровень",
+    "panel.coverage.col.heating":    "Отопление",
+    "panel.coverage.col.cooling":    "Охлаждение",
+    "panel.coverage.col.ventilation": "Вентиляция",
+    "panel.coverage.col.smoke":      "Дым/подпор",
+    "panel.coverage.col.status":     "Статус",
+    "panel.coverage.not_required":   "Не требуется",
+    "panel.coverage.not_assigned":   "НЕ НАЗНАЧЕНО",
+    "panel.coverage.unknown_system": "Нет в каталоге: {name}",
+    "panel.coverage.air_prefix":     "Воздух: {name}",
+    "panel.coverage.no_flow":        "Нет расхода",
+    "panel.coverage.supply":         "П: {value}",
+    "panel.coverage.exhaust":        "В: {value}",
+    "panel.coverage.ready":          "Готово",
+    "panel.coverage.problem":        "Требуется назначение",
 
     # ========== Panel: Properties (правая панель Spaces) ==========
     "panel.props.empty":      "—",
@@ -1009,6 +1032,79 @@ RU: Dict[str, str] = {
     "panel.sysworkspace.air.both_on":"Включить отопление и охлаждение",
     "panel.sysworkspace.air.off":    "Выключить воздушный режим",
     "panel.sysworkspace.air.status": "Воздушный режим: изменено {n} помещ.",
+    "panel.sysworkspace.assistant.missing": "Заполнить только пропуски…",
+    "panel.sysworkspace.assistant.missing_title": "Безопасное назначение систем",
+    "panel.sysworkspace.assistant.missing_preview": (
+        "Будут заполнены только пустые назначения; существующие ручные связи "
+        "останутся без изменений.\n\n"
+        "Помещения: {rooms}\n"
+        "• отопление: {heat}\n• охлаждение: {cool}\n• вентиляция: {vent}\n\n"
+        "Новые системы: {systems}\n"
+        "• отопление: {heat_sys}\n• охлаждение: {cool_sys}\n"
+        "• вентиляция: {vent_sys}\n\n"
+        "Имена AUTO — предварительные. После назначения проверьте и при "
+        "необходимости объедините системы. Продолжить?"),
+    "panel.sysworkspace.assistant.missing_none": (
+        "Пропусков назначения нет — все требуемые системы зарегистрированы."),
+    "panel.sysworkspace.assistant.missing_status": (
+        "Назначено помещений: {rooms} · создано систем: {systems}"),
+    "panel.sysworkspace.assistant.finalize": "Проверить и объединить AUTO…",
+    "panel.sysworkspace.assistant.finalize_title": "Финализация AUTO-систем",
+    "panel.sysworkspace.assistant.finalize_preview": (
+        "Предварительных систем AUTO: {auto}\n"
+        "Групп объединения: {groups} · будет удалено дублей: {removed}\n"
+        "Исправлений геометрии: {geometry}\n\n{details}\n\n"
+        "После применения программа повторит полный расчёт нагрузок, "
+        "вентиляции, AHU и подбора мощностей. Продолжить?"),
+    "panel.sysworkspace.assistant.finalize_merge_line": (
+        "• {sources} → {target}: {rooms} помещ., {flow} м³/ч"),
+    "panel.sysworkspace.assistant.finalize_geometry_line": (
+        "• объём {number} → {volume} м³"),
+    "panel.sysworkspace.assistant.finalize_none": (
+        "Нет безопасных групп для объединения и исправлений геометрии."),
+    "panel.sysworkspace.assistant.finalize_status": (
+        "Объединено групп: {groups} · удалено систем: {systems} · "
+        "исправлено объёмов: {geometry} · после пересчёта назначено помещений: "
+        "{rooms} · создано систем: {created}"),
+    "panel.sysworkspace.assistant.circuits": "Создать контуры и связать AHU…",
+    "panel.sysworkspace.assistant.circuits_title": (
+        "Контуры отопления и холодоснабжения"),
+    "panel.sysworkspace.assistant.circuits_preview": (
+        "Будет создано контуров: {circuits} "
+        "(отопление {heat_circuits}, холод {cool_circuits})\n"
+        "Назначений помещений: {rooms} "
+        "(отопление {heat_rooms}, холод {cool_rooms})\n"
+        "Связей теплообменников AHU: {ahus} "
+        "(калориферы {heat_ahus}, охладители {cool_ahus})\n"
+        "Типы: радиаторы / фанкойлы / калориферы и охладители AHU\n"
+        "Конфликтов имён: {conflicts} · неоднозначных связей пропущено: {skipped}\n\n"
+        "Ручные контуры и существующие связи не изменяются. После применения "
+        "программа пересчитает AHU, трубопроводы, насосы и мощности. Продолжить?"),
+    "panel.sysworkspace.assistant.circuits_none": (
+        "Нет безопасных назначений контуров. Конфликтов имён: {conflicts}; "
+        "неоднозначных связей AHU: {skipped}."),
+    "panel.sysworkspace.assistant.circuits_status": (
+        "Создано контуров: {circuits} · назначено помещений: {rooms} · "
+        "связано теплообменников AHU: {ahus}"),
+    "panel.sysworkspace.assistant.catalog": "Подобрать котлы и чиллеры N+1…",
+    "panel.sysworkspace.assistant.catalog_title": (
+        "Каталоговый подбор источников N+1"),
+    "panel.sysworkspace.assistant.catalog_preview": (
+        "Будет подобрано источников: {systems} "
+        "(отопление {heat}, холод {cool})\n"
+        "Пропущено ручных или несовместимых систем: {skipped}\n\n"
+        "{details}\n\n"
+        "Подбор выполняется только для AUTO-систем без ручной модели. "
+        "Мощность указана на один агрегат; схема — рабочие + резервные. "
+        "Каталог предварительный. Продолжить?"),
+    "panel.sysworkspace.assistant.catalog_line": (
+        "• {system}: требуется {required} кВт → {model}, {unit} кВт "
+        "({working}+{reserve})"),
+    "panel.sysworkspace.assistant.catalog_none": (
+        "Нет AUTO-источников для безопасного каталогового подбора. "
+        "Пропущено ручных или несовместимых систем: {skipped}."),
+    "panel.sysworkspace.assistant.catalog_status": (
+        "Подобраны котлы и чиллеры с резервом N+1: {systems}"),
     # Вкладки правой панели + выбор вида оборудования
     "panel.sysworkspace.tab.rooms":  "Помещения",
     "panel.sysworkspace.tab.calc":   "Расчёт",
@@ -1059,7 +1155,9 @@ RU: Dict[str, str] = {
                                     "помещения {rooms} + приточные {ahu} "
                                     "= <b>{q} кВт</b>"),
     "panel.detail.src.picked_auto":   "Подбор (авто): {unit} кВт × {n}",
-    "panel.detail.src.picked_manual": "Подбор (ручной): {unit} кВт × {n} · {model}",
+    "panel.detail.src.picked_manual": (
+        "Подбор (каталог): {unit} кВт × {n} "
+        "(раб. {working} + резерв {reserve}) · {model}"),
     "panel.detail.src.ahu":      "в т.ч. калориферы/охладители AHU: {q} кВт",
     "panel.detail.src.direct":   "Помещений напрямую: {n} ({q} кВт)",
     # ===== Panel: Equipment (раздел «Оборудование») =====
@@ -1344,6 +1442,8 @@ RU: Dict[str, str] = {
     "dlg.smoke.norm.norm":       "Норма расхода:",
     "dlg.smoke.norm.max_zone":   "Макс. площадь зоны:",
     "dlg.smoke.kmk_zone.perim":  "P — периметр очага (макс 12):",
+    "dlg.smoke.kmk_zone.perim_auto": ("P автоматически по ф.(4) от наибольшего "
+                                      "привязанного помещения"),
     "dlg.smoke.kmk_zone.layer":  "y — высота свободной зоны:",
     "dlg.smoke.kmk_zone.ks":     "Ks (1.0 без АУПТ, 1.2 со спринклерами):",
     "dlg.smoke.kmk_zone.formula":"Формула: G = 676.8 · P · y^1.5 · Ks   [кг/ч]",
@@ -1387,6 +1487,7 @@ RU: Dict[str, str] = {
     "dlg.smoke.systype.compensation":      "Компенсирующая подача",
     "dlg.smoke.purpose.parking":           "Парковка",
     "dlg.smoke.purpose.warehouse":         "Склад",
+    "dlg.smoke.purpose.technical":         "Техническое (кабельное, электрощитовая)",
     "dlg.smoke.purpose.corridor":          "Коридор",
     "dlg.smoke.purpose.atrium":            "Атриум / зал сборки людей",
     "dlg.smoke.purpose.trading_hall":      "Торговый зал",
@@ -1394,6 +1495,22 @@ RU: Dict[str, str] = {
     "dlg.smoke.purpose.elevator":          "Шахта лифта",
     "dlg.smoke.purpose.vestibule":         "Тамбур-шлюз",
     "dlg.smoke.purpose.refuge":            "Зона безопасности МГН",
+
+    # ========== Dialog: Smoke attach spaces ==========
+    "dlg.smoke_attach.title":            "Привязка помещений: {name}",
+    "dlg.smoke_attach.search":           "Поиск: номер, название, система…",
+    "dlg.smoke_attach.col.number":       "Номер",
+    "dlg.smoke_attach.col.name":         "Название",
+    "dlg.smoke_attach.col.level":        "Этаж",
+    "dlg.smoke_attach.col.type":         "Тип",
+    "dlg.smoke_attach.col.area":         "Площадь, м²",
+    "dlg.smoke_attach.col.current":      "Текущая система",
+    "dlg.smoke_attach.check_visible":    "Отметить видимые",
+    "dlg.smoke_attach.uncheck_visible":  "Снять видимые",
+    "dlg.smoke_attach.count":            "Отмечено: {n}",
+    "dlg.smoke_attach.hint":             ("Отмеченные помещения будут привязаны к системе, снятые — "
+                                          "отвязаны от неё. Привязка к другой системе того же типа "
+                                          "будет переназначена."),
 
     # ========== Panel: Smoke ==========
     "panel.smoke.title":              "Дымоудаление и подпор",
@@ -1404,13 +1521,18 @@ RU: Dict[str, str] = {
     "panel.smoke.scenario.single":    "Один очаг пожара",
     "panel.smoke.scenario.multiple":  "Несколько зон одновременно (запас)",
     "panel.smoke.btn_assign":         "Авто-присвоить",
-    "panel.smoke.btn_assign_tt":      ("Создать системы СДУ для парковок, складов, длинных коридоров, "
-                                        "залов сборки людей и СПВ для лестниц/лифтов."),
+    "panel.smoke.btn_assign_tt":      ("Создать системы СДУ для парковок, складов, технических "
+                                        "помещений, длинных коридоров, залов сборки людей и СПВ "
+                                        "для лестниц/лифтов."),
     "panel.smoke.btn_calc":           "▶  Рассчитать",
     "panel.smoke.card.systems.title": "Системы",
     "panel.smoke.card.systems.sub":   "Двойной клик по строке — редактировать параметры.",
     "panel.smoke.btn_add":            "➕  Добавить",
     "panel.smoke.btn_edit":           "Редактировать",
+    "panel.smoke.btn_attach":         "Привязать помещения",
+    "panel.smoke.btn_attach_tt":      ("Отметить помещения, обслуживаемые выбранной системой "
+                                        "СДУ/СПВ (например, техпомещения, которые авто-присвоение "
+                                        "не охватывает)."),
     "panel.smoke.btn_dup":            "Копировать",
     "panel.smoke.btn_delete":         "Удалить",
     "panel.smoke.col.name":           "Имя",
@@ -1462,6 +1584,7 @@ RU: Dict[str, str] = {
     "panel.smoke.title.del":          "Удалить систему",
     "panel.smoke.msg.del":            "Удалить систему «{name}» и снять её со всех помещений?",
     "panel.smoke.status.deleted":     "Удалена система {name}; отвязано помещений: {n}",
+    "panel.smoke.status.attached":    "Система {name}: привязано {added}, отвязано {removed}",
     "panel.smoke.summary.total":      "Всего систем: {n}",
     "panel.smoke.summary.flows":      ("Σ СДУ {smoke:.1f} тыс. м³/ч  ·  "
                                         "Σ компенсация {makeup:.1f} тыс. м³/ч"),

@@ -199,19 +199,40 @@ def _has_supplied_neighbor(space, project) -> bool:
     Такой сосед — донор перетока: его приток восполняет вытяжку данного
     помещения (типично санузел ← номер). Сосед берётся по общему Revit-id
     стены (element_id), как в _internal_partition_flux; перегородки тоже.
+
+    В РУЧНОМ проекте общих стен нет в принципе (у каждого помещения свои
+    элементы), и точная смежность недоступна. Тогда донор определяется по
+    балансу уровня: суммарный профицит притока остальных помещений этажа
+    (Σ max(0, приток − вытяжка − зонт)) должен покрывать вытяжку данного
+    помещения. Без этого фолбэка санузлам ручных проектов всегда вешался
+    полный расход вытяжки при наружной t (раздутые Вт/м²).
     """
-    seen: set = set()
-    for el in project.elements_for(space.space_id):
-        if el.row_type != "external_wall":
-            continue
-        for nid in project.wall_neighbor_space_ids(el.element_id, space.space_id):
-            if nid in seen:
+    if project.has_wall_adjacency():
+        seen: set = set()
+        for el in project.elements_for(space.space_id):
+            if el.row_type != "external_wall":
                 continue
-            seen.add(nid)
-            nb = project._space_by_id.get(nid)
-            if nb is not None and (getattr(nb, "supply_m3h", 0.0) or 0.0) > 0.0:
-                return True
-    return False
+            for nid in project.wall_neighbor_space_ids(el.element_id,
+                                                       space.space_id):
+                if nid in seen:
+                    continue
+                seen.add(nid)
+                nb = project._space_by_id.get(nid)
+                if nb is not None and (getattr(nb, "supply_m3h", 0.0) or 0.0) > 0.0:
+                    return True
+        return False
+    own_exh = getattr(space, "exhaust_m3h", 0.0) or 0.0
+    if own_exh <= 0.0:
+        return False
+    surplus = 0.0
+    for nb in project.spaces:
+        if nb is space or (nb.level or "") != (space.level or ""):
+            continue
+        sup = getattr(nb, "supply_m3h", 0.0) or 0.0
+        exh = ((getattr(nb, "exhaust_m3h", 0.0) or 0.0)
+               + (getattr(nb, "hood_m3h", 0.0) or 0.0))
+        surplus += max(0.0, sup - exh)
+    return surplus >= own_exh
 
 
 def _internal_partition_flux(space, project, params, cooling: bool) -> float:
@@ -327,6 +348,12 @@ class SP50Engine(CalculationEngine):
         for el in elems:
             if el.u_value <= 0 or el.net_area_m2 <= 0:
                 continue
+            # Пол по грунту считается 4-зонным методом ниже (СП 50 прил. Е):
+            # элемент «Пол» с Δt на наружный воздух дублировал бы ту же
+            # поверхность второй статьёй (и с β-надбавкой за ориентацию,
+            # которой у пола не бывает).
+            if space.has_floor_to_ground and el.category == "Пол":
+                continue
             # Эффективная ориентация с учётом поворота True North
             eff_orient = effective_orientation(el.orientation,
                                                 el.orientation_deg,
@@ -362,10 +389,14 @@ class SP50Engine(CalculationEngine):
 
         # Пол по грунту (4-зонный расчёт по СП 50.13330 прил. Е)
         if space.has_floor_to_ground:
-            # Периметр наружных стен помещения
+            # Периметр наружных СТЕН помещения. Плиты пола/покрытия тоже
+            # хранятся с row_type="external_wall" (ручной ввод) — их
+            # boundary_length исключаем, иначе периметр 4-зонного расчёта
+            # раздувается в разы.
             perimeter = sum(
                 e.boundary_length_m for e in project.elements_for(space.space_id)
                 if e.row_type == "external_wall" and e.is_exterior
+                and e.category != "Пол" and e.category != "Покрытие"
             )
             # Если периметр = 0 (внутреннее помещение подвала), используем
             # упрощённую оценку периметра по площади: P ≈ 4·√A
@@ -378,14 +409,16 @@ class SP50Engine(CalculationEngine):
             # Подземные стены (для подвальных помещений с контактом с грунтом).
             # Площадь подземной стены: периметр × высота, U_eff ≈ 0.45 / 1.5
             # (грунт даёт доп. R ≈ 1.5 м²К/Вт).
-            # Применяется только если у помещения нет учтённых наружных стен,
-            # или если их площадь меньше периметра × высоты.
+            # Только для помещений БЕЗ наружных стен (подвал в грунте): у
+            # наземного помещения разница периметр×h − площадь стен — это
+            # проёмы и погрешность геометрии, а не контакт с грунтом.
             ext_wall_area = sum(
                 e.net_area_m2 for e in project.elements_for(space.space_id)
                 if e.row_type == "external_wall" and e.is_exterior
+                and e.category != "Пол" and e.category != "Покрытие"
             )
-            potential_underground = perimeter * space.height_m
-            underground_area = max(potential_underground - ext_wall_area, 0)
+            underground_area = (perimeter * space.height_m
+                                if ext_wall_area <= 0 else 0.0)
             if underground_area > 0 and space.height_m > 0:
                 # U подземной стены = 1 / (1/U_wall + R_ground)
                 u_wall = DEFAULT_U_BY_CATEGORY["Стены"]

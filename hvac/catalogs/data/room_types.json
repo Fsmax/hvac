@@ -247,6 +247,7 @@
       "kitchenette",
       "kitchen",
       "pantry",
+      "servery",
       "кухня",
       "кухонн",
       "мини-кухня",
@@ -296,6 +297,9 @@
       "server",
       "data center",
       "серверн"
+    ],
+    "whole_word_keywords": [
+      "server"
     ],
     "t_in_heat": 18,
     "t_in_cool": 22,

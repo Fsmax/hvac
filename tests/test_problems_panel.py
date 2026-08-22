@@ -120,3 +120,49 @@ def test_foreground_role_for_all_severities(qapp, monkeypatch):
         brush = m.data(m.index(r, 0), Qt.ForegroundRole)
         assert isinstance(brush, QBrush)
         assert brush.color().isValid()
+
+
+def test_coverage_model_surfaces_unassigned_services(qapp):
+    from hvac.ui_qt.panels.problems_panel import CoverageModel
+
+    p = _project_with_problem()
+    model = CoverageModel(p)
+    model.refresh()
+
+    assert model.rowCount() == len(p.spaces)
+    assert any(model.has_blockers_at(row)
+               for row in range(model.rowCount()))
+
+
+def test_coverage_double_click_navigates_to_space(qapp):
+    from hvac.ui_qt.bridge import ProjectBridge
+    from hvac.ui_qt.panels.problems_panel import ProblemsPanel
+
+    p = _project_with_problem()
+    captured = []
+    panel = ProblemsPanel(p, ProjectBridge(p),
+                          navigate=lambda sid: captured.append(sid))
+
+    panel._on_coverage_double_click(panel.coverage_proxy.index(0, 0))
+
+    assert captured
+
+
+def test_final_export_not_blocked_by_problems(qapp, monkeypatch):
+    """Гейт экспорта снят: проблемы модели не мешают выпуску записки."""
+    from PySide6.QtWidgets import QMessageBox
+    from hvac.ui_qt.export_center import ExportCenter
+
+    dialog = ExportCenter(_project_with_problem())
+    dialog.path_edit.setText("")   # пустой путь: до воркера не доходим
+    critical, warned = [], []
+    monkeypatch.setattr(
+        QMessageBox, "critical", lambda *args: critical.append(args))
+    monkeypatch.setattr(
+        QMessageBox, "warning", lambda *args: warned.append(args))
+
+    dialog._do_export()
+
+    assert not critical            # блокирующего диалога больше нет
+    assert warned                  # дошли до проверки пути сохранения
+    assert dialog._thread is None

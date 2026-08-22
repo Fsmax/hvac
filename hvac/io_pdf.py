@@ -149,8 +149,20 @@ def export_to_pdf(project: "HVACProject", path: str,
     # doc.build(), потому что reportlab читает их именно на этом этапе.
     _temp_image_paths: List[str] = []
 
+    from hvac import __version__
+    from hvac import report_sections as rs
+    from hvac.catalogs.norm_profiles import get_norm_profile
+
     elements = []
     p = project.params
+    prof = get_norm_profile(p)
+    num = rs.SectionNumberer()
+
+    # Актуализация энергопаспорта: суммы на титуле и раздел
+    # энергоэффективности должны сходиться с текущими помещениями.
+    if "energy" in include_sections and project.energy_passport is not None:
+        from hvac.energy import refresh_passport
+        refresh_passport(project)
 
     def add_table(data, col_widths=None, header_row=True):
         """Утилита: добавить таблицу с единым стилем."""
@@ -209,24 +221,33 @@ def export_to_pdf(project: "HVACProject", path: str,
         elements.append(Paragraph(
             f"Σ Q охлаждения: {total_qg:.1f} кВт", style_body))
 
+        sum_supply = sum(s.supply_m3h for s in project.spaces)
+        sum_exhaust = sum(s.exhaust_m3h + s.hood_m3h for s in project.spaces)
+        if sum_supply > 0 or sum_exhaust > 0:
+            elements.append(Paragraph(
+                f"Σ приток: {rs.fmt(sum_supply)} м³/ч, "
+                f"Σ вытяжка: {rs.fmt(sum_exhaust)} м³/ч", style_body))
+
         elements.append(Spacer(1, 4 * cm))
         elements.append(Paragraph(
             f"Расчёт выполнен: {datetime.now().strftime('%d.%m.%Y')}",
             style_body))
         elements.append(Paragraph(
-            "ПО: HVAC Calculator v3.7", style_body))
+            f"ПО: HVAC Calculator v{__version__}", style_body))
         elements.append(Paragraph(
-            "Методики: СП 50.13330, СП 60.13330, СП 7.13130, СП 30.13330, "
-            "СП 131.13330, КМК Узбекистана", style_body))
+            f"{prof['title']}: {prof['methods_line']}", style_body))
+        elements.append(Paragraph(
+            f"Методика расчёта нагрузок: {p.methodology}", style_body))
         elements.append(PageBreak())
 
     # =================== 1. ИСХОДНЫЕ ДАННЫЕ ===================
     if "inputs" in include_sections:
-        elements.append(Paragraph("1. Исходные данные", style_h1))
+        elements.append(Paragraph(num.title("Исходные данные"), style_h1))
         elements.append(Paragraph(
-            "Климатические параметры приняты по СП 131.13330.2018 для города "
-            f"<b>{p.city}</b>. Внутренние параметры — по СП 60.13330.2020 "
-            "для соответствующих типов помещений.", style_body))
+            f"Климатические параметры приняты по {prof['climate']} для города "
+            f"<b>{p.city}</b>. Внутренние параметры микроклимата — по "
+            f"{prof['indoor']} для соответствующих типов помещений.",
+            style_body))
         elements.append(Spacer(1, 4))
 
         add_kv([
@@ -253,11 +274,12 @@ def export_to_pdf(project: "HVACProject", path: str,
 
     # =================== 2. КОНСТРУКЦИИ ===================
     if "constructions" in include_sections and project.constructions:
-        elements.append(Paragraph("2. Каталог конструкций", style_h1))
+        elements.append(Paragraph(num.title("Каталог конструкций"), style_h1))
         elements.append(Paragraph(
             "Каталог U-значений и SHGC ограждающих конструкций. Сформирован "
             "автоматически по типам элементов из Revit, значения U "
-            "назначены пользователем.", style_body))
+            "назначены пользователем. Требуемые сопротивления R₀ — по "
+            f"{prof['heat_loss_short']}.", style_body))
         elements.append(Spacer(1, 4))
 
         rows = [["Категория", "Семейство", "Тип", "Δ, мм", "U", "SHGC"]]
@@ -272,70 +294,83 @@ def export_to_pdf(project: "HVACProject", path: str,
         add_table(rows, col_widths=[2.5 * cm, 3 * cm, 5.5 * cm,
                                      1.3 * cm, 1.3 * cm, 1.4 * cm])
 
-    # =================== 3. ТЕПЛОПОТЕРИ ===================
+    # =================== ТЕПЛОПОТЕРИ ===================
     if "heat_loss" in include_sections and project.spaces:
-        elements.append(Paragraph("3. Теплопотери (СП 50.13330)", style_h1))
+        elements.append(Paragraph(
+            num.title(f"Теплопотери ({prof['heat_loss_short']})"), style_h1))
         loaded = [s for s in project.spaces if s.heat_loss_w > 0]
         total = sum(s.heat_loss_w for s in loaded)
         total_area = sum(s.area_m2 for s in loaded)
         elements.append(Paragraph(
-            f"Расчёт теплопотерь выполнен по СП 50.13330.2012 с разбивкой "
-            f"по статьям. Σ = <b>{total/1000:.1f} кВт</b> "
+            f"Расчёт теплопотерь выполнен в соответствии с "
+            f"{prof['heat_loss']} с разбивкой по статьям (ограждения, "
+            f"инфильтрация, внутренние перегородки). "
+            f"Σ = <b>{total/1000:.1f} кВт</b> "
             f"({total / max(total_area, 1):.1f} Вт/м² удельно).", style_body))
 
-        # Свод по этажам
-        from collections import defaultdict
-        by_level: dict = defaultdict(lambda: {"n": 0, "area": 0.0, "q": 0.0})
-        for s in loaded:
-            by_level[s.level]["n"] += 1
-            by_level[s.level]["area"] += s.area_m2
-            by_level[s.level]["q"] += s.heat_loss_w
+        add_table(rs.heat_loss_level_rows(project),
+                  col_widths=[3 * cm, 2 * cm, 3 * cm, 3 * cm, 3 * cm])
+        room_rows = rs.heat_loss_room_rows(project)
+        if room_rows:
+            elements.append(Paragraph("Теплопотери по помещениям:", style_h2))
+            add_table(room_rows)
+        elif loaded:
+            elements.append(Paragraph(
+                f"По-помещенная таблица опущена ({len(loaded)} помещений > "
+                f"{rs.ROOM_TABLE_LIMIT}); полные данные — в Excel-экспорте.",
+                style_body))
 
-        rows = [["Уровень", "Кол-во", "Площадь, м²", "Q, кВт",
-                 "Уд., Вт/м²"]]
-        for lvl in sorted(by_level.keys()):
-            d = by_level[lvl]
-            ud = d["q"] / max(d["area"], 1)
-            rows.append([lvl, d["n"], f"{d['area']:.0f}",
-                         f"{d['q']/1000:.1f}", f"{ud:.1f}"])
-        rows.append(["ИТОГО", str(len(loaded)), f"{total_area:.0f}",
-                     f"{total/1000:.1f}", f"{total/max(total_area,1):.1f}"])
-        add_table(rows, col_widths=[3 * cm, 2 * cm, 3 * cm, 3 * cm, 3 * cm])
-
-    # =================== 4. ТЕПЛОПОСТУПЛЕНИЯ ===================
+    # =================== ТЕПЛОПОСТУПЛЕНИЯ ===================
     if "heat_gain" in include_sections and project.spaces:
         elements.append(Paragraph(
-            "4. Теплопоступления (СП 60.13330)", style_h1))
+            num.title(f"Теплопоступления ({prof['heat_gain']})"), style_h1))
         loaded = [s for s in project.spaces if s.heat_gain_w > 0]
         total = sum(s.heat_gain_w for s in loaded)
         total_sens = sum(s.heat_gain_sensible_w for s in loaded)
         total_lat = sum(s.heat_gain_latent_w for s in loaded)
         elements.append(Paragraph(
-            f"Расчёт по СП 60.13330.2020 с разделением на явную (sensible) "
-            f"и скрытую (latent) теплоту. Σ = <b>{total/1000:.1f} кВт</b>, "
-            f"из них sensible {total_sens/1000:.1f}, "
-            f"latent {total_lat/1000:.1f}.", style_body))
+            f"Расчёт по {prof['heat_gain']} с разделением на явную (sensible) "
+            f"и скрытую (latent) теплоту: солнечная радиация, люди, "
+            f"освещение, оборудование, инфильтрация. "
+            f"Σ = <b>{total/1000:.1f} кВт</b>, "
+            f"из них явная {total_sens/1000:.1f}, "
+            f"скрытая {total_lat/1000:.1f}.", style_body))
+        add_table(rs.heat_gain_level_rows(project))
+        room_rows = rs.heat_gain_room_rows(project)
+        if room_rows:
+            elements.append(Paragraph(
+                "Теплопоступления по помещениям:", style_h2))
+            add_table(room_rows)
 
-    # =================== 5. ВЕНТИЛЯЦИЯ ===================
+    # =================== ВЕНТИЛЯЦИЯ ===================
     if "ventilation" in include_sections and project.spaces:
-        elements.append(Paragraph("5. Вентиляция (СП 60.13330)", style_h1))
-        sum_supply = sum(s.supply_m3h for s in project.spaces)
-        sum_exhaust = sum(s.exhaust_m3h for s in project.spaces)
-        sum_hood = sum(s.hood_m3h for s in project.spaces)
         elements.append(Paragraph(
-            f"Расходы по СП 60.13330.2020. Σ Supply = "
-            f"<b>{sum_supply:,.0f} м³/ч</b>, "
-            f"Σ Exhaust = <b>{sum_exhaust:,.0f} м³/ч</b>, "
-            f"Зонты кухонь = {sum_hood:,.0f} м³/ч.".replace(",", " "),
-            style_body))
+            num.title(f"Вентиляция ({prof['ventilation']})"), style_h1))
+        elements.append(Paragraph(
+            f"Воздухообмены приняты по {prof['ventilation']} и "
+            "технологическим требованиям: по расчётному числу людей, "
+            "кратностям и нормативам на санитарные приборы.", style_body))
+        elements.append(Paragraph(rs.air_balance_note(project), style_body))
+        air_rows = rs.air_exchange_room_rows(project)
+        if air_rows:
+            elements.append(Paragraph(
+                "Таблица воздухообменов по помещениям:", style_h2))
+            add_table(air_rows)
+        sys_rows = rs.vent_system_summary_rows(project)
+        if sys_rows:
+            elements.append(Paragraph(
+                "Сводка по вентиляционным системам:", style_h2))
+            add_table(sys_rows)
 
-    # =================== 6. ГВС ===================
+    # =================== ГВС ===================
     if "dhw" in include_sections and project.dhw_systems:
         elements.append(Paragraph(
-            "6. Горячее водоснабжение (СП 30.13330)", style_h1))
+            num.title(f"Горячее водоснабжение ({prof['dhw_short']})"),
+            style_h1))
         elements.append(Paragraph(
-            "Расчёт по СП 30.13330.2020 Приложение А (Табл. А.2) — норма "
-            "расхода 60°C-воды на потребителя в сутки. Учтены потери на "
+            f"Нормативный документ: {prof['dhw']}. Удельные нормы расхода "
+            "горячей воды на потребителя — по Прил. А СП 30.13330 "
+            "(гармонизированы со СНиП 2.04.01-85*). Учтены потери на "
             "циркуляцию и КПД нагревателей.", style_body))
 
         rows = [["Система", "N", "V сут, м³", "V час, м³/ч",
@@ -357,10 +392,13 @@ def export_to_pdf(project: "HVACProject", path: str,
         add_table(rows, col_widths=[3.5 * cm, 1.5 * cm, 2.3 * cm,
                                      2.3 * cm, 2.3 * cm, 2.3 * cm, 2 * cm])
 
-    # =================== 7. СИСТЕМЫ ОБОРУДОВАНИЯ ===================
-    if "equipment" in include_sections:
+    # =================== СИСТЕМЫ ОБОРУДОВАНИЯ ===================
+    has_equipment = bool(project.ventilation_systems
+                         or project.heating_systems
+                         or project.cooling_systems or project.ahu_loads)
+    if "equipment" in include_sections and has_equipment:
         elements.append(Paragraph(
-            "7. Системы оборудования", style_h1))
+            num.title("Системы оборудования"), style_h1))
         if project.ventilation_systems:
             elements.append(Paragraph("Приточные/вытяжные установки", style_h2))
             rows = [["Имя", "Тип", "Рекуп.", "η зима", "t под. зима",
@@ -424,7 +462,7 @@ def export_to_pdf(project: "HVACProject", path: str,
             getattr(project.params, "smoke_norm", "SP7_RU"))
 
         elements.append(Paragraph(
-            f"8. Дымоудаление и подпор воздуха — {active_norm.title}",
+            num.title(f"Дымоудаление и подпор воздуха — {active_norm.title}"),
             style_h1))
         elements.append(Paragraph(
             f"<b>Действующий норматив:</b> {active_norm.reference}",
@@ -551,10 +589,11 @@ def export_to_pdf(project: "HVACProject", path: str,
                 f"Σ подпор = {total_pres:,.0f} м³/ч".replace(",", " "),
                 style_body))
 
-    # =================== 9. ВОЗДУХОВОДЫ ===================
+    # =================== ВОЗДУХОВОДЫ ===================
     if "ducts" in include_sections and project.duct_networks:
         elements.append(Paragraph(
-            "9. Подбор воздуховодов (упрощённая аэродинамика)", style_h1))
+            num.title("Подбор воздуховодов (упрощённая аэродинамика)"),
+            style_h1))
         elements.append(Paragraph(
             "Подбор по рекомендованным скоростям, потери давления — формула "
             "Дарси-Вейсбаха. Точная увязка сети — в специализированном ПО.",
@@ -578,13 +617,14 @@ def export_to_pdf(project: "HVACProject", path: str,
             add_table(rows, col_widths=[6 * cm, 2.5 * cm, 2.5 * cm,
                                          2 * cm, 2 * cm])
 
-    # =================== 10. ТРУБЫ ОТОПЛЕНИЯ ===================
+    # =================== ТРУБЫ ОТОПЛЕНИЯ ===================
     if "pipes" in include_sections and project.pipe_networks:
         elements.append(Paragraph(
-            "10. Подбор труб отопления (гидравлический расчёт)", style_h1))
+            num.title("Подбор труб отопления (гидравлический расчёт)"),
+            style_h1))
         from hvac.pipe_sizing import WATER_DENSITY_70C
         elements.append(Paragraph(
-            "Подбор по рекомендованным скоростям (СП 60), потери давления — "
+            "Подбор по рекомендованным скоростям, потери давления — "
             "формула Альтшуля. Точная балансировка стояков — в "
             "Audytor C.O. или MagiCAD.", style_body))
         for sys_name, pnet in sorted(project.pipe_networks.items()):
@@ -606,68 +646,38 @@ def export_to_pdf(project: "HVACProject", path: str,
             add_table(rows, col_widths=[6 * cm, 3 * cm, 2 * cm,
                                          2 * cm, 2 * cm])
 
-    # =================== 11. ЭНЕРГОПАСПОРТ ===================
+    # =================== ЭНЕРГОЭФФЕКТИВНОСТЬ ===================
     if "energy" in include_sections and project.energy_passport:
         ep = project.energy_passport
-        elements.append(Paragraph(
-            "11. Энергетический паспорт (СП 50.13330 Прил. Г)", style_h1))
-        elements.append(Paragraph(
-            f"Тип здания: <b>{ep.building_type}</b>. "
-            f"Расчёт удельного годового потребления тепла на отопление "
-            "по упрощённому бин-методу на основе ГСОП.", style_body))
+        data = rs.energy_section_data(ep, prof)
+        elements.append(Paragraph(num.title(data["heading"]), style_h1))
+        elements.append(Paragraph(data["intro"], style_body))
+        add_kv(data["kv_main"])
 
-        add_kv([
-            ["Отапливаемая площадь, м²", f"{ep.total_area_m2:.0f}"],
-            ["Объём, м³", f"{ep.total_volume_m3:.0f}"],
-            ["ГСОП", f"{ep.gsop_18:.0f}"],
-            ["Длительность отопит. сезона, сут", f"{ep.z_heating_days:.0f}"],
-            ["Средняя tн за сезон, °C", f"{ep.t_avg_heating}"],
-            ["Q пиковая отопления, кВт",
-             f"{ep.q_peak_heating_w/1000:.1f}"],
-            ["Q пиковая охлаждения, кВт",
-             f"{ep.q_peak_cooling_w/1000:.1f}"],
-            ["Q пиковая нагрев вент., кВт",
-             f"{ep.q_peak_ventilation_heating_w/1000:.1f}"],
-            ["Q пиковая ГВС, кВт",
-             f"{ep.q_peak_dhw_w/1000:.1f}"],
-            ["Годовое отопление, МВт·ч/год",
-             f"{ep.e_heating_kwh_year/1000:.1f}"],
-            ["Годовое охлаждение (эл.), МВт·ч/год",
-             f"{ep.e_cooling_kwh_year/1000:.1f}"],
-            ["Годовое ГВС, МВт·ч/год",
-             f"{ep.e_dhw_kwh_year/1000:.1f}"],
-            ["qh у удельный, кВт·ч/(м²·год)",
-             f"{ep.qh_specific_kwh_m2:.1f}"],
-            ["qh н нормативный, кВт·ч/(м²·год)",
-             f"{ep.qh_normative_kwh_m2:.1f}"],
-            ["Отклонение от нормы, %",
-             f"{ep.deviation_percent:+.1f}"],
-            ["q расч. удельный (отопл.+вент.), Вт/м²",
-             f"{ep.q_design_specific_w_m2:.1f}"],
-            ["q_ov норматив ШНҚ 2.01.18-24, Вт/м²",
-             (f"{ep.q_ov_normative_w_m2:.0f}"
-              if ep.q_ov_normative_w_m2 > 0 else "—")],
-            ["Соответствие ШНҚ (q ≤ q_ov)",
-             (("да" if ep.shnq_compliant else "нет")
-              if ep.shnq_compliant is not None else "н/д")],
-        ])
-
-        # Класс — крупно
+        # Вывод — крупно (соответствие ШНҚ либо класс по СП 50)
         elements.append(Spacer(1, 6))
-        cls_text = (f"<b>КЛАСС ЭНЕРГОЭФФЕКТИВНОСТИ: "
-                    f"{ep.energy_class}</b> — {ep.energy_class_description}")
-        elements.append(Paragraph(cls_text, ParagraphStyle(
+        ok = data["verdict_ok"]
+        bg = ("#E2EFDA" if ok else "#FCE4E4") if ok is not None else "#EEEEEE"
+        elements.append(Paragraph(f"<b>{data['verdict']}</b>", ParagraphStyle(
             "ClassRu", parent=style_body, fontName=font_bold,
-            fontSize=13, alignment=TA_CENTER,
-            backColor=colors.HexColor("#DCE6F1"),
+            fontSize=12, alignment=TA_CENTER,
+            backColor=colors.HexColor(bg),
             borderColor=colors.HexColor("#1F4E78"),
             borderWidth=1, borderPadding=8,
         )))
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph(
+            "Годовое энергопотребление (справочно):", style_h2))
+        add_kv(data["kv_annual"])
+        for note_text in data["notes"]:
+            elements.append(Paragraph(
+                f"<i>Примечание: {note_text}</i>", style_small))
 
-    # =================== 12. ТОЧКА РОСЫ ===================
+    # =================== ТОЧКА РОСЫ ===================
     if "condensation" in include_sections and project.condensation_results:
         elements.append(Paragraph(
-            "12. Проверка ограждений на конденсацию (СП 50.13330 Прил. Е)",
+            num.title("Проверка ограждений на конденсацию "
+                      f"({prof['condensation']})"),
             style_h1))
         from hvac.dew_point import total_problems
         prob = total_problems(project.condensation_results)
@@ -680,7 +690,8 @@ def export_to_pdf(project: "HVACProject", path: str,
             elements.append(Paragraph(
                 f"Проверено элементов: <b>{prob['total']}</b>. "
                 f"Риск конденсации: <b>{prob['condensation']}</b>, "
-                f"нарушений СП 50: <b>{prob['normative_fail']}</b>, "
+                f"нарушений Δt_н ({prof['condensation']}): "
+                f"<b>{prob['normative_fail']}</b>, "
                 f"OK: {prob['ok']}.", style_body))
 
             # Только проблемные элементы
@@ -716,7 +727,7 @@ def export_to_pdf(project: "HVACProject", path: str,
     ahu_processes = getattr(project, "ahu_processes", {}) or {}
     if "ahu_process" in include_sections and ahu_processes:
         elements.append(PageBreak())
-        elements.append(Paragraph("Психрометрика приточных установок",
+        elements.append(Paragraph(num.title("Психрометрика приточных установок"),
                                     style_h1))
         elements.append(Paragraph(
             "Точки процесса обработки воздуха в AHU для трёх режимов работы: "
@@ -789,7 +800,7 @@ def export_to_pdf(project: "HVACProject", path: str,
     detailed_ducts = getattr(project, "duct_networks_detailed", {}) or {}
     if "duct_detailed" in include_sections and detailed_ducts:
         elements.append(PageBreak())
-        elements.append(Paragraph("Аэродинамика воздуховодов (детально)",
+        elements.append(Paragraph(num.title("Аэродинамика воздуховодов (детально)"),
                                     style_h1))
         elements.append(Paragraph(
             "Расчёт падения давления по магистрали и определение диктующей "
@@ -842,7 +853,7 @@ def export_to_pdf(project: "HVACProject", path: str,
     hydraulics = getattr(project, "heating_hydraulics_results", {}) or {}
     if "hydraulics" in include_sections and hydraulics:
         elements.append(PageBreak())
-        elements.append(Paragraph("Гидравлика отопления", style_h1))
+        elements.append(Paragraph(num.title("Гидравлика отопления"), style_h1))
         elements.append(Paragraph(
             "Подбор циркуляционных насосов (Q, H) и мембранных "
             "расширительных баков (ГОСТ 17032 / СП 60.13330 п. 6.4) для "
@@ -886,7 +897,7 @@ def export_to_pdf(project: "HVACProject", path: str,
     radiator_picks = getattr(project, "radiator_picks", {}) or {}
     if "radiators" in include_sections and radiator_picks:
         elements.append(PageBreak())
-        elements.append(Paragraph("Подбор отопительных приборов",
+        elements.append(Paragraph(num.title("Подбор отопительных приборов"),
                                     style_h1))
         elements.append(Paragraph(
             "Подбор приборов отопления выполнен по фактическому "
@@ -927,7 +938,7 @@ def export_to_pdf(project: "HVACProject", path: str,
     acoustics = getattr(project, "acoustics_results", {}) or {}
     if "acoustics" in include_sections and acoustics:
         elements.append(PageBreak())
-        elements.append(Paragraph("Акустика и подбор шумоглушителей",
+        elements.append(Paragraph(num.title("Акустика и подбор шумоглушителей"),
                                     style_h1))
         elements.append(Paragraph(
             "Расчёт уровня звукового давления в обслуживаемой зоне "
@@ -960,7 +971,7 @@ def export_to_pdf(project: "HVACProject", path: str,
     underfloor_loops = getattr(project, "underfloor_loops", {}) or {}
     if "underfloor" in include_sections and underfloor_loops:
         elements.append(PageBreak())
-        elements.append(Paragraph("Водяной тёплый пол", style_h1))
+        elements.append(Paragraph(num.title("Водяной тёплый пол"), style_h1))
         elements.append(Paragraph(
             "Расчёт по EN 1264 / СП 60.13330 Прил. Г. Контролируется "
             "температура поверхности (29°C для жилых, 35°C для краевых "
@@ -1003,7 +1014,7 @@ def export_to_pdf(project: "HVACProject", path: str,
     fancoil_picks = getattr(project, "fancoil_picks", {}) or {}
     if "fancoils" in include_sections and fancoil_picks:
         elements.append(PageBreak())
-        elements.append(Paragraph("Подбор фанкойлов", style_h1))
+        elements.append(Paragraph(num.title("Подбор фанкойлов"), style_h1))
         elements.append(Paragraph(
             "Подбор внутренних блоков фанкойлов по EN 1397 с линейным "
             "пересчётом производительности на фактический температурный "
@@ -1040,7 +1051,7 @@ def export_to_pdf(project: "HVACProject", path: str,
     vrf_systems = getattr(project, "vrf_systems", {}) or {}
     if "vrf" in include_sections and vrf_systems:
         elements.append(PageBreak())
-        elements.append(Paragraph("VRF / VRV-системы", style_h1))
+        elements.append(Paragraph(num.title("VRF / VRV-системы"), style_h1))
         elements.append(Paragraph(
             "Подбор внешних и внутренних блоков с проверкой ограничений "
             "производителя: коэффициент соединения, максимальная длина "
@@ -1095,7 +1106,7 @@ def export_to_pdf(project: "HVACProject", path: str,
     # =================== Подвал ===================
     elements.append(Spacer(1, 1.5 * cm))
     elements.append(Paragraph(
-        "Отчёт сгенерирован автоматически программой HVAC Calculator v4.1. "
+        f"Отчёт сгенерирован автоматически программой HVAC Calculator v{__version__}. "
         "Результаты основаны на исходных данных, выгруженных из Revit, и "
         "параметрах, заданных пользователем. Окончательные решения требуют "
         "проверки инженером-проектировщиком.", style_caption))

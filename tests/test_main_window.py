@@ -81,6 +81,79 @@ def test_smoke_panel_add_system_shows_row(qapp, monkeypatch):
     assert panel.table.item(0, 0).text() == "СДУ-Т"
 
 
+def test_smoke_panel_attach_spaces(qapp):
+    """«Привязать помещения»: диалог с чекбоксами привязывает отмеченные
+    помещения к выбранной СДУ/СПВ и отвязывает снятые; СПВ пишет в
+    pressurization_system, не трогая привязку к СДУ."""
+    from PySide6.QtCore import Qt
+
+    import hvac.ui_qt.panels.smoke_panel as sp_mod
+    from hvac.ui_qt.bridge import ProjectBridge
+
+    proj = _project()
+    sm = proj.create_smoke_system_manual(
+        "СДУ-Т", calc_method="kmk_zone_perimeter")
+    panel = sp_mod.SmokePanel(proj, ProjectBridge(proj))
+
+    # Диалог: изначально ни одно помещение не привязано.
+    dlg = sp_mod.SmokeAttachDialog(proj, sm)
+    assert dlg.checked_ids() == set()
+    assert dlg.table.rowCount() == 3
+
+    # Чекбокс первой строки добавляет её space_id в выбор.
+    item = dlg.table.item(0, 0)
+    item.setCheckState(Qt.Checked)
+    assert item.data(Qt.UserRole) in dlg.checked_ids()
+
+    # Применение diff: привязка r0+r1, затем только r1 (r0 отвязывается).
+    assert panel._apply_attachment(sm, {"r0", "r1"}) == (2, 0)
+    assert proj._space_by_id["r0"].smoke_system == "СДУ-Т"
+    assert panel._apply_attachment(sm, {"r1"}) == (0, 1)
+    assert proj._space_by_id["r0"].smoke_system == ""
+    assert proj._space_by_id["r1"].smoke_system == "СДУ-Т"
+
+    # СПВ (air_supply) работает с pressurization_system.
+    spv = proj.create_smoke_system_manual(
+        "СПВ-Т", system_type="air_supply", purpose="stairs",
+        calc_method="manual", L_smoke_m3h=8000.0)
+    assert panel._apply_attachment(spv, {"r1"}) == (1, 0)
+    assert proj._space_by_id["r1"].pressurization_system == "СПВ-Т"
+    assert proj._space_by_id["r1"].smoke_system == "СДУ-Т"
+
+    # Повторное открытие диалога показывает текущую привязку системы.
+    dlg2 = sp_mod.SmokeAttachDialog(proj, sm)
+    assert dlg2.checked_ids() == {"r1"}
+
+
+def test_smoke_dialog_fire_perimeter_auto_checkbox(qapp):
+    """Чекбокс авто-P (ф.4): включён — спин P заблокирован и значение не
+    перезаписывается; выключен — ручной P сохраняется, флаг снимается."""
+    from hvac.smoke import SmokeSystem
+    from hvac.ui_qt.widgets.smoke_system_dialog import SmokeSystemDialog
+
+    sm = SmokeSystem(name="СДУ-Т", calc_method="kmk_zone_perimeter",
+                     fire_perimeter_m=5.0, fire_perimeter_auto=True)
+    dlg = SmokeSystemDialog(None, system=sm, norm_code="KMK_UZ", is_new=False)
+    assert dlg.fire_perim_auto_chk.isChecked()
+    assert not dlg.fire_perim_spin.isEnabled()
+
+    # Авто включён: OK не перетирает P значением спина
+    dlg.fire_perim_spin.setValue(9.0)
+    dlg._on_ok()
+    assert dlg.system.fire_perimeter_auto is True
+    assert dlg.system.fire_perimeter_m == 5.0
+
+    # Ручной режим: спин разблокирован, значение сохраняется
+    dlg2 = SmokeSystemDialog(None, system=dlg.system, norm_code="KMK_UZ",
+                             is_new=False)
+    dlg2.fire_perim_auto_chk.setChecked(False)
+    assert dlg2.fire_perim_spin.isEnabled()
+    dlg2.fire_perim_spin.setValue(9.0)
+    dlg2._on_ok()
+    assert dlg2.system.fire_perimeter_auto is False
+    assert dlg2.system.fire_perimeter_m == 9.0
+
+
 def test_data_panel_true_north_global_rotation(qapp):
     """Глобальный поворот сторон света: поле True North в панели «Данные»
     пишет project.params.true_north_offset_deg и применяется движком ко

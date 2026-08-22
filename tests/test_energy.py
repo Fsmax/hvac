@@ -9,6 +9,7 @@ from hvac.energy import (
     normative_qh, energy_class_for_deviation,
     ENERGY_CLASS_THRESHOLDS, BASE_HEATING_NORMS_KWH_M2,
     degree_days_heating, heating_period_at, calculate_passport,
+    detect_building_type,
 )
 from hvac.project import HVACProject
 from hvac.catalogs.shnq_energy import (
@@ -196,7 +197,7 @@ class TestShnqEnergy(unittest.TestCase):
 
 
 class TestDegreeDaysDd(unittest.TestCase):
-    """Dd по КМК 2.01.04-18 форм.(1) с порогом сезона 10°C."""
+    """Dd по КМК 2.01.04-18 форм.(1), период ≤12°C (ШНҚ 2.01.01-22 Табл.4)."""
 
     def test_formula(self):
         # Dd = (tв − tот.пер)·zот.пер
@@ -207,9 +208,13 @@ class TestDegreeDaysDd(unittest.TestCase):
     def test_zero_duration(self):
         self.assertEqual(degree_days_heating(20.0, 4.0, 0), 0.0)
 
-    def test_heating_period_interp_to_10(self):
-        # ШНҚ даёт ≤8 и ≤12; при 10°C — ровно середина (среднее)
+    def test_heating_period_thresholds(self):
         clim = {"z_ht_8": 100, "t_ht_8": 2.0, "z_ht_12": 140, "t_ht_12": 4.0}
+        # порог 12 (нормативный, по умолчанию) → ровно табличная колонка ≤12°C
+        r12 = heating_period_at(clim)
+        self.assertAlmostEqual(r12["z_days"], 140.0)
+        self.assertAlmostEqual(r12["t_avg"], 4.0)
+        # промежуточный порог 10°C — линейная интерполяция (середина)
         r = heating_period_at(clim, 10.0)
         self.assertAlmostEqual(r["z_days"], 120.0)   # (100+140)/2
         self.assertAlmostEqual(r["t_avg"], 3.0)      # (2+4)/2
@@ -227,8 +232,8 @@ class TestDegreeDaysDd(unittest.TestCase):
         p.params.city = "Ташкент"   # z_ht_8/12 есть в climate.json
         ep = calculate_passport(p)
         self.assertTrue(ep.dd_exact)
-        # Dd = (20 − (2.7+4.0)/2)·(129+166)/2 = 16.65·147.5
-        self.assertAlmostEqual(ep.dd_shnq, 16.65 * 147.5, places=1)
+        # Dd по периоду ≤12°C: (20 − 4.0)·166 = 2656
+        self.assertAlmostEqual(ep.dd_shnq, (20.0 - 4.0) * 166, places=1)
 
     def test_passport_approx_without_period_data(self):
         """Город без полей ≤8/≤12 → Dd приближённый (dd_exact=False)."""
@@ -238,6 +243,99 @@ class TestDegreeDaysDd(unittest.TestCase):
         ep = calculate_passport(p)
         self.assertFalse(ep.dd_exact)
         self.assertGreater(ep.dd_shnq, 0)
+
+
+class TestIndustrialBuildingType(unittest.TestCase):
+    """Производственные здания: тип по техпомещениям, q_ov не нормируется."""
+
+    @staticmethod
+    def _space(room_type: str, area: float):
+        from hvac.models import Space
+        return Space(space_id=f"{room_type}-{area}", number="", name=room_type,
+                     level="1 этаж", area_m2=area, volume_m3=area * 3.0,
+                     room_type=room_type)
+
+    def _opu_like(self) -> HVACProject:
+        # Состав как у Гузар ОПУ: серверная(реле)+тех+склад = 47% площади
+        p = HVACProject()
+        p.params.city = "Гузар"
+        p.spaces = [self._space("Серверная", 185),
+                    self._space("Технич. помещение", 21),
+                    self._space("Склад", 12),
+                    self._space("Офис", 58),
+                    self._space("Санузел", 20),
+                    self._space("Коридор", 32)]
+        return p
+
+    def test_detect_industrial_by_tech_share(self):
+        self.assertEqual(detect_building_type(self._opu_like()),
+                         "производственное")
+
+    def test_office_with_small_server_room_stays_office(self):
+        p = HVACProject()
+        p.spaces = [self._space("Офис", 100), self._space("Серверная", 10)]
+        self.assertEqual(detect_building_type(p), "офис")
+
+    def test_mapping_and_norm_absent(self):
+        self.assertEqual(building_type_to_shnq("производственное"),
+                         "industrial")
+        self.assertIsNone(normative_q_ov_shnq("industrial", 1, 1500))
+
+    def test_passport_industrial_not_rated(self):
+        ep = calculate_passport(self._opu_like())
+        self.assertEqual(ep.building_type, "производственное")
+        self.assertEqual(ep.shnq_category, "industrial")
+        self.assertEqual(ep.q_ov_normative_w_m2, 0.0)
+        self.assertIsNone(ep.shnq_compliant)
+
+
+class TestHeatingSeasonForAndRefresh(unittest.TestCase):
+    """Сезон из климата города + актуализация паспорта перед печатью."""
+
+    def test_season_exact_from_climate(self):
+        from hvac.energy import heating_season_for
+        p = HVACProject()
+        p.params.apply_city("Ташкент")     # z_ht_8=129, t_ht_8=2.7
+        s = heating_season_for(p.params)
+        self.assertTrue(s["exact"])
+        self.assertAlmostEqual(s["z_days"], 129.0)
+        self.assertAlmostEqual(s["t_avg"], 2.7)
+
+    def test_season_fallback_to_gsop(self):
+        from hvac.energy import heating_season_for
+        p = HVACProject()
+        p.params.city = "Неизвестный город"
+        p.params.gsop_18 = 3000
+        s = heating_season_for(p.params)
+        self.assertFalse(s["exact"])
+        self.assertGreater(s["z_days"], 0)
+
+    def _project_with_space(self, q_loss: float) -> HVACProject:
+        from hvac.models import Space
+        p = HVACProject()
+        p.params.apply_city("Ташкент")
+        sp = Space(space_id="s1", number="1", name="Офис", level="L1",
+                   area_m2=50, volume_m3=150, height_m=3,
+                   heat_loss_w=q_loss, heat_gain_w=q_loss * 1.5)
+        p.spaces.append(sp)
+        p._space_by_id[sp.space_id] = sp
+        return p
+
+    def test_refresh_passport_recalculates_stale(self):
+        from hvac.energy import refresh_passport
+        p = self._project_with_space(3000.0)
+        p.calculate_energy_passport()
+        self.assertAlmostEqual(
+            p.energy_passport.q_peak_heating_w, 3000.0)
+        p.spaces[0].heat_loss_w = 9000.0          # правка после расчёта
+        fresh = refresh_passport(p)
+        self.assertAlmostEqual(fresh.q_peak_heating_w, 9000.0)
+        self.assertIs(fresh, p.energy_passport)
+
+    def test_refresh_passport_none_without_passport(self):
+        from hvac.energy import refresh_passport
+        p = self._project_with_space(3000.0)
+        self.assertIsNone(refresh_passport(p))
 
 
 if __name__ == "__main__":
