@@ -16,6 +16,7 @@
 CLI::
 
     python -m hvac.design_docs --terminal terminal.json --route route.json \
+        --sheets sheets.json --request route-request.json \
         --out output-directory
 """
 
@@ -24,6 +25,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_CEILING
+import hashlib
 from io import BytesIO
 import json
 import math
@@ -37,6 +39,10 @@ from hvac.catalogs.shnq_ducts import SHNQ_DUCTS, duct_velocity_limits
 
 TERMINAL_RESPONSE_KIND = "hvac-terminal-layout-response"
 ROUTE_RESPONSE_KIND = "hvac-route-network-response"
+TERMINAL_REQUEST_KIND = "hvac-terminal-layout-request"
+ROUTE_REQUEST_KIND = "hvac-route-network-request"
+TERMINAL_REQUEST_PROFILE = "coordera.hvac.terminal-layout-preliminary/1.0"
+ROUTE_REQUEST_PROFILE = "coordera.hvac.route-network-preliminary/1.0"
 PRELIMINARY_STATUS = "PRELIMINARY"
 
 JSON_OUTPUT_NAME = "design-docs.json"
@@ -45,6 +51,24 @@ DOCX_OUTPUT_NAME = "design-docs.docx"
 
 NO_RESERVE_NOTE = "Без монтажного запаса"
 ENGINEER_REVIEW_NOTE = "нормативные значения не сверены инженером"
+SUPPLEMENT_NOTE = "дополнить"
+
+MAIN_INDICATORS_SHEET = "Основные показатели"
+DRAWING_SHEETS_SHEET = "Ф.1 Чертежи"
+REFERENCE_DOCUMENTS_SHEET = "Ф.2 Документы"
+
+_FIXED_REFERENCE_DOCUMENTS = (
+    (
+        "ГОСТ 21.110-2013",
+        "Система проектной документации для строительства. "
+        "Спецификация оборудования, изделий и материалов",
+    ),
+    (
+        "ГОСТ 21.602-2016",
+        "Система проектной документации для строительства. Правила выполнения "
+        "рабочей документации отопления, вентиляции и кондиционирования",
+    ),
+)
 
 _DIRECTIONS = ("supply", "exhaust")
 _DIRECTION_LABELS = {"supply": "приток", "exhaust": "вытяжка"}
@@ -240,6 +264,61 @@ class SystemDesignData:
 
 
 @dataclass(frozen=True, slots=True)
+class MainSystemIndicator:
+    """Строка основных показателей одной системы ОВ."""
+
+    system_id: str
+    airflow_m3h: float
+    fan_pressure_pa: float
+    terminal_count: int
+    served_area_m2: float | None
+    served_space_ids: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "systemId": self.system_id,
+            "airflowM3h": self.airflow_m3h,
+            "fanPressurePa": self.fan_pressure_pa,
+            "terminalCount": self.terminal_count,
+            "servedAreaM2": self.served_area_m2,
+            "servedSpaceIds": list(self.served_space_ids),
+            "areaNote": "" if self.served_area_m2 is not None else SUPPLEMENT_NOTE,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DrawingSheetRow:
+    """Одна строка ведомости рабочих чертежей по форме 1."""
+
+    number: str
+    name: str
+    note: str
+
+    def as_dict(self) -> dict[str, str]:
+        return {"number": self.number, "name": self.name, "note": self.note}
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceDocumentRow:
+    """Один ссылочный документ в ведомости по форме 2."""
+
+    designation: str
+    name: str
+    note: str
+    source: str
+    statuses: tuple[str, ...] = ()
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "designation": self.designation,
+            "name": self.name,
+            "note": self.note,
+            "source": self.source,
+            "statuses": list(self.statuses),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class NormReference:
     """Ссылка на применимую запись каталога скоростей."""
 
@@ -320,12 +399,9 @@ def _object_without_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _load_response(
-    path: str | Path,
-    *,
-    expected_kind: str,
-    label: str,
-) -> dict[str, Any]:
+def _load_json_value(path: str | Path, *, label: str) -> Any:
+    """Прочитать строгий UTF-8 JSON с контролем повторяющихся ключей."""
+
     source = Path(path)
     try:
         raw = source.read_text(encoding="utf-8")
@@ -340,6 +416,17 @@ def _load_response(
         )
     except (json.JSONDecodeError, UnicodeError) as exc:
         raise DesignDocsInputError(f"Некорректный JSON {label}: {source}: {exc}") from exc
+
+    return value
+
+
+def _load_response(
+    path: str | Path,
+    *,
+    expected_kind: str,
+    label: str,
+) -> dict[str, Any]:
+    value = _load_json_value(path, label=label)
 
     if not isinstance(value, dict):
         raise DesignDocsInputError(f"{label}: ожидался JSON-объект верхнего уровня")
@@ -400,6 +487,395 @@ def _as_positive_size(value: Any, location: str) -> int:
     if size <= 0:
         raise DesignDocsInputError(f"{location}: размер должен быть больше нуля")
     return size
+
+
+def _as_sheet_number(value: Any, location: str) -> str:
+    if isinstance(value, str):
+        if not value.strip():
+            raise DesignDocsInputError(f"{location}: ожидался непустой номер листа")
+        return value
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise DesignDocsInputError(f"{location}: ожидался номер листа строкой или числом")
+    number = _as_number(value, location)
+    return str(int(number)) if number.is_integer() else str(number)
+
+
+def _as_optional_text(value: Any, location: str) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise DesignDocsInputError(f"{location}: ожидалась строка")
+    return value
+
+
+def _default_drawing_sheets() -> tuple[DrawingSheetRow, ...]:
+    return (
+        DrawingSheetRow(
+            number=SUPPLEMENT_NOTE,
+            name="План этажа",
+            note=SUPPLEMENT_NOTE,
+        ),
+        DrawingSheetRow(
+            number=SUPPLEMENT_NOTE,
+            name="Спецификация оборудования",
+            note=SUPPLEMENT_NOTE,
+        ),
+    )
+
+
+def _load_drawing_sheets(
+    sheets_path: str | Path | None,
+) -> tuple[tuple[DrawingSheetRow, ...], bool]:
+    """Вернуть строки формы 1 и признак автозаполнения."""
+
+    if sheets_path is None:
+        return _default_drawing_sheets(), True
+
+    value = _load_json_value(sheets_path, label="sheets")
+    if isinstance(value, dict):
+        extra = set(value) - {"schemaVersion", "sheets"}
+        if extra or "sheets" not in value:
+            raise DesignDocsInputError(
+                "sheets: ожидался объект с полем 'sheets'"
+            )
+        raw_sheets = _as_list(value.get("sheets"), "sheets.sheets")
+    elif isinstance(value, list):
+        raw_sheets = value
+    else:
+        raise DesignDocsInputError(
+            "sheets: ожидался массив или объект с полем 'sheets'"
+        )
+    if not raw_sheets:
+        raise DesignDocsInputError("sheets: ведомость не может быть пустой")
+
+    rows: list[DrawingSheetRow] = []
+    seen_numbers: set[str] = set()
+    for index, raw_sheet in enumerate(raw_sheets):
+        location = f"sheets[{index}]"
+        sheet = _as_object(raw_sheet, location)
+        extra = set(sheet) - {"number", "name", "note"}
+        missing = {"number", "name"} - set(sheet)
+        if missing or extra:
+            raise DesignDocsInputError(
+                f"{location}: неверные поля; отсутствуют {sorted(missing)}, "
+                f"лишние {sorted(extra)}"
+            )
+        number = _as_sheet_number(sheet.get("number"), f"{location}.number")
+        normalized_number = number.strip().casefold()
+        if normalized_number in seen_numbers:
+            raise DesignDocsInputError(
+                f"{location}.number: повторяющийся номер листа {number!r}"
+            )
+        seen_numbers.add(normalized_number)
+        rows.append(
+            DrawingSheetRow(
+                number=number,
+                name=_as_string(sheet.get("name"), f"{location}.name"),
+                note=_as_optional_text(sheet.get("note"), f"{location}.note"),
+            )
+        )
+    return tuple(rows), False
+
+
+def _load_design_request(
+    request_path: str | Path,
+    terminal: Mapping[str, Any],
+    route: Mapping[str, Any],
+) -> dict[str, Any]:
+    request = _load_json_value(request_path, label="design request")
+    if not isinstance(request, dict):
+        raise DesignDocsInputError(
+            "design request: ожидался JSON-объект верхнего уровня"
+        )
+    request_kind = request.get("kind")
+    bound_label: str
+    bound_response: Mapping[str, Any]
+    if request_kind == TERMINAL_REQUEST_KIND:
+        bound_label = "terminal"
+        bound_response = terminal
+    elif request_kind == ROUTE_REQUEST_KIND:
+        bound_label = "route"
+        bound_response = route
+    else:
+        raise DesignDocsInputError(
+            "design request: ожидался kind "
+            f"{TERMINAL_REQUEST_KIND!r} или {ROUTE_REQUEST_KIND!r}, "
+            f"получен {request_kind!r}"
+        )
+
+    schema_version = _as_string(
+        request.get("schemaVersion"), "request.schemaVersion"
+    )
+    allowed_schema_versions = (
+        {"1.0"} if request_kind == TERMINAL_REQUEST_KIND else {"1.0", "1.1"}
+    )
+    if schema_version not in allowed_schema_versions:
+        raise DesignDocsInputError(
+            "request.schemaVersion: неподдерживаемая версия "
+            f"{schema_version!r} для {request_kind}"
+        )
+    profile_version = _as_string(
+        request.get("profileVersion"), "request.profileVersion"
+    )
+    expected_profile = (
+        TERMINAL_REQUEST_PROFILE
+        if request_kind == TERMINAL_REQUEST_KIND
+        else ROUTE_REQUEST_PROFILE
+    )
+    if profile_version != expected_profile:
+        raise DesignDocsInputError(
+            "request.profileVersion: ожидался профиль "
+            f"{expected_profile!r}, получен {profile_version!r}"
+        )
+
+    request_evidence = _load_source_evidence(
+        request.get("sourceEvidence"), "request.sourceEvidence"
+    )
+    provenance = _as_object(request.get("provenance"), "request.provenance")
+    if provenance.get("modelMutationRequested") is not False:
+        raise DesignDocsInputError(
+            "request.provenance.modelMutationRequested: ожидалось false"
+        )
+
+    request_id = _as_string(request.get("requestId"), "request.requestId")
+    response_request_id = _as_string(
+        bound_response.get("requestId"), f"{bound_label}.requestId"
+    )
+    if response_request_id != request_id:
+        raise DesignDocsInputError(
+            f"{bound_label}.requestId: response не связан с request {request_id!r}"
+        )
+
+    source = Path(request_path)
+    try:
+        request_sha256 = hashlib.sha256(source.read_bytes()).hexdigest().upper()
+    except OSError as exc:
+        raise DesignDocsInputError(f"Не удалось прочитать design request: {source}") from exc
+    expected_sha256 = _as_string(
+        bound_response.get("requestSha256"), f"{bound_label}.requestSha256"
+    ).upper()
+    if request_sha256 != expected_sha256:
+        raise DesignDocsInputError(
+            f"{bound_label}.requestSha256: response не соответствует design request"
+        )
+
+    response_evidence = _load_source_evidence(
+        bound_response.get("sourceEvidence"), f"{bound_label}.sourceEvidence"
+    )
+    if request_evidence != response_evidence:
+        raise DesignDocsInputError(
+            f"{bound_label}.sourceEvidence: response не связан с design request"
+        )
+
+    other_label, other_response = (
+        ("route", route)
+        if request_kind == TERMINAL_REQUEST_KIND
+        else ("terminal", terminal)
+    )
+    other_evidence = _load_source_evidence(
+        other_response.get("sourceEvidence"), f"{other_label}.sourceEvidence"
+    )
+    for key in (
+        "sourceKind",
+        "activeDocumentFingerprint",
+        "coordinateReference",
+    ):
+        if other_evidence[key] != request_evidence[key]:
+            raise DesignDocsInputError(
+                f"{other_label}.sourceEvidence.{key}: response относится "
+                "к другому исходному документу"
+            )
+    return request
+
+
+def _load_source_evidence(value: Any, location: str) -> dict[str, str]:
+    """Проверить минимальный provenance-контракт Calc request/response."""
+
+    evidence = _as_object(value, location)
+    required = {
+        "sourceKind",
+        "activeDocumentFingerprint",
+        "toolsVersion",
+        "capturedAt",
+        "coordinateReference",
+    }
+    missing = required - set(evidence)
+    if missing:
+        raise DesignDocsInputError(
+            f"{location}: отсутствуют обязательные поля {sorted(missing)}"
+        )
+    result = {
+        key: _as_string(evidence.get(key), f"{location}.{key}")
+        for key in sorted(required)
+    }
+    fingerprint = result["activeDocumentFingerprint"]
+    if len(fingerprint) != 64:
+        raise DesignDocsInputError(
+            f"{location}.activeDocumentFingerprint: ожидался SHA-256"
+        )
+    try:
+        int(fingerprint, 16)
+    except ValueError as exc:
+        raise DesignDocsInputError(
+            f"{location}.activeDocumentFingerprint: ожидался SHA-256"
+        ) from exc
+    return result
+
+
+def _as_point3(value: Any, location: str) -> tuple[float, float, float]:
+    point = _as_object(value, location)
+    return (
+        _as_number(point.get("x"), f"{location}.x"),
+        _as_number(point.get("y"), f"{location}.y"),
+        _as_number(point.get("z"), f"{location}.z"),
+    )
+
+
+def _ring_area_mm2(value: Any, location: str) -> Decimal:
+    raw_points = _as_list(value, location)
+    if len(raw_points) < 3:
+        raise DesignDocsInputError(f"{location}: нужно минимум три вершины")
+    points: list[tuple[Decimal, Decimal]] = []
+    for index, raw_point in enumerate(raw_points):
+        point_location = f"{location}[{index}]"
+        point = _as_list(raw_point, point_location)
+        if len(point) != 2:
+            raise DesignDocsInputError(
+                f"{point_location}: ожидалась пара координат [x, y]"
+            )
+        x = _as_number(point[0], f"{point_location}[0]")
+        y = _as_number(point[1], f"{point_location}[1]")
+        points.append((Decimal(str(x)), Decimal(str(y))))
+    twice_area = sum(
+        (
+            x1 * y2 - x2 * y1
+            for (x1, y1), (x2, y2) in zip(points, points[1:] + points[:1])
+        ),
+        Decimal(0),
+    )
+    area = abs(twice_area) / Decimal(2)
+    if area <= 0:
+        raise DesignDocsInputError(f"{location}: вырожденный полигон")
+    return area
+
+
+def _geometry_area_m2(value: Any, location: str) -> Decimal:
+    geometry = _as_object(value, location)
+    kind = geometry.get("kind")
+    if kind == "rectangular-local":
+        width = _as_number(geometry.get("widthMm"), f"{location}.widthMm")
+        length = _as_number(geometry.get("lengthMm"), f"{location}.lengthMm")
+        if width <= 0 or length <= 0:
+            raise DesignDocsInputError(
+                f"{location}: размеры прямоугольника должны быть > 0"
+            )
+        area_mm2 = Decimal(str(width)) * Decimal(str(length))
+    elif kind == "polygon-local":
+        area_mm2 = _ring_area_mm2(
+            geometry.get("outerBoundaryMm"), f"{location}.outerBoundaryMm"
+        )
+        holes = _as_list(geometry.get("holesMm", []), f"{location}.holesMm")
+        for index, hole in enumerate(holes):
+            area_mm2 -= _ring_area_mm2(hole, f"{location}.holesMm[{index}]")
+        if area_mm2 <= 0:
+            raise DesignDocsInputError(
+                f"{location}: площадь отверстий не меньше внешней площади"
+            )
+    else:
+        raise DesignDocsInputError(
+            f"{location}.kind: неизвестная геометрия {kind!r}"
+        )
+    return area_mm2 / Decimal("1000000")
+
+
+def _request_space_areas(request: Mapping[str, Any]) -> dict[str, Decimal]:
+    areas: dict[str, Decimal] = {}
+    for index, raw_space in enumerate(_as_list(request.get("spaces"), "request.spaces")):
+        location = f"request.spaces[{index}]"
+        space = _as_object(raw_space, location)
+        space_id = _as_string(space.get("spaceId"), f"{location}.spaceId")
+        if space_id in areas:
+            raise DesignDocsInputError(f"{location}.spaceId: дубликат {space_id!r}")
+        areas[space_id] = _geometry_area_m2(
+            space.get("geometry"), f"{location}.geometry"
+        )
+    return areas
+
+
+def _placement_spaces_by_position(
+    terminal: Mapping[str, Any],
+) -> dict[tuple[float, float, float], str]:
+    placements: dict[tuple[float, float, float], str] = {}
+    for result_index, raw_result in enumerate(
+        _as_list(terminal.get("results"), "terminal.results")
+    ):
+        result_location = f"terminal.results[{result_index}]"
+        result = _as_object(raw_result, result_location)
+        space_id = _as_string(result.get("spaceId"), f"{result_location}.spaceId")
+        for placement_index, raw_placement in enumerate(
+            _as_list(result.get("placements"), f"{result_location}.placements")
+        ):
+            location = f"{result_location}.placements[{placement_index}]"
+            placement = _as_object(raw_placement, location)
+            position = _as_point3(placement.get("positionMm"), f"{location}.positionMm")
+            existing_space = placements.get(position)
+            if existing_space is not None and existing_space != space_id:
+                raise DesignDocsInputError(
+                    f"{location}.positionMm: позиция terminal placement связана "
+                    "с разными помещениями"
+                )
+            placements[position] = space_id
+    return placements
+
+
+def _route_request_placement_spaces(
+    request: Mapping[str, Any],
+) -> dict[str, str]:
+    """Прочитать authoritative placementId -> spaceId из route request."""
+
+    raw_placements = _as_list(request.get("placements"), "request.placements")
+    placements: dict[str, str] = {}
+    representation: str | None = None
+    for index, raw_item in enumerate(raw_placements):
+        location = f"request.placements[{index}]"
+        item = _as_object(raw_item, location)
+        if "placementId" in item:
+            current_representation = "explicit"
+            candidates = ((item, location, item.get("spaceId")),)
+        elif "placements" in item:
+            current_representation = "terminal-results"
+            space_id = _as_string(item.get("spaceId"), f"{location}.spaceId")
+            candidates = tuple(
+                (
+                    _as_object(raw_placement, f"{location}.placements[{placement_index}]"),
+                    f"{location}.placements[{placement_index}]",
+                    space_id,
+                )
+                for placement_index, raw_placement in enumerate(
+                    _as_list(item.get("placements"), f"{location}.placements")
+                )
+            )
+        else:
+            raise DesignDocsInputError(
+                f"{location}: ожидался explicit placement или terminal result"
+            )
+        if representation is None:
+            representation = current_representation
+        elif representation != current_representation:
+            raise DesignDocsInputError(
+                "request.placements: смешаны две формы представления"
+            )
+        for placement, placement_location, raw_space_id in candidates:
+            placement_id = _as_string(
+                placement.get("placementId"), f"{placement_location}.placementId"
+            )
+            space_id = _as_string(raw_space_id, f"{placement_location}.spaceId")
+            if placement_id in placements:
+                raise DesignDocsInputError(
+                    f"{placement_location}.placementId: дубликат {placement_id!r}"
+                )
+            placements[placement_id] = space_id
+    return placements
 
 
 def _optional_number_sort_key(value: float | None) -> tuple[int, float]:
@@ -766,6 +1242,175 @@ def _build_systems(
     return tuple(sorted(systems, key=lambda system: system.system_id.casefold()))
 
 
+def _build_main_indicators(
+    systems: Sequence[SystemDesignData],
+    terminal: Mapping[str, Any],
+    route: Mapping[str, Any],
+    request: Mapping[str, Any] | None,
+) -> tuple[MainSystemIndicator, ...]:
+    """Сформировать показатели, не подменяя отсутствующую площадь нулём."""
+
+    if request is None:
+        return tuple(
+            MainSystemIndicator(
+                system_id=system.system_id,
+                airflow_m3h=system.airflow_m3h,
+                fan_pressure_pa=system.fan_pressure_pa,
+                terminal_count=system.terminal_count,
+                served_area_m2=None,
+                served_space_ids=(),
+            )
+            for system in systems
+        )
+
+    space_areas = _request_space_areas(request)
+    if request.get("kind") == ROUTE_REQUEST_KIND:
+        placement_spaces = _route_request_placement_spaces(request)
+        request_systems: dict[str, tuple[str, ...]] = {}
+        for index, raw_system in enumerate(
+            _as_list(request.get("systems"), "request.systems")
+        ):
+            location = f"request.systems[{index}]"
+            request_system = _as_object(raw_system, location)
+            system_id = _as_string(
+                request_system.get("systemId"), f"{location}.systemId"
+            )
+            if system_id in request_systems:
+                raise DesignDocsInputError(
+                    f"{location}.systemId: дубликат {system_id!r}"
+                )
+            placement_refs = tuple(
+                _as_string(value, f"{location}.placementRefs[{ref_index}]")
+                for ref_index, value in enumerate(
+                    _as_list(
+                        request_system.get("placementRefs"),
+                        f"{location}.placementRefs",
+                    )
+                )
+            )
+            if len(set(placement_refs)) != len(placement_refs):
+                raise DesignDocsInputError(
+                    f"{location}.placementRefs: ссылки должны быть уникальны"
+                )
+            request_systems[system_id] = placement_refs
+
+        response_system_ids = {system.system_id for system in systems}
+        if set(request_systems) != response_system_ids:
+            raise DesignDocsInputError(
+                "request.systems: состав систем не совпадает с route response"
+            )
+
+        indicators = []
+        for system in systems:
+            placement_refs = request_systems[system.system_id]
+            if len(placement_refs) != system.terminal_count:
+                raise DesignDocsInputError(
+                    f"request.systems[{system.system_id!r}]: расходится число терминалов"
+                )
+            served_spaces: set[str] = set()
+            for placement_id in placement_refs:
+                space_id = placement_spaces.get(placement_id)
+                if space_id is None:
+                    raise DesignDocsInputError(
+                        f"request.systems[{system.system_id!r}]: неизвестный "
+                        f"placementRef {placement_id!r}"
+                    )
+                if space_id not in space_areas:
+                    raise DesignDocsInputError(
+                        f"request placement: помещение {space_id!r} отсутствует "
+                        "в request.spaces"
+                    )
+                served_spaces.add(space_id)
+            ordered_spaces = tuple(sorted(served_spaces))
+            served_area = sum(
+                (space_areas[space_id] for space_id in ordered_spaces),
+                Decimal(0),
+            )
+            indicators.append(
+                MainSystemIndicator(
+                    system_id=system.system_id,
+                    airflow_m3h=system.airflow_m3h,
+                    fan_pressure_pa=system.fan_pressure_pa,
+                    terminal_count=system.terminal_count,
+                    served_area_m2=float(served_area),
+                    served_space_ids=ordered_spaces,
+                )
+            )
+        return tuple(indicators)
+
+    placement_spaces = _placement_spaces_by_position(terminal)
+    terminal_positions: dict[str, tuple[float, float, float]] = {}
+    for index, raw_node in enumerate(_as_list(route.get("nodes"), "route.nodes")):
+        location = f"route.nodes[{index}]"
+        node = _as_object(raw_node, location)
+        if node.get("kind") != "terminal":
+            continue
+        node_id = _as_string(node.get("nodeId"), f"{location}.nodeId")
+        if node_id in terminal_positions:
+            raise DesignDocsInputError(f"{location}.nodeId: дубликат {node_id!r}")
+        terminal_positions[node_id] = _as_point3(
+            node.get("positionMm"), f"{location}.positionMm"
+        )
+
+    known_systems = {system.system_id for system in systems}
+    terminal_nodes_by_system: dict[str, set[str]] = {
+        system_id: set() for system_id in known_systems
+    }
+    for index, raw_segment in enumerate(
+        _as_list(route.get("segments"), "route.segments")
+    ):
+        location = f"route.segments[{index}]"
+        segment = _as_object(raw_segment, location)
+        system_id = _as_string(segment.get("systemId"), f"{location}.systemId")
+        if system_id not in known_systems:
+            raise DesignDocsInputError(
+                f"{location}.systemId: неизвестная система {system_id!r}"
+            )
+        for endpoint_name in ("a", "b"):
+            endpoint = _as_string(
+                segment.get(endpoint_name), f"{location}.{endpoint_name}"
+            )
+            if endpoint in terminal_positions:
+                terminal_nodes_by_system[system_id].add(endpoint)
+
+    indicators: list[MainSystemIndicator] = []
+    for system in systems:
+        served_spaces: set[str] = set()
+        terminal_nodes = terminal_nodes_by_system[system.system_id]
+        if len(terminal_nodes) != system.terminal_count:
+            raise DesignDocsInputError(
+                f"route.systems[{system.system_id!r}]: расходится число терминалов"
+            )
+        for node_id in terminal_nodes:
+            position = terminal_positions[node_id]
+            space_id = placement_spaces.get(position)
+            if space_id is None:
+                raise DesignDocsInputError(
+                    f"route.nodes[{node_id!r}]: terminal position не найдена "
+                    "в terminal-layout response"
+                )
+            if space_id not in space_areas:
+                raise DesignDocsInputError(
+                    f"terminal placement: помещение {space_id!r} отсутствует в request"
+                )
+            served_spaces.add(space_id)
+        ordered_spaces = tuple(sorted(served_spaces))
+        served_area = sum(
+            (space_areas[space_id] for space_id in ordered_spaces), Decimal(0)
+        )
+        indicators.append(
+            MainSystemIndicator(
+                system_id=system.system_id,
+                airflow_m3h=system.airflow_m3h,
+                fan_pressure_pa=system.fan_pressure_pa,
+                terminal_count=system.terminal_count,
+                served_area_m2=float(served_area),
+                served_space_ids=ordered_spaces,
+            )
+        )
+    return tuple(indicators)
+
+
 def _norm_reference(entry: Any) -> NormReference:
     range_value = entry.range
     return NormReference(
@@ -813,6 +1458,101 @@ def _build_velocity_norm_lookups(
     return tuple(lookups)
 
 
+def _build_reference_documents(
+    lookups: Sequence[VelocityNormLookup],
+) -> tuple[ReferenceDocumentRow, ...]:
+    """Собрать форму 2 из реально выполненных lookup и фиксированных ГОСТ."""
+
+    usage: dict[str, dict[str, Any]] = {}
+    fixed_by_key = {
+        designation.strip().casefold(): (designation, name)
+        for designation, name in _FIXED_REFERENCE_DOCUMENTS
+    }
+
+    def register(
+        document: str,
+        *,
+        edition: str,
+        status: str,
+        key: str,
+    ) -> None:
+        designation = document.strip()
+        if not designation:
+            raise DesignDocsInputError(
+                "velocity norm source.document: ожидалась непустая строка"
+            )
+        normalized = designation.casefold()
+        record = usage.setdefault(
+            normalized,
+            {
+                "designation": designation,
+                "editions": set(),
+                "statuses": set(),
+                "keys": set(),
+            },
+        )
+        if edition:
+            record["editions"].add(edition)
+        if status:
+            record["statuses"].add(status)
+        if key:
+            record["keys"].add(key)
+
+    for lookup in lookups:
+        for reference in lookup.references:
+            register(
+                reference.source_document,
+                edition=reference.source_edition,
+                status=reference.status,
+                key=reference.key,
+            )
+
+    rows: list[ReferenceDocumentRow] = []
+    seen_designations: set[str] = set()
+    for normalized in sorted(
+        usage,
+        key=lambda value: str(usage[value]["designation"]).casefold(),
+    ):
+        record = usage[normalized]
+        statuses = tuple(sorted(record["statuses"]))
+        note_parts = []
+        editions = sorted(record["editions"])
+        if editions:
+            note_parts.append(f"Редакция: {', '.join(editions)}")
+        if statuses:
+            note_parts.append(f"Статусы: {', '.join(statuses)}")
+        if any(status != "verified" for status in statuses):
+            note_parts.append(ENGINEER_REVIEW_NOTE)
+        fixed = fixed_by_key.get(normalized)
+        designation = str(record["designation"]) if fixed is None else fixed[0]
+        name = SUPPLEMENT_NOTE if fixed is None else fixed[1]
+        rows.append(
+            ReferenceDocumentRow(
+                designation=designation,
+                name=name,
+                note="; ".join(note_parts),
+                source="shnq_ducts.velocity lookup",
+                statuses=statuses,
+            )
+        )
+        seen_designations.add(normalized)
+
+    for designation, name in _FIXED_REFERENCE_DOCUMENTS:
+        normalized = designation.strip().casefold()
+        if normalized in seen_designations:
+            continue
+        rows.append(
+            ReferenceDocumentRow(
+                designation=designation,
+                name=name,
+                note="",
+                source="fixed form standard",
+            )
+        )
+        seen_designations.add(normalized)
+    return tuple(rows)
+
+
 def _source_summary(response: Mapping[str, Any]) -> dict[str, Any]:
     engine = response.get("engine")
     engine_id = engine.get("id") if isinstance(engine, dict) else None
@@ -829,7 +1569,14 @@ def _source_summary(response: Mapping[str, Any]) -> dict[str, Any]:
 class DesignDocs:
     """Неизменяемый набор данных и экспортов проектных документов."""
 
-    def __init__(self, terminal_path: str | Path, route_path: str | Path) -> None:
+    def __init__(
+        self,
+        terminal_path: str | Path,
+        route_path: str | Path,
+        sheets_path: str | Path | None = None,
+        *,
+        request_path: str | Path | None = None,
+    ) -> None:
         terminal = _load_response(
             terminal_path,
             expected_kind=TERMINAL_RESPONSE_KIND,
@@ -840,17 +1587,39 @@ class DesignDocs:
             expected_kind=ROUTE_RESPONSE_KIND,
             label="route-network response",
         )
+        request = (
+            None
+            if request_path is None
+            else _load_design_request(request_path, terminal, route)
+        )
+        drawing_sheets, sheets_autofilled = _load_drawing_sheets(sheets_path)
 
         specification = _build_specification(terminal)
         ducts, duct_totals, segment_by_id = _parse_segments(route)
         systems = _build_systems(route, segment_by_id)
         velocity_norm_lookups = _build_velocity_norm_lookups(segment_by_id)
+        main_indicators = _build_main_indicators(systems, terminal, route, request)
+        reference_documents = _build_reference_documents(velocity_norm_lookups)
 
         self.status = PRELIMINARY_STATUS
         self.specification = specification
         self.ducts = ducts
         self.duct_totals = duct_totals
         self.systems = systems
+        self.main_indicators = main_indicators
+        self.drawing_sheets = drawing_sheets
+        self.reference_documents = reference_documents
+        self.reference_documents_note = (
+            ENGINEER_REVIEW_NOTE
+            if any(
+                status != "verified"
+                for row in reference_documents
+                for status in row.statuses
+            )
+            else ""
+        )
+        self.sheets_autofilled = sheets_autofilled
+        self.request_provided = request is not None
         self.velocity_norm_lookups = velocity_norm_lookups
         self.velocity_norms = tuple(
             reference
@@ -865,11 +1634,21 @@ class DesignDocs:
 
     @classmethod
     def from_files(
-        cls, terminal_path: str | Path, route_path: str | Path
+        cls,
+        terminal_path: str | Path,
+        route_path: str | Path,
+        sheets_path: str | Path | None = None,
+        *,
+        request_path: str | Path | None = None,
     ) -> "DesignDocs":
-        """Загрузить два Calc-response и сформировать структуру документов."""
+        """Загрузить Calc-response и опциональные request/sheets."""
 
-        return cls(terminal_path, route_path)
+        return cls(
+            terminal_path,
+            route_path,
+            sheets_path,
+            request_path=request_path,
+        )
 
     @property
     def duct_schedule(self) -> tuple[DuctRow, ...]:
@@ -896,6 +1675,25 @@ class DesignDocs:
             "sources": {
                 "terminalLayout": dict(self._terminal_source),
                 "routeNetwork": dict(self._route_source),
+            },
+            "generalData": {
+                "mainIndicators": {
+                    "title": "Основные показатели систем",
+                    "standard": "ГОСТ 21.602-2016",
+                    "items": [row.as_dict() for row in self.main_indicators],
+                },
+                "drawingSheets": {
+                    "title": "Ведомость рабочих чертежей основного комплекта",
+                    "form": "Форма 1 ГОСТ Р 21.101-2020",
+                    "autofilled": self.sheets_autofilled,
+                    "items": [row.as_dict() for row in self.drawing_sheets],
+                },
+                "referenceDocuments": {
+                    "title": "Ведомость ссылочных и прилагаемых документов",
+                    "form": "Форма 2 ГОСТ Р 21.101-2020",
+                    "note": self.reference_documents_note,
+                    "items": [row.as_dict() for row in self.reference_documents],
+                },
             },
             "specification": {
                 "title": "Спецификация оборудования",
@@ -950,7 +1748,7 @@ class DesignDocs:
         _write_once(Path(path), payload)
 
     def to_xlsx(self, path: str | Path) -> None:
-        """Создать XLSX с листами «Спецификация» и «Воздуховоды»."""
+        """Создать XLSX, сохранив два прежних листа и добавив общие данные."""
 
         try:
             from openpyxl import Workbook
@@ -1103,6 +1901,151 @@ class DesignDocs:
         duct_sheet.freeze_panes = f"A{duct_header_row + 1}"
         duct_sheet.auto_filter.ref = f"A{duct_header_row}:G{duct_sheet.max_row}"
 
+        indicators_sheet = workbook.create_sheet(MAIN_INDICATORS_SHEET)
+        _xlsx_title(
+            indicators_sheet,
+            "ОСНОВНЫЕ ПОКАЗАТЕЛИ СИСТЕМ",
+            (
+                "Площадь рассчитана по помещениям request, связанным с "
+                "фактически протрассированными терминалами."
+                if self.request_provided
+                else f"Исходный request не передан; площадь: {SUPPLEMENT_NOTE}."
+            ),
+            "По данным hvac-route-network response (PRELIMINARY)",
+            5,
+            Font,
+            Alignment,
+        )
+        indicator_headers = [
+            "Система",
+            "Расход, м³/ч",
+            "Давление вентилятора, Па",
+            "Терминалов",
+            "Обслуживаемая площадь, м²",
+        ]
+        indicators_sheet.append([])
+        indicators_sheet.append(indicator_headers)
+        indicator_header_row = indicators_sheet.max_row
+        _style_xlsx_header(
+            indicators_sheet[indicator_header_row],
+            head_fill,
+            head_font,
+            border,
+            Alignment,
+        )
+        for indicator in self.main_indicators:
+            indicators_sheet.append(
+                [
+                    indicator.system_id,
+                    indicator.airflow_m3h,
+                    indicator.fan_pressure_pa,
+                    indicator.terminal_count,
+                    (
+                        indicator.served_area_m2
+                        if indicator.served_area_m2 is not None
+                        else SUPPLEMENT_NOTE
+                    ),
+                ]
+            )
+            body = indicators_sheet[indicators_sheet.max_row]
+            _style_xlsx_body(body, border, Alignment)
+            body[1].number_format = "0.###"
+            body[2].number_format = "0.######"
+            if indicator.served_area_m2 is not None:
+                body[4].number_format = "0.###"
+        _set_xlsx_widths(indicators_sheet, [18, 18, 28, 14, 32], get_column_letter)
+        indicators_sheet.freeze_panes = f"A{indicator_header_row + 1}"
+        indicators_sheet.auto_filter.ref = (
+            f"A{indicator_header_row}:E{indicators_sheet.max_row}"
+        )
+
+        drawing_sheets_sheet = workbook.create_sheet(DRAWING_SHEETS_SHEET)
+        _xlsx_title(
+            drawing_sheets_sheet,
+            "ВЕДОМОСТЬ РАБОЧИХ ЧЕРТЕЖЕЙ ОСНОВНОГО КОМПЛЕКТА",
+            (
+                "Автозаполнение известного состава; сведения требуется дополнить."
+                if self.sheets_autofilled
+                else "Состав принят дословно из sheets.json."
+            ),
+            "Форма 1 по ГОСТ Р 21.101-2020",
+            3,
+            Font,
+            Alignment,
+        )
+        drawing_headers = ["Лист", "Наименование", "Примечание"]
+        drawing_sheets_sheet.append([])
+        drawing_sheets_sheet.append(drawing_headers)
+        drawing_header_row = drawing_sheets_sheet.max_row
+        _style_xlsx_header(
+            drawing_sheets_sheet[drawing_header_row],
+            head_fill,
+            head_font,
+            border,
+            Alignment,
+        )
+        for drawing_sheet in self.drawing_sheets:
+            drawing_sheets_sheet.append(
+                [drawing_sheet.number, drawing_sheet.name, drawing_sheet.note]
+            )
+            _style_xlsx_body(
+                drawing_sheets_sheet[drawing_sheets_sheet.max_row],
+                border,
+                Alignment,
+            )
+        _set_xlsx_widths(drawing_sheets_sheet, [18, 66, 28], get_column_letter)
+        drawing_sheets_sheet.freeze_panes = f"A{drawing_header_row + 1}"
+        drawing_sheets_sheet.auto_filter.ref = (
+            f"A{drawing_header_row}:C{drawing_sheets_sheet.max_row}"
+        )
+
+        reference_sheet = workbook.create_sheet(REFERENCE_DOCUMENTS_SHEET)
+        _xlsx_title(
+            reference_sheet,
+            "ВЕДОМОСТЬ ССЫЛОЧНЫХ И ПРИЛАГАЕМЫХ ДОКУМЕНТОВ",
+            (
+                self.reference_documents_note
+                if self.reference_documents_note
+                else (
+                    "Источники нормативных lookup имеют статус verified."
+                    if any(row.statuses for row in self.reference_documents)
+                    else "Применимые нормативные записи lookup не найдены."
+                )
+            ),
+            "Форма 2 по ГОСТ Р 21.101-2020",
+            3,
+            Font,
+            Alignment,
+        )
+        reference_headers = ["Обозначение", "Наименование", "Примечание"]
+        reference_sheet.append([])
+        reference_sheet.append(reference_headers)
+        reference_header_row = reference_sheet.max_row
+        _style_xlsx_header(
+            reference_sheet[reference_header_row],
+            head_fill,
+            head_font,
+            border,
+            Alignment,
+        )
+        reference_sheet.append(["", "Ссылочные документы", ""])
+        section_row = reference_sheet[reference_sheet.max_row]
+        _style_xlsx_body(section_row, border, Alignment)
+        section_row[1].font = Font(bold=True, underline="single")
+        for reference in self.reference_documents:
+            reference_sheet.append(
+                [reference.designation, reference.name, reference.note]
+            )
+            _style_xlsx_body(
+                reference_sheet[reference_sheet.max_row], border, Alignment
+            )
+        reference_sheet.append(["", "Прилагаемые документы", ""])
+        attached_section_row = reference_sheet[reference_sheet.max_row]
+        _style_xlsx_body(attached_section_row, border, Alignment)
+        attached_section_row[1].font = Font(bold=True, underline="single")
+        _set_xlsx_widths(reference_sheet, [28, 72, 52], get_column_letter)
+        reference_sheet.freeze_panes = f"A{reference_header_row + 1}"
+
         buffer = BytesIO()
         workbook.save(buffer)
         _write_once(Path(path), buffer.getvalue())
@@ -1152,6 +2095,32 @@ class DesignDocs:
                 ]
             )
         _add_docx_table(document, system_rows, Pt)
+
+        document.add_heading("Основные показатели", level=2)
+        indicator_rows = [
+            [
+                "Система",
+                "Расход, м³/ч",
+                "Давление вентилятора, Па",
+                "Терминалов",
+                "Обслуживаемая площадь, м²",
+            ]
+        ]
+        for indicator in self.main_indicators:
+            indicator_rows.append(
+                [
+                    indicator.system_id,
+                    _fmt_number(indicator.airflow_m3h, decimals=3),
+                    _fmt_number(indicator.fan_pressure_pa, decimals=6),
+                    str(indicator.terminal_count),
+                    (
+                        _fmt_number(indicator.served_area_m2, decimals=3)
+                        if indicator.served_area_m2 is not None
+                        else SUPPLEMENT_NOTE
+                    ),
+                ]
+            )
+        _add_docx_table(document, indicator_rows, Pt)
 
         document.add_heading("Воздуховоды", level=2)
         document.add_paragraph(
@@ -1277,11 +2246,20 @@ def _add_docx_table(document: Any, rows: Sequence[Sequence[str]], pt_type: Any) 
 
 
 def build_design_docs(
-    terminal_path: str | Path, route_path: str | Path
+    terminal_path: str | Path,
+    route_path: str | Path,
+    sheets_path: str | Path | None = None,
+    *,
+    request_path: str | Path | None = None,
 ) -> DesignDocs:
     """Функциональный фасад для будущих интеграций Tools."""
 
-    return DesignDocs.from_files(terminal_path, route_path)
+    return DesignDocs.from_files(
+        terminal_path,
+        route_path,
+        sheets_path,
+        request_path=request_path,
+    )
 
 
 def _argument_parser() -> argparse.ArgumentParser:
@@ -1294,6 +2272,17 @@ def _argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--terminal", required=True, help="terminal-layout response JSON")
     parser.add_argument("--route", required=True, help="route-network response JSON")
+    parser.add_argument(
+        "--sheets",
+        help="опциональный sheets.json для ведомости рабочих чертежей",
+    )
+    parser.add_argument(
+        "--request",
+        help=(
+            "опциональный route-network или terminal-layout request JSON "
+            "для обслуживаемой площади систем"
+        ),
+    )
     parser.add_argument("--out", required=True, help="новый каталог для трёх документов")
     return parser
 
@@ -1304,7 +2293,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _argument_parser().parse_args(argv)
     output_directory = Path(args.out)
     try:
-        documents = DesignDocs.from_files(args.terminal, args.route)
+        documents = DesignDocs.from_files(
+            args.terminal,
+            args.route,
+            args.sheets,
+            request_path=args.request,
+        )
         if output_directory.exists():
             raise FileExistsError(
                 f"Каталог уже существует, повторный запуск запрещён: "
@@ -1330,15 +2324,22 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 __all__ = [
     "DOCX_OUTPUT_NAME",
+    "DRAWING_SHEETS_SHEET",
     "DesignDocs",
     "DesignDocsError",
     "DesignDocsInputError",
+    "DrawingSheetRow",
     "DuctRow",
     "DuctSizeTotal",
     "ENGINEER_REVIEW_NOTE",
     "EquipmentRow",
     "JSON_OUTPUT_NAME",
+    "MAIN_INDICATORS_SHEET",
+    "MainSystemIndicator",
     "NormReference",
+    "REFERENCE_DOCUMENTS_SHEET",
+    "ReferenceDocumentRow",
+    "SUPPLEMENT_NOTE",
     "SystemDesignData",
     "TerminalPerformance",
     "VelocityNormLookup",

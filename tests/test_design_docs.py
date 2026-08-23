@@ -415,7 +415,7 @@ def test_non_utf8_response_is_rejected_as_input_error(tmp_path: Path) -> None:
         DesignDocs.from_files(invalid, ROUTE_RESPONSE)
 
 
-def test_xlsx_has_two_expected_tables_without_reserve(
+def test_xlsx_preserves_two_legacy_tables_without_reserve(
     documents: DesignDocs, tmp_path: Path
 ) -> None:
     from openpyxl import load_workbook
@@ -424,7 +424,13 @@ def test_xlsx_has_two_expected_tables_without_reserve(
     documents.to_xlsx(output)
     workbook = load_workbook(output, data_only=True)
 
-    assert workbook.sheetnames == ["Спецификация", "Воздуховоды"]
+    assert workbook.sheetnames == [
+        "Спецификация",
+        "Воздуховоды",
+        "Основные показатели",
+        "Ф.1 Чертежи",
+        "Ф.2 Документы",
+    ]
     specification = workbook["Спецификация"]
     ducts = workbook["Воздуховоды"]
     assert [cell.value for cell in specification[5]] == [
