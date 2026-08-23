@@ -1,0 +1,601 @@
+{
+  "schemaVersion": "1.0",
+  "profileVersion": "coordera.hvac.route-network-preliminary/1.0",
+  "kind": "hvac-route-network-response",
+  "requestId": "8c2fd2c0-d127-4bcb-886f-b1136f4c4df5",
+  "requestSha256": "22D27BAAD0B0E22783B4520E95A065668034C22B499DE27E08D1B86522C28FA5",
+  "requestCanonicalHash": "E169529E9A1BD3886AF5CC04752D57C5EC651A16024F3717BCDC74613813467A",
+  "responseHash": "82398FB4C680E2A6BCF06994534C65F9190E4B5E996772CDACFE3091094C0303",
+  "status": "PRELIMINARY",
+  "engine": {
+    "id": "coordera-calc-hvac-route",
+    "version": "0.10.0",
+    "method": "corridor-spine-perpendicular-branches/1.0"
+  },
+  "engineSource": {
+    "version": "4.0.0",
+    "sourceTreeSha256": "7F603077ED784BA05B7B95BCA754AE4732DAEB72ECE18AB519093B7BB61CCDDC"
+  },
+  "sourceEvidence": {
+    "sourceKind": "manual-fixture",
+    "activeDocumentFingerprint": "79B68CA224E9539D75984B7EA11F0A46CA5A9271F1F71C72E12E3402D17441D2",
+    "toolsVersion": "coordera-tools-fixture/1.0",
+    "capturedAt": "2026-08-22T09:00:00+05:00",
+    "coordinateReference": "revit-project-millimeters"
+  },
+  "nodes": [
+    {
+      "nodeId": "node:8b08397e47fac54f:000001",
+      "positionMm": {
+        "x": -2000.0,
+        "y": 1000.0,
+        "z": 2600.0
+      },
+      "kind": "riser_top"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000002",
+      "positionMm": {
+        "x": 0.0,
+        "y": 1000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000003",
+      "positionMm": {
+        "x": 2000.0,
+        "y": -2000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000005",
+      "positionMm": {
+        "x": 2000.0,
+        "y": 1000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000006",
+      "positionMm": {
+        "x": 3500.0,
+        "y": -2000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000008",
+      "positionMm": {
+        "x": 3500.0,
+        "y": 1000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000009",
+      "positionMm": {
+        "x": 5750.0,
+        "y": 1000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000010",
+      "positionMm": {
+        "x": 5750.0,
+        "y": 4000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000012",
+      "positionMm": {
+        "x": 7250.0,
+        "y": 1000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000013",
+      "positionMm": {
+        "x": 7250.0,
+        "y": 4000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000015",
+      "positionMm": {
+        "x": 11000.0,
+        "y": 1000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000016",
+      "positionMm": {
+        "x": 11000.0,
+        "y": 2000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000017",
+      "positionMm": {
+        "x": 11000.0,
+        "y": 6000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000018",
+      "positionMm": {
+        "x": 11000.0,
+        "y": 8000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000019",
+      "positionMm": {
+        "x": 14000.0,
+        "y": 6000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:000021",
+      "positionMm": {
+        "x": 14000.0,
+        "y": 8000.0,
+        "z": 2600.0
+      },
+      "kind": "junction"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:source",
+      "positionMm": {
+        "x": -2000.0,
+        "y": 1000.0,
+        "z": 500.0
+      },
+      "kind": "source"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:terminal:05fd80a163119c71",
+      "positionMm": {
+        "x": 2000.0,
+        "y": -2000.0,
+        "z": 2700.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:terminal:3c5b3b2281b1b8ca",
+      "positionMm": {
+        "x": 14000.0,
+        "y": 6000.0,
+        "z": 2700.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:terminal:4a994ff36de58a7d",
+      "positionMm": {
+        "x": 14000.0,
+        "y": 8000.0,
+        "z": 2700.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:terminal:6195f7ee9b4d243e",
+      "positionMm": {
+        "x": 7250.0,
+        "y": 4000.0,
+        "z": 2700.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:terminal:dacd2125a182bb8c",
+      "positionMm": {
+        "x": 5750.0,
+        "y": 4000.0,
+        "z": 2700.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:8b08397e47fac54f:terminal:e1eebdcd7a2451d6",
+      "positionMm": {
+        "x": 3500.0,
+        "y": -2000.0,
+        "z": 2700.0
+      },
+      "kind": "terminal"
+    }
+  ],
+  "segments": [
+    {
+      "segmentId": "segment:8b08397e47fac54f:000000",
+      "a": "node:8b08397e47fac54f:source",
+      "b": "node:8b08397e47fac54f:000001",
+      "systemId": "SA-01",
+      "kind": "riser",
+      "lengthMm": 2100.0,
+      "shape": "round",
+      "size": {
+        "dMm": 250
+      },
+      "flowM3h": 1080.0,
+      "velocityMs": 6.111549814728781,
+      "dpPa": 4.141483441371615
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000001",
+      "a": "node:8b08397e47fac54f:000001",
+      "b": "node:8b08397e47fac54f:000002",
+      "systemId": "SA-01",
+      "kind": "connection",
+      "lengthMm": 2000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 250
+      },
+      "flowM3h": 1080.0,
+      "velocityMs": 6.111549814728781,
+      "dpPa": 8.874607374367747
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000002",
+      "a": "node:8b08397e47fac54f:000002",
+      "b": "node:8b08397e47fac54f:000005",
+      "systemId": "SA-01",
+      "kind": "trunk",
+      "lengthMm": 2000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 250
+      },
+      "flowM3h": 1080.0,
+      "velocityMs": 6.111549814728781,
+      "dpPa": 3.9442699441634423
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000003",
+      "a": "node:8b08397e47fac54f:000005",
+      "b": "node:8b08397e47fac54f:000003",
+      "systemId": "SA-01",
+      "kind": "branch",
+      "lengthMm": 3000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 6.799477625412009
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000004",
+      "a": "node:8b08397e47fac54f:000005",
+      "b": "node:8b08397e47fac54f:000008",
+      "systemId": "SA-01",
+      "kind": "trunk",
+      "lengthMm": 1500.0,
+      "shape": "round",
+      "size": {
+        "dMm": 250
+      },
+      "flowM3h": 900.0,
+      "velocityMs": 5.092958178940651,
+      "dpPa": 5.1668940240777435
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000005",
+      "a": "node:8b08397e47fac54f:000003",
+      "b": "node:8b08397e47fac54f:terminal:05fd80a163119c71",
+      "systemId": "SA-01",
+      "kind": "connection",
+      "lengthMm": 100.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 30.43306648461559
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000006",
+      "a": "node:8b08397e47fac54f:000008",
+      "b": "node:8b08397e47fac54f:000006",
+      "systemId": "SA-01",
+      "kind": "branch",
+      "lengthMm": 3000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 6.799477625412009
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000007",
+      "a": "node:8b08397e47fac54f:000008",
+      "b": "node:8b08397e47fac54f:000009",
+      "systemId": "SA-01",
+      "kind": "trunk",
+      "lengthMm": 2250.0,
+      "shape": "round",
+      "size": {
+        "dMm": 200
+      },
+      "flowM3h": 720.0,
+      "velocityMs": 6.366197723675813,
+      "dpPa": 10.881895123187075
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000008",
+      "a": "node:8b08397e47fac54f:000006",
+      "b": "node:8b08397e47fac54f:terminal:e1eebdcd7a2451d6",
+      "systemId": "SA-01",
+      "kind": "connection",
+      "lengthMm": 100.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 30.43306648461559
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000009",
+      "a": "node:8b08397e47fac54f:000009",
+      "b": "node:8b08397e47fac54f:000010",
+      "systemId": "SA-01",
+      "kind": "branch",
+      "lengthMm": 3000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 6.799477625412009
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000010",
+      "a": "node:8b08397e47fac54f:000009",
+      "b": "node:8b08397e47fac54f:000012",
+      "systemId": "SA-01",
+      "kind": "trunk",
+      "lengthMm": 1500.0,
+      "shape": "round",
+      "size": {
+        "dMm": 200
+      },
+      "flowM3h": 540.0,
+      "velocityMs": 4.77464829275686,
+      "dpPa": 4.992601323976193
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000011",
+      "a": "node:8b08397e47fac54f:000010",
+      "b": "node:8b08397e47fac54f:terminal:dacd2125a182bb8c",
+      "systemId": "SA-01",
+      "kind": "connection",
+      "lengthMm": 100.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 32.433066484615594
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000012",
+      "a": "node:8b08397e47fac54f:000012",
+      "b": "node:8b08397e47fac54f:000013",
+      "systemId": "SA-01",
+      "kind": "branch",
+      "lengthMm": 3000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 6.799477625412009
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000013",
+      "a": "node:8b08397e47fac54f:000012",
+      "b": "node:8b08397e47fac54f:000015",
+      "systemId": "SA-01",
+      "kind": "trunk",
+      "lengthMm": 3750.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 360.0,
+      "velocityMs": 4.973591971621729,
+      "dpPa": 10.621284967389833
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000014",
+      "a": "node:8b08397e47fac54f:000013",
+      "b": "node:8b08397e47fac54f:terminal:6195f7ee9b4d243e",
+      "systemId": "SA-01",
+      "kind": "connection",
+      "lengthMm": 100.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 32.433066484615594
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000015",
+      "a": "node:8b08397e47fac54f:000015",
+      "b": "node:8b08397e47fac54f:000016",
+      "systemId": "SA-01",
+      "kind": "trunk",
+      "lengthMm": 1000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 360.0,
+      "velocityMs": 4.973591971621729,
+      "dpPa": 5.306004367988635
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000016",
+      "a": "node:8b08397e47fac54f:000016",
+      "b": "node:8b08397e47fac54f:000017",
+      "systemId": "SA-01",
+      "kind": "trunk",
+      "lengthMm": 4000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 360.0,
+      "velocityMs": 4.973591971621729,
+      "dpPa": 8.163083643059437
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000017",
+      "a": "node:8b08397e47fac54f:000017",
+      "b": "node:8b08397e47fac54f:000018",
+      "systemId": "SA-01",
+      "kind": "trunk",
+      "lengthMm": 2000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 6.366197723675813,
+      "dpPa": 15.562933807463079
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000018",
+      "a": "node:8b08397e47fac54f:000017",
+      "b": "node:8b08397e47fac54f:000019",
+      "systemId": "SA-01",
+      "kind": "branch",
+      "lengthMm": 3000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 6.799477625412009
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000019",
+      "a": "node:8b08397e47fac54f:000018",
+      "b": "node:8b08397e47fac54f:000021",
+      "systemId": "SA-01",
+      "kind": "branch",
+      "lengthMm": 3000.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 2.3468865473795884
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000020",
+      "a": "node:8b08397e47fac54f:000019",
+      "b": "node:8b08397e47fac54f:terminal:3c5b3b2281b1b8ca",
+      "systemId": "SA-01",
+      "kind": "connection",
+      "lengthMm": 100.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 34.433066484615594
+    },
+    {
+      "segmentId": "segment:8b08397e47fac54f:000021",
+      "a": "node:8b08397e47fac54f:000021",
+      "b": "node:8b08397e47fac54f:terminal:4a994ff36de58a7d",
+      "systemId": "SA-01",
+      "kind": "connection",
+      "lengthMm": 100.0,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 180.0,
+      "velocityMs": 2.4867959858108644,
+      "dpPa": 34.433066484615594
+    }
+  ],
+  "systems": [
+    {
+      "systemId": "SA-01",
+      "criticalPathSegmentIds": [
+        "segment:8b08397e47fac54f:000000",
+        "segment:8b08397e47fac54f:000001",
+        "segment:8b08397e47fac54f:000002",
+        "segment:8b08397e47fac54f:000004",
+        "segment:8b08397e47fac54f:000007",
+        "segment:8b08397e47fac54f:000010",
+        "segment:8b08397e47fac54f:000013",
+        "segment:8b08397e47fac54f:000015",
+        "segment:8b08397e47fac54f:000016",
+        "segment:8b08397e47fac54f:000017",
+        "segment:8b08397e47fac54f:000019",
+        "segment:8b08397e47fac54f:000021"
+      ],
+      "fanPressurePa": 125.878512153944,
+      "fanFlowM3h": 1080.0
+    }
+  ],
+  "issues": [],
+  "provenance": {
+    "preliminaryCalculationOnly": true,
+    "automaticRouteProposed": true,
+    "networkAerodynamicsCalculated": true,
+    "standardSectionSizingPerformed": true,
+    "collisionAvoidancePerformed": false,
+    "structureCoordinationPerformed": false,
+    "airBalancingPerformed": false,
+    "normativeComplianceClaimed": false,
+    "modelMutated": false
+  },
+  "diagnostics": []
+}

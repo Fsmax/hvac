@@ -1,0 +1,182 @@
+{
+  "schemaVersion": "1.0",
+  "profileVersion": "coordera.hvac.terminal-layout-preliminary/1.0",
+  "kind": "hvac-terminal-layout-response",
+  "requestId": "7f34ad1e-d9eb-4cc4-a19c-5b4774b8da2c",
+  "requestSha256": "EF912785CB8A78BE2C8D49E052DE4A03AACFCC3CA896738E02B584108521B33B",
+  "requestCanonicalHash": "0B49F8BAED7D726A7C8872C5EC3218D0447B5AA43A8E71D1C642306A5DB4E849",
+  "responseHash": "DF3B4A4F021540AE9BCD8E79A87921D5B7F6D1DC98F66345F22793625064E17B",
+  "status": "PRELIMINARY",
+  "engine": {
+    "id": "coordera-calc-hvac-terminal",
+    "version": "0.10.0",
+    "method": "grille-room-pick-pca-grid-layout/1.0"
+  },
+  "engineSource": {
+    "version": "4.0.0",
+    "sourceTreeSha256": "7F603077ED784BA05B7B95BCA754AE4732DAEB72ECE18AB519093B7BB61CCDDC"
+  },
+  "sourceEvidence": {
+    "sourceKind": "manual-fixture",
+    "activeDocumentFingerprint": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "toolsVersion": "fixture-tz09",
+    "capturedAt": "2026-08-22T09:00:00+05:00",
+    "coordinateReference": "revit-project-millimeters"
+  },
+  "results": [
+    {
+      "spaceId": "space-l-shaped",
+      "name": "L-shaped open office",
+      "supplyPick": {
+        "model": "РНБ/РНР 3000×400",
+        "size": "3000×400",
+        "nUnits": 3,
+        "l0PerUnitM3h": 6666.666667,
+        "velocityMs": 1.737197,
+        "lwaDb": null,
+        "dpPa": null,
+        "throw05M": null,
+        "warnings": [
+          "ΔP по номограмме изготовителя (нет в таблице)"
+        ]
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:8fed608d7ab8af11335ee3fa-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 24968.775962,
+            "y": 3826.077324,
+            "z": 2850.0
+          }
+        }
+      ],
+      "issues": [
+        {
+          "code": "TERMINAL_GRID_OVERFLOW",
+          "message": "supply: placed 1 of 3 selected terminals; rejected grid cells were outside the strict polygon/clearance boundary."
+        }
+      ]
+    },
+    {
+      "spaceId": "space-overflow",
+      "name": "Insufficient usable polygon",
+      "supplyPick": {
+        "model": "РНБ/РНР 3000×400",
+        "size": "3000×400",
+        "nUnits": 6,
+        "l0PerUnitM3h": 7123.333333,
+        "velocityMs": 1.856195,
+        "lwaDb": null,
+        "dpPa": null,
+        "throw05M": null,
+        "warnings": [
+          "ΔP по номограмме изготовителя (нет в таблице)"
+        ]
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:5218e281b5fa61f546afa79e-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 41500.0,
+            "y": 1000.0,
+            "z": 2700.0
+          }
+        },
+        {
+          "placementId": "terminal:5218e281b5fa61f546afa79e-1",
+          "direction": "supply",
+          "positionMm": {
+            "x": 44500.0,
+            "y": 1000.0,
+            "z": 2700.0
+          }
+        },
+        {
+          "placementId": "terminal:5218e281b5fa61f546afa79e-2",
+          "direction": "supply",
+          "positionMm": {
+            "x": 41500.0,
+            "y": 5000.0,
+            "z": 2700.0
+          }
+        },
+        {
+          "placementId": "terminal:5218e281b5fa61f546afa79e-3",
+          "direction": "supply",
+          "positionMm": {
+            "x": 44500.0,
+            "y": 5000.0,
+            "z": 2700.0
+          }
+        }
+      ],
+      "issues": [
+        {
+          "code": "TERMINAL_GRID_OVERFLOW",
+          "message": "supply: placed 4 of 6 selected terminals; rejected grid cells were outside the strict polygon/clearance boundary."
+        }
+      ]
+    },
+    {
+      "spaceId": "space-rectangular",
+      "name": "Rectangular meeting room",
+      "supplyPick": {
+        "model": "АБН/АБР 400×150",
+        "size": "400×150",
+        "nUnits": 1,
+        "l0PerUnitM3h": 780.0,
+        "velocityMs": 4.333333,
+        "lwaDb": 34.2,
+        "dpPa": 23.04,
+        "throw05M": 12.0,
+        "warnings": []
+      },
+      "exhaustPick": {
+        "model": "АБН/АБР 400×150",
+        "size": "400×150",
+        "nUnits": 1,
+        "l0PerUnitM3h": 780.0,
+        "velocityMs": 4.333333,
+        "lwaDb": 34.2,
+        "dpPa": 23.04,
+        "throw05M": 12.0,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:cbe7c5eea9464cb40050791e-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 11655.695019,
+            "y": 22514.194504,
+            "z": 2700.0
+          }
+        },
+        {
+          "placementId": "terminal:fcefc05365c3a611473fb5ff-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 13104.583758,
+            "y": 22902.423072,
+            "z": 2700.0
+          }
+        }
+      ],
+      "issues": []
+    }
+  ],
+  "provenance": {
+    "preliminaryCalculationOnly": true,
+    "grilleSelectionPerformed": true,
+    "terminalLayoutGenerated": true,
+    "airBalancingPerformed": false,
+    "networkAerodynamicsCalculated": false,
+    "normativeComplianceClaimed": false,
+    "modelMutated": false
+  },
+  "diagnostics": []
+}
