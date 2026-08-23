@@ -1,0 +1,1896 @@
+{
+  "schemaVersion": "1.0",
+  "profileVersion": "coordera.hvac.terminal-layout-preliminary/1.0",
+  "kind": "hvac-terminal-layout-response",
+  "requestId": "55973831-8604-4394-b2c6-75e24f842e5e",
+  "requestSha256": "F74D1B91089C6862EB7131F7A222DE45753975F85082E9E1F04446C76E99BF1B",
+  "requestCanonicalHash": "85512A5879ED24450F4C69DF79887DE22DC2E58BECCED475F2361DA201449BE7",
+  "responseHash": "BB64BFC536B64E074AA1555E73680582DDE5BE5CAA4A1E5D1A8ABAB1AC0CBF34",
+  "status": "PRELIMINARY",
+  "engine": {
+    "id": "coordera-calc-hvac-terminal",
+    "version": "0.11.1",
+    "method": "grille-room-pick-pca-grid-layout/1.1"
+  },
+  "engineSource": {
+    "version": "4.0.0",
+    "sourceTreeSha256": "60A15F88203E91833AEE90BE00AAB36E4CA57137F6F8490750D9D7729B099305"
+  },
+  "sourceEvidence": {
+    "sourceKind": "revit-native",
+    "activeDocumentFingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+    "toolsVersion": "agent-bridge/rvtbridge-0.1.0",
+    "capturedAt": "2026-08-23T09:20:00Z",
+    "coordinateReference": "revit-project-millimeters"
+  },
+  "results": [
+    {
+      "spaceId": "space:00466f1f0181734482192441",
+      "name": "HTL-210.b BATHROOM HTL-210.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:e0831bea5cc77ed765668466-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 15002.158101,
+            "y": 56843.126166,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:0164acbdfa7419cf47e5cc17",
+      "name": "HTL-201.b BATHROOM HTL-201.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:268a3329a3907884cc8d6a91-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 31293.757952,
+            "y": 71488.190762,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:071ee7e44b4f13691ca0e810",
+      "name": "HTL-214.a LIVING ROOM HTL-214.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [],
+      "issues": [
+        {
+          "code": "TERMINAL_GRID_OVERFLOW",
+          "message": "supply: placed 0 of 1 selected terminals; rejected grid cells were outside the strict material or inclusive clearance boundary."
+        }
+      ]
+    },
+    {
+      "spaceId": "space:114fe30e0fe8f66d5d74c23e",
+      "name": "HTL-201.a ROOM HTL-201.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:21d7749e889312a348a323be-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 33358.777432,
+            "y": 70134.959155,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:147f7ae66ac9cf8055f0e5d0",
+      "name": "HTL-222.b BATHROOM HTL-222.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:fe67033d467cd83765094261-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 43481.315051,
+            "y": 44498.367154,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:1b78e369bbb63d6ea1115783",
+      "name": "HTL-203.b BATHROOM HTL-203.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:9096a1a8a61f8e30f34c409a-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 32088.158662,
+            "y": 79046.534087,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:1c25f7afe2dafb0192b826df",
+      "name": "HTL-242 HOUSEKEEPING ELEVATOR HTL-242",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [],
+      "issues": [
+        {
+          "code": "TERMINAL_GRID_OVERFLOW",
+          "message": "supply: placed 0 of 1 selected terminals; rejected grid cells were outside the strict material or inclusive clearance boundary."
+        }
+      ]
+    },
+    {
+      "spaceId": "space:243d5b1454c475071494721d",
+      "name": "HTL-225.b BATHROOM HTL-225.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:c20821b7a71b47a32088b251-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 45082.557499,
+            "y": 49860.611949,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:2a946c7b1635926a66bb07b6",
+      "name": "HTL-202.a ROOM HTL-202.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:eebb02d77814fb2cf61b93a2-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 33790.05542,
+            "y": 74280.732436,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:2f8b510933a163315519f4b6",
+      "name": "HTL-220.b BATHROOM HTL-220.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:fd7c5c8e8400c5439e559fb2-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 37332.811552,
+            "y": 48965.520339,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:3195947f70f26b338025b54e",
+      "name": "HTL-202.b BATHROOM HTL-202.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:822b183547dac78fbe03eab2-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 31487.797743,
+            "y": 73334.408588,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:32ac154605c2a8eb57626dec",
+      "name": "HTL-211.a ROOM HTL-211.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:0f682440bb295268c7fabd9e-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 11335.470684,
+            "y": 57608.70567,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:32af34152027cb8832013742",
+      "name": "HTL-218.a ROOM HTL-218.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:fac6229d7583ff203e7b1717-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 19074.443595,
+            "y": 50474.724695,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:337e502a573fc8a50a33d87f",
+      "name": "HTL-217.b BATHROOM HTL-217.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:1b3107443cd0758f925f4b3b-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 15453.507691,
+            "y": 51265.082029,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:344281581c080e9b08c4a0c6",
+      "name": "HTL-215.b BATHROOM HTL-215.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:d3bfcaaaef8f5f40439b815c-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 8510.6059,
+            "y": 48173.912424,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:372cd0c9000e67b3d9f5e700",
+      "name": "HTL-225.a ROOM HTL-225.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:e442c9e5115d2290c4fdefbc-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 45414.024546,
+            "y": 52327.473211,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:41218cdf36019537317e6cf8",
+      "name": "HTL-220.a ROOM HTL-220.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:8dbba9c72e7d0c00373a5669-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 37001.322261,
+            "y": 46498.679117,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:46a6ed1da66be1cfadf2f563",
+      "name": "HTL-205.b LIVING ROOM HTL-205.b",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:c5423f7833a3595d6711f563-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 33853.759541,
+            "y": 85995.791795,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:4a7bb0768de2764d63d5bd51",
+      "name": "HTL-203.a ROOM HTL-203.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:81d24ea6dc343692ea2d83a7-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 34143.292912,
+            "y": 77642.33975,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:4bf041bc0e0353f159aad81b",
+      "name": "HTL-223.c WC HTL-223.c",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 150.0,
+        "velocityMs": 2.314815,
+        "lwaDb": 23.75,
+        "dpPa": 4.166667,
+        "throw05M": 4.5,
+        "warnings": []
+      },
+      "placements": [],
+      "issues": [
+        {
+          "code": "TERMINAL_GRID_OVERFLOW",
+          "message": "exhaust: placed 0 of 1 selected terminals; rejected grid cells were outside the strict material or inclusive clearance boundary."
+        }
+      ]
+    },
+    {
+      "spaceId": "space:5e22b9de008598ac5b964272",
+      "name": "HTL-222.a ROOM HTL-222.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:d4f1fbdbc5fefdfb6cfe8977-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 43040.210505,
+            "y": 42069.004959,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:60ec74747ea1af76a8238a17",
+      "name": "HTL-207.b BATHROOM HTL-207.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:292c8aae1a0424329b37f694-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 26837.756785,
+            "y": 79598.412179,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:614b3a1290001f6b37cd3556",
+      "name": "HTL-227.b BATHROOM HTL-227.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:2b055d91cf9d41e0b742fa94-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 38934.04978,
+            "y": 54327.770303,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:618630c273fa8e622b3f6e84",
+      "name": "HTL-252.a FIRE HALL HTL-252.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:6758294e15ea9468d96750b0-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 18695.984377,
+            "y": 65546.797124,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:666c925e31458d27e0c474b3",
+      "name": "HTL-205.a HALL HTL-205.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:b19b7d6032328b8eefe00d77-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 30038.94969,
+            "y": 84726.052551,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:66bad2d071575cf1014ebd7c",
+      "name": "HTL-219.a ROOM HTL-219.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:93cb61e4d310a7444e9e5f9f-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 33626.598912,
+            "y": 48945.062847,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:698b450f5c5d09de80bd2fdd",
+      "name": "HTL-231 HOTEL ELEVATOR LOBBY HTL-231",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 150.0,
+        "velocityMs": 2.314815,
+        "lwaDb": 23.75,
+        "dpPa": 4.166667,
+        "throw05M": 4.5,
+        "warnings": []
+      },
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 150.0,
+        "velocityMs": 2.314815,
+        "lwaDb": 23.75,
+        "dpPa": 4.166667,
+        "throw05M": 4.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:79c8ef01a3e5c317dc7f9c76-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 26684.805316,
+            "y": 50538.481234,
+            "z": 13600.0
+          }
+        },
+        {
+          "placementId": "terminal:fbf9201da597827e85236a51-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 26961.170429,
+            "y": 52555.407392,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:6abc2d10439b7bca6f3bb628",
+      "name": "HTL-206.b BATHROOM HTL-206.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:9b383823d88b6b130a0caadf-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 27031.792596,
+            "y": 81444.655748,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:6e6a99181286aaa8f3d3e00f",
+      "name": "HTL-213.b BATHROOM HTL-213.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:4cea6073b518777ee5bb5e64-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 6363.210652,
+            "y": 52996.782671,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:76330e1384b25ad1fb592d62",
+      "name": "HTL-224.a ROOM HTL-224.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:b94bfb097bcc69c7afca2b82-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 48758.396845,
+            "y": 49939.703016,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:7aa6f94a14d4c0d3a9e1a8fd",
+      "name": "HTL-206.a ROOM HTL-206.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:158fe13dd391c65762818365-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 24932.521059,
+            "y": 82738.105262,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:8263df1b165f3164ba7ebb19",
+      "name": "HTL-212.a ROOM HTL-212.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:c38d6f29cd1da2f51502c5d6-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 8247.704121,
+            "y": 56233.815521,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:8447364db2bac0da3ecd5459",
+      "name": "HTL-212.b BATHROOM HTL-212.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:29fee70a6145af364aaf0ca6-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 8059.191894,
+            "y": 53751.919209,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:860ee0f21b7e9c8cfbc867bf",
+      "name": "HTL-227.a ROOM HTL-227.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:d9b46504e46f6bda1939710f-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 39310.120345,
+            "y": 56767.72297,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:8860da2b7a56c427f9cf836b",
+      "name": "HTL-204.b BATHROOM HTL-204.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:27dfc56900f02a9f243aa839-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 32282.210153,
+            "y": 80892.808513,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:8a50f2f0332b8d5e00156e2f",
+      "name": "HTL-223.b LIVING ROOM HTL-223.b",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:e4e550fd3c277caf45693cc1-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 47114.886129,
+            "y": 40585.939591,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:979e1f087fbcd5f76fc349e8",
+      "name": "HTL-214.b LIVING ROOM HTL-214.b",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:b0fa4c3c9993078f87b0669e-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 1158.116341,
+            "y": 51806.343285,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:98243602578ef124f8dc7790",
+      "name": "HTL-208.b BATHROOM HTL-208.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:c9935acd8702bcfb9e0b8ea1-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 26237.391436,
+            "y": 73886.263821,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:9c13d67df0cbba165915b945",
+      "name": "HTL-213.a ROOM HTL-213.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:d0d0a1b9b3da45bcf17d78bc-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 4484.225443,
+            "y": 54594.034777,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:9f91a4aa385b84802d256d5e",
+      "name": "HTL-210.a ROOM HTL-210.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:7a1278bc6373c9ad09f5cd69-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 15141.466319,
+            "y": 59308.154062,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:ac3ec93847f3efd79d7896c6",
+      "name": "HTL-224.b BATHROOM HTL-224.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:1a0325d813c70b35020ca98f-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 46584.52653,
+            "y": 48769.345872,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:ae1903990d612d8eb5b960ba",
+      "name": "HTL-207.a ROOM HTL-207.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:cf1b182d04abeeab4a001bd1-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 24535.928353,
+            "y": 78652.098472,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:b14e4f6c38c4b6bc49334d99",
+      "name": "HTL-237 ELECTRIC ROOM HTL-237",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:59be3c58fe0ded9aa5d2777e-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 31566.772955,
+            "y": 50954.13932,
+            "z": 13600.0
+          }
+        },
+        {
+          "placementId": "terminal:093fec269f46996009d8cb87-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 32095.77752,
+            "y": 52164.746792,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:baf06a98f3a18e8040c64af2",
+      "name": "HTL-221.b BATHROOM HTL-221.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:e474ccf66f4860731887d1ef-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 41709.105646,
+            "y": 45600.502061,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:c05f002a64f0e2c9bcef75b8",
+      "name": "HTL-215.a ROOM HTL-215.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:b7e9210829da9270be5ad446-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 8440.015817,
+            "y": 45709.166173,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:c26ac48029987936744351f0",
+      "name": "HTL-241 WC HTL-241",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [],
+      "issues": [
+        {
+          "code": "TERMINAL_GRID_OVERFLOW",
+          "message": "exhaust: placed 0 of 1 selected terminals; rejected grid cells were outside the strict material or inclusive clearance boundary."
+        }
+      ]
+    },
+    {
+      "spaceId": "space:c28d35cb063b92e449d03795",
+      "name": "HTL-230 MAIN CIRCULATION HALL HTL-230",
+      "supplyPick": {
+        "model": "АБН/АБР 300×100",
+        "size": "300×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 400.0,
+        "velocityMs": 5.050505,
+        "lwaDb": 32.692308,
+        "dpPa": 29.846154,
+        "throw05M": 9.5,
+        "warnings": []
+      },
+      "exhaustPick": {
+        "model": "АБН/АБР 300×100",
+        "size": "300×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 400.0,
+        "velocityMs": 5.050505,
+        "lwaDb": 32.692308,
+        "dpPa": 29.846154,
+        "throw05M": 9.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:df63f4758e81a197f0677880-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 28308.25793,
+            "y": 64856.637763,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": [
+        {
+          "code": "TERMINAL_GRID_OVERFLOW",
+          "message": "exhaust: placed 0 of 1 selected terminals; rejected grid cells were outside the strict material or inclusive clearance boundary."
+        }
+      ]
+    },
+    {
+      "spaceId": "space:c33c2bea756c802afe37ab07",
+      "name": "HTL-219.b BATHROOM HTL-219.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:083871b471c44aed164e7d6a-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 35830.967857,
+            "y": 50056.704532,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:c5849fdd5841fac6faefb81b",
+      "name": "HTL-216.b BATHROOM HTL-216.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:ae631213599fb546397749da-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 10206.462407,
+            "y": 48929.011204,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:cb274056116101c21b55c4f5",
+      "name": "HTL-211.b BATHROOM HTL-211.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:00714a7108204d2c6da32782-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 13306.215523,
+            "y": 56087.999864,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:cbcace19c894df4e9e5af81e",
+      "name": "HTL-204.a ROOM HTL-204.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:218c8c5940b867238cf416c1-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 34604.897706,
+            "y": 81721.504399,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:d3c56ed445bf3b908fb2a100",
+      "name": "HTL-229 CORRIDOR HTL-229",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 200.0,
+        "velocityMs": 3.08642,
+        "lwaDb": 27.0,
+        "dpPa": 8.0,
+        "throw05M": 4.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:7160b590a7d418e65b1d5fa2-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 13309.265897,
+            "y": 53200.1766,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:d98b055efbdaea0abf360d56",
+      "name": "HTL-226.a ROOM HTL-226.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:a86bc1c621966126e6983984-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 42679.670453,
+            "y": 54314.143404,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:db9eeb2ddf3202a4fc388bba",
+      "name": "HTL-226.b BATHROOM HTL-226.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:1f69fef3db447f4e0038d81a-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 40435.995919,
+            "y": 53236.564633,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:dbee6af370c6986b5600ed82",
+      "name": "HTL-228 CORRIDOR HTL-228",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 200.0,
+        "velocityMs": 3.08642,
+        "lwaDb": 27.0,
+        "dpPa": 8.0,
+        "throw05M": 4.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:3c2e37ba3186e01f9ba56137-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 39832.366824,
+            "y": 50412.273156,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:e3f82890b3dc5ed273106c15",
+      "name": "HTL-217.a ROOM HTL-217.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:9a51eda969ee0384e64a1cbd-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 15264.784427,
+            "y": 48783.385921,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:e84a04eb4a0016abf6938a22",
+      "name": "HTL-209.b BATHROOM HTL-209.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:b393cb665738ccf9a7693b23-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 26043.295799,
+            "y": 72039.970156,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:e899e8a0ac1d32d126900acd",
+      "name": "HTL-254 ELECTRIC ROOM HTL-254",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:4ce45cab8b68ad5cb78343e5-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 17911.467875,
+            "y": 60087.224354,
+            "z": 13600.0
+          }
+        },
+        {
+          "placementId": "terminal:d568837d0204440d5cb39c65-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 18695.392498,
+            "y": 59023.786886,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:ee27063a204720839f761fca",
+      "name": "HTL-216.a ROOM HTL-216.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:659c80a1c8e229b7a5cd3af4-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 12176.950089,
+            "y": 47408.574068,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:f4202d628b5dcb6436698000",
+      "name": "HTL-218.b BATHROOM HTL-218.b",
+      "supplyPick": null,
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:c2304927f379dffb4b5aa1b7-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 17149.44045,
+            "y": 52020.20307,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:f58c6d9c0f42dabb838a7a37",
+      "name": "HTL-208.a ROOM HTL-208.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:e8279d9e88e799571ecc1fc0-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 24182.531354,
+            "y": 75290.583896,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:f5cf33c87cb9301d154811ea",
+      "name": "HTL-221.a ROOM HTL-221.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [],
+      "issues": [
+        {
+          "code": "TERMINAL_GRID_OVERFLOW",
+          "message": "supply: placed 0 of 1 selected terminals; rejected grid cells were outside the strict material or inclusive clearance boundary."
+        }
+      ]
+    },
+    {
+      "spaceId": "space:f76db4a066cef160cc2f899f",
+      "name": "HTL-251 HOUSEKEEPING STORE HTL-251",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "placements": [
+        {
+          "placementId": "terminal:d97e3769b9734339519f9c09-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 21494.681162,
+            "y": 63341.555024,
+            "z": 13600.0
+          }
+        },
+        {
+          "placementId": "terminal:4fae155a750d0bce38b2c0d3-0",
+          "direction": "exhaust",
+          "positionMm": {
+            "x": 22549.026035,
+            "y": 62572.139724,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    },
+    {
+      "spaceId": "space:fd81550f71884a5f8eb98c7e",
+      "name": "HTL-209.a ROOM HTL-209.a",
+      "supplyPick": {
+        "model": "АМН/АМР/АДН/АДР 200×100",
+        "size": "200×100",
+        "nUnits": 1,
+        "l0PerUnitM3h": 100.0,
+        "velocityMs": 1.54321,
+        "lwaDb": 21.666667,
+        "dpPa": 1.851852,
+        "throw05M": 1.5,
+        "warnings": []
+      },
+      "exhaustPick": null,
+      "placements": [
+        {
+          "placementId": "terminal:25706e4ee9011d4d704810cc-0",
+          "direction": "supply",
+          "positionMm": {
+            "x": 23732.351546,
+            "y": 71146.143398,
+            "z": 13600.0
+          }
+        }
+      ],
+      "issues": []
+    }
+  ],
+  "provenance": {
+    "preliminaryCalculationOnly": true,
+    "grilleSelectionPerformed": true,
+    "terminalLayoutGenerated": true,
+    "airBalancingPerformed": false,
+    "networkAerodynamicsCalculated": false,
+    "normativeComplianceClaimed": false,
+    "modelMutated": false
+  },
+  "diagnostics": []
+}

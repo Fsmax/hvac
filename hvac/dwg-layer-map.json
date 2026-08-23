@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "layers": {
+    "rooms": {
+      "name": "CRD_ПОМ",
+      "color": 8
+    },
+    "ducts": {
+      "name": "CRD_ОВ_ВОЗД",
+      "color": 4
+    },
+    "marks": {
+      "name": "CRD_ОВ_МАРКИ",
+      "color": 2
+    },
+    "equipment": {
+      "name": "CRD_ОВ_ОБОРУД",
+      "color": 3
+    }
+  },
+  "blocks": {
+    "grille": {
+      "name": "CRD_UGO_GRILLE",
+      "markAttribute": "МАРКА"
+    }
+  }
+}

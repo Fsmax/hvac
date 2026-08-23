@@ -4,3 +4,5 @@ matplotlib>=3.10
 openpyxl>=3.1
 reportlab>=4.5
 python-docx>=1.1
+# Чертёжный DXF-выход Проектировщика; чистая Python-библиотека без CAD runtime.
+ezdxf>=1.4

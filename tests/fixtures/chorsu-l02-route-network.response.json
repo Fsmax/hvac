@@ -1,0 +1,1607 @@
+{
+  "schemaVersion": "1.1",
+  "profileVersion": "coordera.hvac.route-network-preliminary/1.0",
+  "kind": "hvac-route-network-response",
+  "requestId": "55973831-8604-4394-b2c6-75e24f842e5e",
+  "requestSha256": "668B65ECB5890AC97C8C6E9C917855B957B76D020E28E6A8B999A772EDEB35EA",
+  "requestCanonicalHash": "9E17F08650587FC80F72BA5280CA11A5FEB72E8997F6C2C8BEAA679B54F2AD5F",
+  "responseHash": "3A69CC9156F1015084BAB5EFCC234B0DFC24F2AD8BD4A9F7FA11167662554271",
+  "status": "PRELIMINARY",
+  "ductScheduleHint": "standalone-connection-category",
+  "engine": {
+    "id": "coordera-calc-hvac-route",
+    "version": "0.11.1",
+    "method": "corridor-spine-perpendicular-branches/1.0"
+  },
+  "engineSource": {
+    "version": "4.0.0",
+    "sourceTreeSha256": "60A15F88203E91833AEE90BE00AAB36E4CA57137F6F8490750D9D7729B099305"
+  },
+  "sourceEvidence": {
+    "sourceKind": "revit-native",
+    "activeDocumentFingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+    "toolsVersion": "agent-bridge/rvtbridge-0.1.0",
+    "capturedAt": "2026-08-23T09:20:00Z",
+    "coordinateReference": "revit-project-millimeters"
+  },
+  "nodes": [
+    {
+      "nodeId": "node:57eada367e102c94:source",
+      "positionMm": {
+        "x": 25217.75,
+        "y": 63202.75,
+        "z": 13600.0
+      },
+      "kind": "source"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:0e1a670b8c6ac86b",
+      "positionMm": {
+        "x": 31487.797743,
+        "y": 73334.408588,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:0ec8fc900ccbedd0",
+      "positionMm": {
+        "x": 26237.391436,
+        "y": 73886.263821,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:0f17a80936c80bbe",
+      "positionMm": {
+        "x": 18695.392498,
+        "y": 59023.786886,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:2498463d580b26e7",
+      "positionMm": {
+        "x": 35830.967857,
+        "y": 50056.704532,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:290a99fd6483a9fc",
+      "positionMm": {
+        "x": 10206.462407,
+        "y": 48929.011204,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:2a3c76a5b495650f",
+      "positionMm": {
+        "x": 13306.215523,
+        "y": 56087.999864,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:42d0e722c91f1f17",
+      "positionMm": {
+        "x": 22549.026035,
+        "y": 62572.139724,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:486fc5304fd33498",
+      "positionMm": {
+        "x": 26043.295799,
+        "y": 72039.970156,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:4b9d790a0eda78cf",
+      "positionMm": {
+        "x": 41709.105646,
+        "y": 45600.502061,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:5673366cc2079aa7",
+      "positionMm": {
+        "x": 17149.44045,
+        "y": 52020.20307,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:5d395497f17dae47",
+      "positionMm": {
+        "x": 38934.04978,
+        "y": 54327.770303,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:61454b51bdd5f032",
+      "positionMm": {
+        "x": 15453.507691,
+        "y": 51265.082029,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:62fb69021425bc10",
+      "positionMm": {
+        "x": 43481.315051,
+        "y": 44498.367154,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:63eb3d914a03799a",
+      "positionMm": {
+        "x": 8510.6059,
+        "y": 48173.912424,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:9ed1835a4b589a39",
+      "positionMm": {
+        "x": 26837.756785,
+        "y": 79598.412179,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:a17d9a2e3e41ff67",
+      "positionMm": {
+        "x": 40435.995919,
+        "y": 53236.564633,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:af683f5e1147bce9",
+      "positionMm": {
+        "x": 31293.757952,
+        "y": 71488.190762,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:b51acad256bc2795",
+      "positionMm": {
+        "x": 46584.52653,
+        "y": 48769.345872,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:b5c19b06e76f37f7",
+      "positionMm": {
+        "x": 6363.210652,
+        "y": 52996.782671,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:c57f204f97b84404",
+      "positionMm": {
+        "x": 32095.77752,
+        "y": 52164.746792,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:d0da4f406ebf5f5a",
+      "positionMm": {
+        "x": 32282.210153,
+        "y": 80892.808513,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:d4558b48eeade6fa",
+      "positionMm": {
+        "x": 37332.811552,
+        "y": 48965.520339,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:ecc32c59f478afac",
+      "positionMm": {
+        "x": 8059.191894,
+        "y": 53751.919209,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:ee2dd4e9fdc56e45",
+      "positionMm": {
+        "x": 32088.158662,
+        "y": 79046.534087,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:f48b9b76084363a1",
+      "positionMm": {
+        "x": 26961.170429,
+        "y": 52555.407392,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:f4b71e1a39f3d15f",
+      "positionMm": {
+        "x": 15002.158101,
+        "y": 56843.126166,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:fa6309ff63603bf6",
+      "positionMm": {
+        "x": 45082.557499,
+        "y": 49860.611949,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:57eada367e102c94:terminal:fc9a5baf1e4058d5",
+      "positionMm": {
+        "x": 27031.792596,
+        "y": 81444.655748,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:source",
+      "positionMm": {
+        "x": 25217.75,
+        "y": 63202.75,
+        "z": 13600.0
+      },
+      "kind": "source"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:076ce592f9d88858",
+      "positionMm": {
+        "x": 8440.015817,
+        "y": 45709.166173,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:0ee517e8d72a96f0",
+      "positionMm": {
+        "x": 33358.777432,
+        "y": 70134.959155,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:12042e8818db4b82",
+      "positionMm": {
+        "x": 48758.396845,
+        "y": 49939.703016,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:1216c645c690ce82",
+      "positionMm": {
+        "x": 39832.366824,
+        "y": 50412.273156,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:19fa5d3c23d5f973",
+      "positionMm": {
+        "x": 39310.120345,
+        "y": 56767.72297,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:1bc37fa8e1c44a8d",
+      "positionMm": {
+        "x": 8247.704121,
+        "y": 56233.815521,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:338d8dcba19d813a",
+      "positionMm": {
+        "x": 43040.210505,
+        "y": 42069.004959,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:577310e566826d6b",
+      "positionMm": {
+        "x": 12176.950089,
+        "y": 47408.574068,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:634874a24ef97e4b",
+      "positionMm": {
+        "x": 21494.681162,
+        "y": 63341.555024,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:6971f52077b1c6ee",
+      "positionMm": {
+        "x": 24932.521059,
+        "y": 82738.105262,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:69c2f0fdf91bb181",
+      "positionMm": {
+        "x": 37001.322261,
+        "y": 46498.679117,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:70e655fb3ae64554",
+      "positionMm": {
+        "x": 28308.25793,
+        "y": 64856.637763,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:737dc9a6862ab1ba",
+      "positionMm": {
+        "x": 13309.265897,
+        "y": 53200.1766,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:756875e4685ad129",
+      "positionMm": {
+        "x": 15264.784427,
+        "y": 48783.385921,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:781c6c59c5336200",
+      "positionMm": {
+        "x": 33626.598912,
+        "y": 48945.062847,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:82848fe94abf9c80",
+      "positionMm": {
+        "x": 42679.670453,
+        "y": 54314.143404,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:86fbd40eb46a30c9",
+      "positionMm": {
+        "x": 17911.467875,
+        "y": 60087.224354,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:910b87c8ac591987",
+      "positionMm": {
+        "x": 18695.984377,
+        "y": 65546.797124,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:91ea59ebb0381257",
+      "positionMm": {
+        "x": 26684.805316,
+        "y": 50538.481234,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:a5d4d4a3b07aa8cc",
+      "positionMm": {
+        "x": 24182.531354,
+        "y": 75290.583896,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:acb784ace88e1c15",
+      "positionMm": {
+        "x": 34604.897706,
+        "y": 81721.504399,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:ae8ff39f19b69454",
+      "positionMm": {
+        "x": 11335.470684,
+        "y": 57608.70567,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:b8893e9d65e96dd5",
+      "positionMm": {
+        "x": 47114.886129,
+        "y": 40585.939591,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:c460f54e748bf235",
+      "positionMm": {
+        "x": 33790.05542,
+        "y": 74280.732436,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:cd630916bd789711",
+      "positionMm": {
+        "x": 30038.94969,
+        "y": 84726.052551,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:cf64ac4d1f785196",
+      "positionMm": {
+        "x": 19074.443595,
+        "y": 50474.724695,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:d6ddbf58f14993dd",
+      "positionMm": {
+        "x": 33853.759541,
+        "y": 85995.791795,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:d82551f9ce632499",
+      "positionMm": {
+        "x": 23732.351546,
+        "y": 71146.143398,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:de69ed4f9d94386c",
+      "positionMm": {
+        "x": 15141.466319,
+        "y": 59308.154062,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:df4d49d6b880c362",
+      "positionMm": {
+        "x": 31566.772955,
+        "y": 50954.13932,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:e13d606a8aa481d7",
+      "positionMm": {
+        "x": 45414.024546,
+        "y": 52327.473211,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:ee9b611f504a45dc",
+      "positionMm": {
+        "x": 1158.116341,
+        "y": 51806.343285,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:efd24d207b41118e",
+      "positionMm": {
+        "x": 24535.928353,
+        "y": 78652.098472,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:f45007c61e457925",
+      "positionMm": {
+        "x": 34143.292912,
+        "y": 77642.33975,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    },
+    {
+      "nodeId": "node:77d20ecf3645a56d:terminal:f6dfaf97e3adda73",
+      "positionMm": {
+        "x": 4484.225443,
+        "y": 54594.034777,
+        "z": 13600.0
+      },
+      "kind": "terminal"
+    }
+  ],
+  "segments": [
+    {
+      "segmentId": "segment:57eada367e102c94:000000",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:b5c19b06e76f37f7",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 21439.576095,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 50.76151425466587
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000001",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:ecc32c59f478afac",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 19589.137779,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 47.70614446981135
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000002",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:63eb3d914a03799a",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 22472.085414,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 52.466352372519296
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000003",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:290a99fd6483a9fc",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 20714.207067,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 49.563813908830355
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000004",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:2a3c76a5b495650f",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 13874.592718,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 38.27051607701439
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000005",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:f4b71e1a39f3d15f",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 12033.417352,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 35.23044090495725
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000006",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:61454b51bdd5f032",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 15422.332653,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 40.826082394098634
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000007",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:5673366cc2079aa7",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 13789.379059,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 38.12981468928682
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000008",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:0f17a80936c80bbe",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 7746.281695,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 28.151693866101503
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000009",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:42d0e722c91f1f17",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 2742.217519,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 19.889183112501602
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000010",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:486fc5304fd33498",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 8875.696364,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 30.016538224541634
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000011",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:0ec8fc900ccbedd0",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 10732.061136,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 33.08169353666129
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000012",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:9ed1835a4b589a39",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 16475.501822,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 42.56503323049222
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000013",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:f48b9b76084363a1",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 10789.134321,
+      "shape": "round",
+      "size": {
+        "dMm": 125
+      },
+      "flowM3h": 150.0,
+      "velocityMs": 3.3953054526271003,
+      "dpPa": 29.751353004570017
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000014",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:fc9a5baf1e4058d5",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 18331.881405,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 45.630212997943076
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000015",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:af683f5e1147bce9",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 10274.551146,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 32.32627132797249
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000016",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:0e1a670b8c6ac86b",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 11914.864852,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 35.03469175553303
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000017",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:ee2dd4e9fdc56e45",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 17269.279353,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 43.875686962174804
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000018",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:c57f204f97b84404",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 13005.567169,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 36.83561582569405
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000019",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:d0da4f406ebf5f5a",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 19048.48465,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 46.81343963325972
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000020",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:2498463d580b26e7",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 16895.529134,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 43.25856553946029
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000021",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:d4558b48eeade6fa",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 18694.208323,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 46.228472722638834
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000022",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:5d395497f17dae47",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 16337.140027,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 42.33657576494694
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000023",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:a17d9a2e3e41ff67",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 18191.202809,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 45.39793012318976
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000024",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:4b9d790a0eda78cf",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 24120.612421,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 55.18833427440316
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000025",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:62fb69021425bc10",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 26142.145016,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 58.52620809405741
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000026",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:fa6309ff63603bf6",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 23929.547107,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 54.87285486485912
+    },
+    {
+      "segmentId": "segment:57eada367e102c94:000027",
+      "a": "node:57eada367e102c94:source",
+      "b": "node:57eada367e102c94:terminal:b51acad256bc2795",
+      "systemId": "EA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 25784.923773,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 57.936378655846426
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000000",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:ee9b611f504a45dc",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 26622.247422,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 57.06735213830176
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000001",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:f6dfaf97e3adda73",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 22449.699738,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 50.177808180351064
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000002",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:1bc37fa8e1c44a8d",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 18345.258377,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 43.40071866070963
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000003",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:076ce592f9d88858",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 24238.767284,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 53.13184500278801
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000004",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:ae8ff39f19b69454",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 14966.997393,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 37.82266915394267
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000005",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:577310e566826d6b",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 20482.149684,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 46.9290681746991
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000006",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:737dc9a6862ab1ba",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 15551.96027,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 200.0,
+      "velocityMs": 2.7631066509009603,
+      "dpPa": 24.66695787486077
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000007",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:de69ed4f9d94386c",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 10802.748277,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 30.94682745977755
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000008",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:756875e4685ad129",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 17520.832861,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 42.03946020120338
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000009",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:86fbd40eb46a30c9",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 7942.811753,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 26.224614583792416
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000010",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:910b87c8ac591987",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 6930.22249,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 24.552667666196108
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000011",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:cf64ac4d1f785196",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 14133.040782,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 36.4456733313329
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000012",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:634874a24ef97e4b",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 3725.655433,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 19.26141462909787
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000013",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:d82551f9ce632499",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 8081.083296,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 26.45292302884269
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000014",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:a5d4d4a3b07aa8cc",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 12132.081682,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 33.14176964429442
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000015",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:efd24d207b41118e",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 15464.386472,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 38.6439381204102
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000016",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:6971f52077b1c6ee",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 19537.437415,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 45.36919703653359
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000017",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:91ea59ebb0381257",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 12748.958964,
+      "shape": "round",
+      "size": {
+        "dMm": 125
+      },
+      "flowM3h": 150.0,
+      "velocityMs": 3.3953054526271003,
+      "dpPa": 30.062121532468684
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000018",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:70e655fb3ae64554",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 3505.222389,
+      "shape": "round",
+      "size": {
+        "dMm": 200
+      },
+      "flowM3h": 400.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 43.99790484560355
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000019",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:cd630916bd789711",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 22056.666093,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 49.52884673538915
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000020",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:df4d49d6b880c362",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 13796.324006,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 35.88970004946317
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000021",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:0ee517e8d72a96f0",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 10692.607325,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 30.764967122199067
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000022",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:781c6c59c5336200",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 16552.654862,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 40.44084338759353
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000023",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:c460f54e748bf235",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 14007.359318,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 36.23815312149853
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000024",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:d6ddbf58f14993dd",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 24374.236707,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 53.35552669929578
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000025",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:f45007c61e457925",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 16975.484335,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 41.13900251280166
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000026",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:acb784ace88e1c15",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 20762.052079,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 47.39123182154795
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000027",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:69c2f0fdf91bb181",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 20442.078155,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 46.86290366768425
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000028",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:19fa5d3c23d5f973",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 15492.077808,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 38.689660947583135
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000029",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:1216c645c690ce82",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 19421.208068,
+      "shape": "round",
+      "size": {
+        "dMm": 160
+      },
+      "flowM3h": 200.0,
+      "velocityMs": 2.7631066509009603,
+      "dpPa": 27.104071563965523
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000030",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:82848fe94abf9c80",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 19594.029528,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 45.462639671516996
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000031",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:338d8dcba19d813a",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 27645.529076,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 58.75695390453947
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000032",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:e13d606a8aa481d7",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 22938.202867,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 50.98440502135243
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000033",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:b8893e9d65e96dd5",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 31480.226869,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 65.08865362642337
+    },
+    {
+      "segmentId": "segment:77d20ecf3645a56d:000034",
+      "a": "node:77d20ecf3645a56d:source",
+      "b": "node:77d20ecf3645a56d:terminal:12042e8818db4b82",
+      "systemId": "SA-CHORSU-L02",
+      "kind": "branch",
+      "lengthMm": 27019.816231,
+      "shape": "round",
+      "size": {
+        "dMm": 100
+      },
+      "flowM3h": 100.0,
+      "velocityMs": 3.5367765131532294,
+      "dpPa": 57.723801864788726
+    }
+  ],
+  "systems": [
+    {
+      "systemId": "EA-CHORSU-L02",
+      "role": "exhaust",
+      "criticalPathSegmentIds": [
+        "segment:57eada367e102c94:000025"
+      ],
+      "fanPressurePa": 64.37882890346316,
+      "fanFlowM3h": 2850.0
+    },
+    {
+      "systemId": "SA-CHORSU-L02",
+      "role": "supply",
+      "criticalPathSegmentIds": [
+        "segment:77d20ecf3645a56d:000033"
+      ],
+      "fanPressurePa": 71.5975189890657,
+      "fanFlowM3h": 4050.0
+    }
+  ],
+  "issues": [
+    {
+      "code": "NO_CORRIDOR",
+      "message": "System EA-CHORSU-L02 has no corridor geometry; a direct source star requires engineer review in Revit preview.",
+      "systemId": "EA-CHORSU-L02",
+      "placementId": null
+    },
+    {
+      "code": "NO_CORRIDOR",
+      "message": "System SA-CHORSU-L02 has no corridor geometry; a direct source star requires engineer review in Revit preview.",
+      "systemId": "SA-CHORSU-L02",
+      "placementId": null
+    }
+  ],
+  "provenance": {
+    "preliminaryCalculationOnly": true,
+    "automaticRouteProposed": true,
+    "networkAerodynamicsCalculated": true,
+    "standardSectionSizingPerformed": true,
+    "collisionAvoidancePerformed": false,
+    "structureCoordinationPerformed": false,
+    "airBalancingPerformed": false,
+    "normativeComplianceClaimed": false,
+    "modelMutated": false
+  },
+  "diagnostics": []
+}
