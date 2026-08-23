@@ -14,6 +14,8 @@ import pytest
 from hvac.catalogs.shnq_ducts import (
     SHNQ_DUCTS,
     DuctNormEntry,
+    ShnqDuctCatalogError,
+    _parse_catalog,
     duct_velocity_limits,
     filter_entries,
     get_entry,
@@ -35,6 +37,10 @@ def _entry(key: str) -> DuctNormEntry:
     entry = get_entry(key)
     assert entry is not None, key
     return entry
+
+
+def _parse_raw_catalog(raw: dict) -> tuple[DuctNormEntry, ...]:
+    return _parse_catalog(json.dumps(raw, ensure_ascii=False)).entries
 
 
 class TestCatalogSchema:
@@ -102,6 +108,100 @@ class TestCatalogSchema:
         spec = Path(__file__).parents[1] / "hvac_calc.spec"
         text = spec.read_text(encoding="utf-8")
         assert "shnq_2_04_05_22_ducts.json" in text
+
+    def test_legacy_entries_without_verification_fields_remain_valid(self):
+        entries = _parse_raw_catalog(_raw_catalog())
+        assert all(entry.verified_by is None for entry in entries)
+        assert all(entry.verified_at is None for entry in entries)
+
+    def test_verified_value_and_range_require_and_expose_audit_fields(self):
+        raw = _raw_catalog()
+        scalar = raw["entries"][0]
+        scalar.update(
+            status="verified",
+            verifiedBy="Инженер ОВ",
+            verifiedAt="2026-08-23T07:34:56Z",
+        )
+        value_range = raw["entries"][1]
+        value_range.update(
+            status="verified",
+            verifiedBy="Engineer HVAC",
+            verifiedAt="2026-08-23T12:34:56+05:00",
+        )
+
+        entries = _parse_raw_catalog(raw)
+
+        assert entries[0].status == "verified"
+        assert entries[0].value == pytest.approx(1)
+        assert entries[0].verified_by == "Инженер ОВ"
+        assert entries[0].verified_at == "2026-08-23T07:34:56Z"
+        assert entries[1].status == "verified"
+        assert entries[1].range is not None
+        assert entries[1].verified_by == "Engineer HVAC"
+        assert entries[1].verified_at == "2026-08-23T12:34:56+05:00"
+
+    @pytest.mark.parametrize(
+        "audit_fields",
+        [
+            {},
+            {"verifiedBy": "Инженер ОВ"},
+            {"verifiedAt": "2026-08-23T07:34:56Z"},
+            {"verifiedBy": "", "verifiedAt": "2026-08-23T07:34:56Z"},
+            {"verifiedBy": "Инженер ОВ", "verifiedAt": "2026-08-23T07:34:56"},
+            {"verifiedBy": "Инженер ОВ", "verifiedAt": "не дата"},
+        ],
+    )
+    def test_verified_rejects_missing_or_invalid_audit_fields(self, audit_fields):
+        raw = _raw_catalog()
+        raw["entries"][0]["status"] = "verified"
+        raw["entries"][0].update(audit_fields)
+
+        with pytest.raises(ShnqDuctCatalogError):
+            _parse_raw_catalog(raw)
+
+    def test_verification_fields_are_forbidden_for_other_statuses(self):
+        raw = _raw_catalog()
+        raw["entries"][0].update(
+            verifiedBy="Инженер ОВ",
+            verifiedAt="2026-08-23T07:34:56Z",
+        )
+
+        with pytest.raises(ShnqDuctCatalogError):
+            _parse_raw_catalog(raw)
+
+    def test_verified_null_preserves_ambiguous_entry_without_fabricating_value(self):
+        raw = _raw_catalog()
+        unreadable = next(
+            entry for entry in raw["entries"] if entry["status"] == "unreadable"
+        )
+        expected_key = unreadable["key"]
+        expected_note = unreadable["noteRu"]
+        expected_source = unreadable["source"].copy()
+        unreadable.update(
+            status="verified",
+            verifiedBy="Инженер ОВ",
+            verifiedAt="2026-08-23T07:34:56Z",
+        )
+
+        verified = next(entry for entry in _parse_raw_catalog(raw) if entry.key == expected_key)
+
+        assert verified.status == "verified"
+        assert verified.value is None
+        assert verified.range is None
+        assert verified.note_ru == expected_note
+        assert verified.source.document == expected_source["document"]
+        assert verified.source.edition == expected_source["edition"]
+        assert verified.source.clause == expected_source["clause"]
+        assert verified.source.page_pdf == expected_source["pagePdf"]
+        assert verified.source.table == expected_source["table"]
+        assert verified.verified_by == "Инженер ОВ"
+        assert verified.verified_at == "2026-08-23T07:34:56Z"
+
+    def test_unknown_entry_fields_remain_fail_closed(self):
+        raw = _raw_catalog()
+        raw["entries"][0]["unexpected"] = True
+        with pytest.raises(ShnqDuctCatalogError):
+            _parse_raw_catalog(raw)
 
 
 class TestProvenanceAndStatus:

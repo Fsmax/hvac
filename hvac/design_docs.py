@@ -57,6 +57,30 @@ _SEGMENT_KIND_LABELS = {
     "riser": "Стояки",
     "connection": "Подключения",
 }
+
+
+def _velocity_catalog_statuses() -> list[str]:
+    """Вернуть фактические статусы записей каталога ``velocity.*``."""
+
+    return sorted(
+        {
+            entry.status
+            for entry in SHNQ_DUCTS.entries
+            if entry.key.startswith("velocity.")
+        }
+    )
+
+
+def _velocity_catalog_requires_review() -> bool:
+    """Нужна ли оговорка об инженерной сверке каталога скоростей."""
+
+    return any(
+        entry.status != "verified"
+        for entry in SHNQ_DUCTS.entries
+        if entry.key.startswith("velocity.")
+    )
+
+
 _SEGMENT_KIND_ORDER = {
     value: index for index, value in enumerate(_SEGMENT_KINDS)
 }
@@ -265,13 +289,7 @@ class VelocityNormLookup:
     references: tuple[NormReference, ...]
 
     def as_dict(self) -> dict[str, Any]:
-        catalog_statuses = sorted(
-            {
-                entry.status
-                for entry in SHNQ_DUCTS.entries
-                if entry.key.startswith("velocity.")
-            }
-        )
+        catalog_statuses = _velocity_catalog_statuses()
         return {
             "kind": self.kind,
             "building": self.building,
@@ -839,7 +857,9 @@ class DesignDocs:
             for lookup in velocity_norm_lookups
             for reference in lookup.references
         )
-        self.normative_note = ENGINEER_REVIEW_NOTE
+        self.normative_note = (
+            ENGINEER_REVIEW_NOTE if _velocity_catalog_requires_review() else ""
+        )
         self._terminal_source = _source_summary(terminal)
         self._route_source = _source_summary(route)
 
@@ -860,13 +880,7 @@ class DesignDocs:
     def as_dict(self) -> dict[str, Any]:
         """Вернуть детерминированную JSON-совместимую структуру."""
 
-        catalog_velocity_statuses = sorted(
-            {
-                entry.status
-                for entry in SHNQ_DUCTS.entries
-                if entry.key.startswith("velocity.")
-            }
-        )
+        catalog_velocity_statuses = _velocity_catalog_statuses()
         total_source_mm = sum(
             (Decimal(str(row.source_length_mm)) for row in self.ducts),
             Decimal(0),
@@ -915,8 +929,12 @@ class DesignDocs:
                     ],
                     "note": (
                         "Для видов участков route-response применимые численные "
-                        "значения duct_velocity_limits не найдены; "
-                        f"{ENGINEER_REVIEW_NOTE}."
+                        "значения duct_velocity_limits не найдены."
+                        + (
+                            f" {self.normative_note}."
+                            if self.normative_note
+                            else ""
+                        )
                     ),
                 },
             },
@@ -1153,9 +1171,10 @@ class DesignDocs:
         _add_docx_table(document, duct_rows, Pt)
 
         document.add_heading("Ссылки на нормы скорости", level=2)
+        velocity_statuses = ", ".join(_velocity_catalog_statuses()) or "нет записей"
         document.add_paragraph(
             f"Каталог: {SHNQ_DUCTS.document}, редакция {SHNQ_DUCTS.edition}. "
-            "Статус доступных записей каталога скорости: unverified. "
+            f"Статусы доступных записей каталога скорости: {velocity_statuses}. "
             "Тип здания отсутствует в route-response, поэтому выполнен только "
             "явный поиск building=all для фактических видов участков."
         )
@@ -1172,7 +1191,8 @@ class DesignDocs:
                     f"{reference.source_document}, п. {reference.source_clause}, "
                     f"PDF с. {reference.source_page_pdf}."
                 )
-        document.add_paragraph(f"Важно: {ENGINEER_REVIEW_NOTE}.")
+        if self.normative_note:
+            document.add_paragraph(f"Важно: {self.normative_note}.")
 
         document.core_properties.title = "Вентиляция: принятые решения"
         document.core_properties.comments = "HVAC Calculator; PRELIMINARY"

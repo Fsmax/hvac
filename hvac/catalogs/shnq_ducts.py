@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Непроверенные нормы воздуховодов и воздухораспределения ШНҚ 2.04.05-22.
+"""Нормы воздуховодов и воздухораспределения ШНҚ 2.04.05-22.
 
 Модуль только загружает и фильтрует нормативный каталог. Он намеренно не связан
-с ``duct_sizing`` и ``duct_network``: все записи имеют статус ``unverified`` либо
-``unreadable`` и не должны влиять на расчёт до инженерной верификации.
+с ``duct_sizing`` и ``duct_network``: числовые записи остаются ``unverified`` до
+инженерной подписи, после которой получают ``verified`` и аудиторские поля;
+``unreadable``-запись также можно подписать без создания отсутствующего числа.
 
 В первоисточнике нет таблицы фиксированных скоростей для магистралей и ответвлений
 по типам зданий. ``duct_velocity_limits()`` поэтому возвращает только фактически
@@ -16,12 +17,13 @@ import json
 import math
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from importlib.resources import files
 from types import MappingProxyType
 from typing import Any, Literal, Mapping, cast
 
 
-NormStatus = Literal["unverified", "unreadable"]
+NormStatus = Literal["unverified", "unreadable", "verified"]
 
 
 class ShnqDuctCatalogError(ValueError):
@@ -61,6 +63,8 @@ class DuctNormEntry:
     source: DuctNormSource
     status: NormStatus
     note_ru: str
+    verified_by: str | None = None
+    verified_at: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +82,7 @@ _SCHEMA_VERSION = "1.0"
 _KEY_RE = re.compile(r"^[a-z0-9]+(?:[._][a-z0-9]+)*$")
 _TOP_LEVEL_KEYS = {"schemaVersion", "document", "edition", "entries"}
 _ENTRY_BASE_KEYS = {"key", "unit", "appliesTo", "source", "status", "noteRu"}
+_ENTRY_VERIFICATION_KEYS = {"verifiedBy", "verifiedAt"}
 _SOURCE_KEYS = {"document", "edition", "clause", "pagePdf", "table"}
 _RANGE_KEYS = {"min", "max", "minInclusive", "maxInclusive"}
 
@@ -120,6 +125,17 @@ def _as_number(value: Any, location: str) -> float:
     return number
 
 
+def _as_aware_iso_datetime(value: Any, location: str) -> str:
+    timestamp = _as_non_empty_string(value, location)
+    try:
+        parsed = datetime.fromisoformat(timestamp)
+    except ValueError as exc:
+        raise _fail(f"{location}: ожидалась дата ISO 8601") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise _fail(f"{location}: дата ISO 8601 должна содержать часовой пояс")
+    return timestamp
+
+
 def _normalise(value: str) -> str:
     return value.strip().casefold()
 
@@ -129,6 +145,18 @@ def _expect_keys(value: Mapping[str, Any], expected: set[str], location: str) ->
     if actual != expected:
         missing = sorted(expected - actual)
         extra = sorted(actual - expected)
+        raise _fail(f"{location}: неверные поля; отсутствуют {missing}, лишние {extra}")
+
+
+def _expect_entry_keys(
+    value: Mapping[str, Any],
+    required: set[str],
+    location: str,
+) -> None:
+    actual = set(value)
+    missing = sorted(required - actual)
+    extra = sorted(actual - required - _ENTRY_VERIFICATION_KEYS)
+    if missing or extra:
         raise _fail(f"{location}: неверные поля; отсутствуют {missing}, лишние {extra}")
 
 
@@ -225,7 +253,7 @@ def _parse_entry(
     has_range = "range" in data
     if has_value == has_range:
         raise _fail(f"{location}: требуется ровно одно из полей value и range")
-    _expect_keys(
+    _expect_entry_keys(
         data,
         _ENTRY_BASE_KEYS | ({"value"} if has_value else {"range"}),
         location,
@@ -237,22 +265,37 @@ def _parse_entry(
     unit = _as_non_empty_string(data["unit"], f"{location}.unit")
     note_ru = _as_non_empty_string(data["noteRu"], f"{location}.noteRu")
     status_raw = data["status"]
-    if status_raw not in ("unverified", "unreadable"):
+    if status_raw not in ("unverified", "unreadable", "verified"):
         raise _fail(f"{location}.status: недопустимый статус {status_raw!r}")
     status = cast(NormStatus, status_raw)
+
+    verification_keys = set(data) & _ENTRY_VERIFICATION_KEYS
+    if status == "verified":
+        if verification_keys != _ENTRY_VERIFICATION_KEYS:
+            missing = sorted(_ENTRY_VERIFICATION_KEYS - verification_keys)
+            raise _fail(f"{location}: для verified отсутствуют поля {missing}")
+        verified_by = _as_non_empty_string(data["verifiedBy"], f"{location}.verifiedBy")
+        verified_at = _as_aware_iso_datetime(data["verifiedAt"], f"{location}.verifiedAt")
+    else:
+        if verification_keys:
+            raise _fail(
+                f"{location}: поля verifiedBy/verifiedAt разрешены только для verified"
+            )
+        verified_by = None
+        verified_at = None
 
     value: float | None = None
     value_range: DuctNormRange | None = None
     if has_value:
         raw_value = data["value"]
         value = None if raw_value is None else _as_number(raw_value, f"{location}.value")
-        if value is None and status != "unreadable":
-            raise _fail(f"{location}: null разрешён только для unreadable")
-        if value is not None and status != "unverified":
-            raise _fail(f"{location}: числовое value требует статуса unverified")
+        if value is None and status not in ("unreadable", "verified"):
+            raise _fail(f"{location}: null разрешён только для unreadable/verified")
+        if value is not None and status not in ("unverified", "verified"):
+            raise _fail(f"{location}: числовое value требует статуса unverified/verified")
     else:
-        if status != "unverified":
-            raise _fail(f"{location}: range требует статуса unverified")
+        if status not in ("unverified", "verified"):
+            raise _fail(f"{location}: range требует статуса unverified/verified")
         value_range = _parse_range(data["range"], f"{location}.range")
 
     return DuctNormEntry(
@@ -269,6 +312,8 @@ def _parse_entry(
         ),
         status=status,
         note_ru=note_ru,
+        verified_by=verified_by,
+        verified_at=verified_at,
     )
 
 

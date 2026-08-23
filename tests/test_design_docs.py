@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import replace
 from decimal import Decimal, ROUND_CEILING
 import json
 from pathlib import Path
 
 import pytest
 
+import hvac.design_docs as design_docs_module
 from hvac.design_docs import (
     DOCX_OUTPUT_NAME,
     ENGINEER_REVIEW_NOTE,
@@ -301,6 +303,75 @@ def test_velocity_norm_lookup_keeps_source_and_status_without_inventing_values(
         assert lookup["catalogStatuses"] == ["unverified"]
 
     assert ENGINEER_REVIEW_NOTE in velocity_norms["note"]
+
+
+def test_fully_verified_velocity_catalog_removes_only_review_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from docx import Document
+
+    verified_entries = tuple(
+        (
+            replace(
+                entry,
+                status="verified",
+                verified_by="Инженер ОВ",
+                verified_at="2026-08-23T07:34:56Z",
+            )
+            if entry.key.startswith("velocity.")
+            else entry
+        )
+        for entry in design_docs_module.SHNQ_DUCTS.entries
+    )
+    verified_catalog = replace(
+        design_docs_module.SHNQ_DUCTS,
+        entries=verified_entries,
+    )
+    monkeypatch.setattr(design_docs_module, "SHNQ_DUCTS", verified_catalog)
+    monkeypatch.setattr(
+        design_docs_module,
+        "duct_velocity_limits",
+        lambda kind, building: (),
+    )
+
+    documents = design_docs_module.DesignDocs.from_files(
+        TERMINAL_RESPONSE,
+        ROUTE_RESPONSE,
+    )
+    velocity_norms = documents.as_dict()["designNote"]["velocityNorms"]
+    rendered_norms = json.dumps(velocity_norms, ensure_ascii=False)
+
+    assert documents.normative_note == ""
+    assert velocity_norms["catalog"]["velocityEntryStatuses"] == ["verified"]
+    assert ENGINEER_REVIEW_NOTE not in rendered_norms
+    assert "unverified" not in rendered_norms
+    assert velocity_norms["lookups"]
+    assert all(
+        lookup["lookupStatus"] == "NO_APPLICABLE_VALUE"
+        for lookup in velocity_norms["lookups"]
+    )
+    assert all(
+        lookup["catalogStatuses"] == ["verified"]
+        for lookup in velocity_norms["lookups"]
+    )
+
+    output = tmp_path / "fully-verified.docx"
+    documents.to_docx(output)
+    paragraphs = [paragraph.text for paragraph in Document(output).paragraphs]
+    rendered_text = "\n".join(paragraphs)
+
+    assert ENGINEER_REVIEW_NOTE not in rendered_text
+    assert "unverified" not in rendered_text
+    assert any(
+        "Статусы доступных записей каталога скорости: verified." in paragraph
+        for paragraph in paragraphs
+    )
+    assert any(
+        "применимое численное значение duct_velocity_limits не найдено."
+        in paragraph
+        for paragraph in paragraphs
+    )
 
 
 @pytest.mark.parametrize(
