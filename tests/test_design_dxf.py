@@ -173,6 +173,8 @@ def test_chorsu_dxf_readback_has_exact_contract_entities(tmp_path: Path) -> None
         "ducts": ("CRD_ОВ_ВОЗД", 4),
         "marks": ("CRD_ОВ_МАРКИ", 2),
         "equipment": ("CRD_ОВ_ОБОРУД", 3),
+        "axonDucts": ("CRD_ОВ_АКСО", 4),
+        "axonCriticalDucts": ("CRD_ОВ_АКСО_ДИКТ", 1),
     }
     for entry in layer_map["layers"].values():
         layer = document.layers.get(entry["name"])

@@ -9,6 +9,14 @@
       "name": "CRD_ОВ_ВОЗД",
       "color": 4
     },
+    "axonDucts": {
+      "name": "CRD_ОВ_АКСО",
+      "color": 4
+    },
+    "axonCriticalDucts": {
+      "name": "CRD_ОВ_АКСО_ДИКТ",
+      "color": 1
+    },
     "marks": {
       "name": "CRD_ОВ_МАРКИ",
       "color": 2
