@@ -105,9 +105,14 @@ class TestCatalogSchema:
                 assert all(isinstance(value, str) and value.strip() for value in values)
 
     def test_frozen_build_includes_new_resource(self):
-        spec = Path(__file__).parents[1] / "hvac_calc.spec"
-        text = spec.read_text(encoding="utf-8")
-        assert "shnq_2_04_05_22_ducts.json" in text
+        # Спек берёт каталоги глобом всей папки, поимённо файлы не
+        # перечисляются — проверяем, что ресурс лежит в собираемой папке
+        # и что спек действительно подключает её глобом.
+        root = Path(__file__).parents[1]
+        assert (root / "hvac" / "catalogs" / "data"
+                / "shnq_2_04_05_22_ducts.json").exists()
+        text = (root / "hvac_calc.spec").read_text(encoding="utf-8")
+        assert '"catalogs" / "data").glob("*.json")' in text
 
     def test_legacy_entries_without_verification_fields_remain_valid(self):
         entries = _parse_raw_catalog(_raw_catalog())
