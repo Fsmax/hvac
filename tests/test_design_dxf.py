@@ -9,11 +9,14 @@ from pathlib import Path
 import re
 from typing import Any
 
-import ezdxf
 import pytest
 
-import hvac.design_dxf as design_dxf_module
-from hvac.design_dxf import (
+# На этой машине ezdxf есть только в C:\Python314; локальный смок на 3.11
+# (WATER-venv, уровень CI) без него должен скипаться, а не падать сбором.
+ezdxf = pytest.importorskip("ezdxf")
+
+import hvac.design_dxf as design_dxf_module  # noqa: E402
+from hvac.design_dxf import (  # noqa: E402
     DEFAULT_TEXT_HEIGHT_MM,
     DXF_OUTPUT_NAME,
     DesignDxfAuditError,

@@ -26,11 +26,15 @@
 ## Команды
 
 ```
-PYTHONUTF8=1 python -m pytest -q          # весь прогон (~1100 тестов, обязателен перед коммитом)
+PYTHONUTF8=1 python -m pytest -q          # весь прогон (~1400 тестов, обязателен перед коммитом)
 PYTHONUTF8=1 python -m pytest tests/test_X.py -q
-python -m ruff check hvac/
-python -m mypy
+.venv/Scripts/ruff check hvac/            # ruff стоит в .venv, в C:\Python314 его нет
 ```
+
+`mypy` из `.venv` падает на стабах numpy («Type statement is only supported
+in Python 3.12+») — типовой гейт проверяет CI, локально не гонять.
+Смок уровня CI (3.11): `PYTHONUTF8=1 D:\WATER\.venv\Scripts\python.exe -m
+pytest -q` — DXF-тесты скипнутся (ezdxf есть только в C:\Python314).
 
 `PYTHONUTF8=1` — не опционально: без него падает на кириллице в выводе.
 GUI-тесты требуют `QT_QPA_PLATFORM=offscreen`.
@@ -40,10 +44,10 @@ GUI-тесты требуют `QT_QPA_PLATFORM=offscreen`.
 Им работает и приложение, и тесты, и мост в Revit
 (`sys.path.insert(0, r"D:\HVAC")` → `from hvac import revit_link`).
 
-`D:\HVAC\.venv` **мёртв** — собран uv от профиля `C:\Users\Fs\...`, которого
-на машине нет; запуск падает с `uv trampoline failed to spawn Python child
-process`. Не активировать, командами `.venv\Scripts\python` не пользоваться.
-Либо пересобрать (`uv venv` заново), либо удалить.
+`D:\HVAC\.venv` (Python 3.13.5) **живой**: pytest и ruff в нём работают
+(проверено 2026-08-24, полный прогон проходит). Ранее он был сломан
+(`uv trampoline failed to spawn`) — если снова начнёт падать, пересобрать
+`uv venv` и не доверять этому абзацу.
 
 ## Мост в живой Revit — правила
 

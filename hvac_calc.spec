@@ -1,61 +1,49 @@
-﻿# -*- mode: python ; coding: utf-8 -*-
+# -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec для HVAC Calculator.
 
 Сборка:
-    pip install pyinstaller
-    pyinstaller hvac_calc.spec
+    .venv\\Scripts\\python -m pip install pyinstaller
+    .venv\\Scripts\\python -m PyInstaller hvac_calc.spec
 
-Результат: dist/HVAC Calculator/HVAC Calculator.exe (~120 МБ с PySide6).
-Для single-file бандла поменяйте onedir на onefile в EXE() ниже —
-будет один .exe ~80 МБ с медленным первым стартом (распаковка).
+Результат: dist/HVAC Calculator/HVAC Calculator.exe.
+Для single-file бандла см. BUILD.md.
+
+Совместимо с PyInstaller 6+: параметры cipher/zipped_data (шифрование
+байт-кода) в 6-й версии удалены и здесь не используются.
 """
 from pathlib import Path
 
-block_cipher = None
+from PyInstaller.utils.hooks import collect_submodules
 
-# Папка с проектом (где лежит .spec)
 project_root = Path(SPECPATH)
 
-# Подключаем QSS-темы как data-файлы (PyInstaller не видит их через __file__
-# в обычной сборке)
-qss_files = [
-    (str(project_root / "hvac" / "ui_qt" / "theme" / "dark.qss"),
-     "hvac/ui_qt/theme"),
-    (str(project_root / "hvac" / "ui_qt" / "theme" / "light.qss"),
-     "hvac/ui_qt/theme"),
-    # Иконка приложения — рядом с .exe в подпапке resources/
-    (str(project_root / "resources" / "app.ico"), "resources"),
-    (str(project_root / "resources" / "app.png"), "resources"),
+# QSS-темы и иконки: читаются через __file__ / рядом с .exe, анализатор их
+# не видит — подключаем как data-файлы.
+data_files = [
+    (str(p), "hvac/ui_qt/theme")
+    for p in (project_root / "hvac" / "ui_qt" / "theme").glob("*.qss")
+]
+data_files += [
+    (str(project_root / "resources" / name), "resources")
+    for name in ("app.ico", "app.png")
+    if (project_root / "resources" / name).exists()
 ]
 
-# Каталоги-данные (климат, типы помещений) — внешние JSON, читаются
-# через importlib.resources. В сборке должны лежать в hvac/catalogs/data.
-catalog_files = [
-    (str(project_root / "hvac" / "catalogs" / "data" / "climate.json"),
-     "hvac/catalogs/data"),
-    (str(project_root / "hvac" / "catalogs" / "data" / "room_types.json"),
-     "hvac/catalogs/data"),
-    (str(project_root / "hvac" / "catalogs" / "data" / "shnq_energy.json"),
-     "hvac/catalogs/data"),
-    (str(project_root / "hvac" / "catalogs" / "data" / "shnq_2_04_05_22_ducts.json"),
-     "hvac/catalogs/data"),
-    (str(project_root / "hvac" / "catalogs" / "data" / "kmk_thermal.json"),
-     "hvac/catalogs/data"),
-    (str(project_root / "hvac" / "catalogs" / "data" / "radiators.json"),
-     "hvac/catalogs/data"),
-    (str(project_root / "hvac" / "catalogs" / "data" / "fancoils.json"),
-     "hvac/catalogs/data"),
-    (str(project_root / "hvac" / "catalogs" / "data" / "fans.json"),
-     "hvac/catalogs/data"),
-    (str(project_root / "hvac" / "catalogs" / "data" / "grilles.json"),
-     "hvac/catalogs/data"),
+# Каталоги-данные (климат, типы помещений, оборудование) — внешние JSON,
+# читаются через importlib.resources. Берём все файлы папки, чтобы спек не
+# отставал при добавлении новых каталогов (ручной список уже терял
+# добавленные на другой машине water_heaters/…).
+data_files += [
+    (str(p), "hvac/catalogs/data")
+    for p in sorted((project_root / "hvac" / "catalogs" / "data").glob("*.json"))
 ]
 
-# Скрытые импорты, которые анализатор может пропустить
-hidden = [
-    "hvac.ui_qt",
-    "hvac.engine.sp50",
-    "hvac.engine.ventilation",
+# Панели интерфейса грузятся лениво через importlib.import_module() с
+# вычисляемым именем (main_window._panel_factories) — статический анализатор
+# их не видит и вместе с ними теряет половину пакета. Поэтому берём ВСЕ
+# подмодули hvac целиком: спек не отстаёт при добавлении новых панелей.
+hidden = collect_submodules("hvac")
+hidden += [
     "matplotlib.backends.backend_qtagg",
     "openpyxl",
     "reportlab",
@@ -67,13 +55,12 @@ a = Analysis(
     ["hvac_calc.py"],
     pathex=[str(project_root)],
     binaries=[],
-    datas=qss_files + catalog_files,
+    datas=data_files,
     hiddenimports=hidden,
     hookspath=[],
     runtime_hooks=[],
     excludes=[
         # Урезаем — PySide6 тянет много чего не нужного
-        "PySide6.QtNetwork",
         "PySide6.QtQml",
         "PySide6.QtQuick",
         "PySide6.Qt3DCore",
@@ -90,11 +77,10 @@ a = Analysis(
         "test",
         "unittest",
     ],
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
@@ -117,7 +103,6 @@ exe = EXE(
 coll = COLLECT(
     exe,
     a.binaries,
-    a.zipfiles,
     a.datas,
     strip=False,
     upx=True,

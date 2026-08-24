@@ -8,10 +8,33 @@ from hvac.project import HVACProject
 from hvac.io_excel import export_to_excel
 
 
+def _safe_console() -> None:
+    """Не дать выводу уронить расчёт.
+
+    В консоли Windows stdout идёт в cp866/cp1251, где «м²» не кодируется, а в
+    собранном .exe (windowed) stdout может отсутствовать вовсе. И то и другое
+    роняло программу уже после сохранения результата.
+    """
+    import io as _io
+    import os as _os
+
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name, None)
+        if stream is None:
+            setattr(sys, name, _io.TextIOWrapper(
+                open(_os.devnull, "wb"), encoding="utf-8", errors="replace"))
+            continue
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def run_cli(spaces_csv: str, thermal_csv: str, output_xlsx: str,
             t_out_heating: float = -16.0, t_out_cooling: float = 36.0,
             project_name: str = "Проект", city: str = "") -> HVACProject:
     """Загружает CSV, считает, сохраняет в xlsx. Возвращает проект."""
+    _safe_console()
     project = HVACProject()
     project.params.project_name = project_name
     if city and project.params.apply_city(city):
@@ -35,6 +58,7 @@ def run_cli(spaces_csv: str, thermal_csv: str, output_xlsx: str,
 
 
 def main():
+    _safe_console()
     if len(sys.argv) < 4:
         print("Использование: python -m hvac.cli spaces.csv thermal.csv result.xlsx "
               "[t_зим] [t_лет] [город]")
