@@ -4,6 +4,8 @@ description: Протокол работы с живым Revit через сок
 ---
 
 # Мост в живой Revit
+> **Устарело для новых задач (2026-09-05):** это мост `hvac.revit_link` на :8080 (лимит 8 КБ, exec-timeout). Для всего нового — RvtBridge :8090, навык `rvtbridge` в `~/.claude/skills/rvtbridge/SKILL.md`. Здесь остаются только готовые функции `hvac/revit_link.py`.
+
 
 ## Запуск
 

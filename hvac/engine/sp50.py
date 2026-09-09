@@ -327,6 +327,26 @@ class SP50Engine(CalculationEngine):
         """
         return 0.0
 
+    # ---------- возмещение вытяжки (точки расширения для других норм) -------
+    def _has_transfer_donor(self, space, project) -> bool:
+        """Есть ли у чисто вытяжного помещения донор перетока.
+
+        СП/СНиП исходят из механической приточно-вытяжной вентиляции: донором
+        служит только сосед с приточной установкой. В нормах, где приток
+        естественный (ШНҚ 2.04.05-22 п. 191 для жилья), критерий другой —
+        переопределяется в наследнике.
+        """
+        return _has_supplied_neighbor(space, project)
+
+    def _makeup_air_flow(self, space, project, params) -> float:
+        """Наружный воздух, который помещение принимает ЗА смежные, м³/ч.
+
+        Обратная сторона `_has_transfer_donor`: если вытяжка соседа возмещается
+        перетоком, наружную долю этого перетока кто-то должен нагреть. В СП это
+        делает калорифер приточной установки, а не приборы помещения → 0.0.
+        """
+        return 0.0
+
     # ---------- теплопотери ----------
     def heat_loss(self, space, project) -> Dict[str, float]:
         p = project.params
@@ -466,9 +486,12 @@ class SP50Engine(CalculationEngine):
         # не задана вовсе — консервативно считаем помещение наружным.
         all_elems = project.elements_for(space.space_id)
         has_ext = (not all_elems) or any(e.net_area_m2 > 0 for e in elems)
-        has_donor = _has_supplied_neighbor(space, project)
+        has_donor = self._has_transfer_donor(space, project)
         L_inf = infiltration_flow_m3h(space, p, has_exterior=has_ext,
                                       has_transfer_donor=has_donor)
+        # Воздух, который это помещение принимает за соседей (см. docstring
+        # _makeup_air_flow): по нормам с естественным притоком он заходит сюда.
+        L_inf = max(L_inf, self._makeup_air_flow(space, project, p))
         rho = air_density(p.t_out_heating)
         c = 1.005
         q_inf = 0.28 * L_inf * rho * c * dt * p.inf_correction_k
@@ -605,9 +628,10 @@ class SP50Engine(CalculationEngine):
         # Внутреннее помещение → инфильтрация 0 (как в heat_loss).
         all_elems = project.elements_for(space.space_id)
         has_ext = (not all_elems) or any(e.net_area_m2 > 0 for e in elems)
-        has_donor = _has_supplied_neighbor(space, project)
+        has_donor = self._has_transfer_donor(space, project)
         L = infiltration_flow_m3h(space, p, has_exterior=has_ext,
                                   has_transfer_donor=has_donor)
+        L = max(L, self._makeup_air_flow(space, project, p))
         rho = air_density(p.t_out_cooling)
         sensible["Инфильтрация/вентиляция"] = 0.28 * L * rho * 1.005 * dt
         delta_w = p.w_out_summer_g_kg - p.w_in_summer_g_kg
